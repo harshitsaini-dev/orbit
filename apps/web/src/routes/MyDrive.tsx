@@ -4,7 +4,9 @@ import type { OrbitFile, ProviderCapabilities, PublicAccount } from '@orbit/shar
 import { DownloadIcon, RenameIcon, StarIcon } from '../components/ActionIcon.js';
 import { FileIcon } from '../components/FileIcon.js';
 import { FilePreview } from '../components/FilePreview.js';
+import { Checkbox } from '../components/Checkbox.js';
 import { ConfirmDialog, NameDialog } from '../components/NameDialog.js';
+import { Select } from '../components/Select.js';
 import { UploadPanel, forgetFiles, registerFile } from '../components/UploadPanel.js';
 import {
   EMPTY_FILTERS,
@@ -543,27 +545,19 @@ export function MyDrive() {
           fullTextSupported={capabilities?.fullTextSearch ?? false}
         />
 
-        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, justifySelf: 'start' }}>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, justifySelf: 'start' }}>
           <span style={{ color: 'var(--text-muted)' }}>Sort</span>
-          <select
+          <Select
+            label="Sort by"
             value={sort}
-            onChange={(event) => setSort(event.target.value as typeof sort)}
-            aria-label="Sort by"
-            className="clay-sunken"
-            style={{
-              border: 0,
-              padding: '0.45rem 0.7rem',
-              font: 'inherit',
-              fontSize: 13,
-              color: 'var(--text)',
-              borderRadius: 'var(--radius-sm)',
-            }}
-          >
-            <option value="name">Name</option>
-            <option value="size">Size</option>
-            <option value="modified">Modified</option>
-          </select>
-        </label>
+            onChange={setSort}
+            options={[
+              { value: 'name', label: 'Name' },
+              { value: 'size', label: 'Size' },
+              { value: 'modified', label: 'Modified' },
+            ]}
+          />
+        </span>
 
         {error && (
           <p role="alert" style={{ color: 'var(--danger)', margin: 0, fontSize: 14 }}>
@@ -609,12 +603,10 @@ export function MyDrive() {
                   minWidth: 0,
                 }}
               >
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={selected.has(file.remoteId)}
                   onChange={() => toggleSelected(file.remoteId)}
                   aria-label={`Select ${file.name}`}
-                  style={{ width: 18, height: 18, flexShrink: 0, accentColor: 'var(--accent)' }}
                 />
 
                 <FileIcon name={file.name} mimeType={file.mimeType} isFolder={file.isFolder} />

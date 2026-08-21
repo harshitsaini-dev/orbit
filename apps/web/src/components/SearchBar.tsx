@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { FILE_CATEGORIES, CATEGORY_LABELS, type FileCategory } from '@orbit/shared-types';
+import { Checkbox } from './Checkbox.js';
+import { Select } from './Select.js';
 
 export type SearchScope = 'folder' | 'account';
 
@@ -50,15 +52,6 @@ export function hasCriteria(filters: SearchFilters): boolean {
     filters.starredOnly
   );
 }
-
-const controlStyle: React.CSSProperties = {
-  border: 0,
-  padding: '0.4rem 0.65rem',
-  font: 'inherit',
-  fontSize: 13,
-  color: 'var(--text)',
-  borderRadius: 'var(--radius-sm)',
-};
 
 /**
  * Search the way a file manager does: typing here looks inside subfolders, not
@@ -154,77 +147,55 @@ export function SearchBar({
       {expanded && (
         <div className="clay-sunken" style={{ padding: '0.8rem 0.9rem', display: 'grid', gap: 10, borderRadius: 'var(--radius-md)' }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-              <span style={{ color: 'var(--text-muted)' }}>Look in</span>
-              <select
+            <Field label="Look in">
+              <Select
+                label="Search scope"
                 value={filters.scope}
-                onChange={(event) => set({ scope: event.target.value as SearchScope })}
-                aria-label="Search scope"
-                className="clay"
-                style={controlStyle}
-              >
-                <option value="folder">{currentPath === '/' ? 'This drive' : 'This folder and below'}</option>
-                <option value="account">Everywhere in this account</option>
-              </select>
-            </label>
-
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-              <span style={{ color: 'var(--text-muted)' }}>Modified</span>
-              <select
-                value={filters.withinDays}
-                onChange={(event) => set({ withinDays: Number(event.target.value) })}
-                aria-label="Modified within"
-                className="clay"
-                style={controlStyle}
-              >
-                {WITHIN_OPTIONS.map((option) => (
-                  <option key={option.days} value={option.days}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-              <span style={{ color: 'var(--text-muted)' }}>Size</span>
-              <select
-                value={filters.size}
-                onChange={(event) => set({ size: event.target.value as SearchFilters['size'] })}
-                aria-label="Size"
-                className="clay"
-                style={controlStyle}
-              >
-                {Object.entries(SIZE_BANDS).map(([key, band]) => (
-                  <option key={key} value={key}>
-                    {band.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={filters.starredOnly}
-                onChange={(event) => set({ starredOnly: event.target.checked })}
-                style={{ accentColor: 'var(--accent)' }}
+                onChange={(scope) => set({ scope })}
+                minWidth={180}
+                options={[
+                  { value: 'folder', label: currentPath === '/' ? 'This drive' : 'This folder and below' },
+                  { value: 'account', label: 'Everywhere in this account' },
+                ]}
               />
-              Starred only
-            </label>
+            </Field>
+
+            <Field label="Modified">
+              <Select
+                label="Modified within"
+                value={filters.withinDays}
+                onChange={(withinDays) => set({ withinDays })}
+                options={WITHIN_OPTIONS.map((option) => ({ value: option.days, label: option.label }))}
+              />
+            </Field>
+
+            <Field label="Size">
+              <Select
+                label="Size"
+                value={filters.size}
+                onChange={(size) => set({ size })}
+                minWidth={150}
+                options={Object.entries(SIZE_BANDS).map(([key, band]) => ({
+                  value: key as SearchFilters['size'],
+                  label: band.label,
+                }))}
+              />
+            </Field>
+
+            <Checkbox
+              checked={filters.starredOnly}
+              onChange={(starredOnly) => set({ starredOnly })}
+              label="Starred only"
+            />
 
             {fullTextSupported && (
-              <label
-                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer' }}
-                title="Also match text inside documents, not just their names"
-              >
-                <input
-                  type="checkbox"
+              <span title="Also match text inside documents, not just their names">
+                <Checkbox
                   checked={filters.fullText}
-                  onChange={(event) => set({ fullText: event.target.checked })}
-                  style={{ accentColor: 'var(--accent)' }}
+                  onChange={(fullText) => set({ fullText })}
+                  label="Search file contents"
                 />
-                Search file contents
-              </label>
+              </span>
             )}
           </div>
 
@@ -264,5 +235,14 @@ export function SearchBar({
         </p>
       )}
     </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+      <span style={{ color: 'var(--text-muted)' }}>{label}</span>
+      {children}
+    </span>
   );
 }
