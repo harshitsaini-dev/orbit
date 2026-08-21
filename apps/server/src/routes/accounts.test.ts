@@ -38,6 +38,18 @@ beforeEach(async () => {
   await useTestDatabase();
 });
 
+/**
+ * Long enough not to appear in ciphertext by accident.
+ *
+ * These were 'at' and 'rt'. A two-character string turns up somewhere in a
+ * random base64 blob about six times in a hundred, so the encryption test
+ * failed roughly one run in seventeen - and looked like a flake rather than
+ * what it was, a test that could not tell a leak from a coincidence.
+ */
+const ACCESS_TOKEN = 'access-token-sentinel-8f3a2c';
+const SECRET_KEY = 'secret-access-key-sentinel-2d90fa';
+const REFRESH_TOKEN = 'refresh-token-sentinel-b71e04';
+
 async function seedAccount(nickname = 'me@example.com') {
   const user = await getLocalUser();
   return createAccount({
@@ -45,7 +57,7 @@ async function seedAccount(nickname = 'me@example.com') {
     provider: 'google_drive',
     catalogueKey: 'google_drive',
     nickname,
-    tokens: { accessToken: 'at', refreshToken: 'rt', expiresAt: Date.now() + 3_600_000 },
+    tokens: { accessToken: ACCESS_TOKEN, refreshToken: REFRESH_TOKEN, expiresAt: Date.now() + 3_600_000 },
   });
 }
 
@@ -145,10 +157,13 @@ describe('GET /api/accounts', () => {
     const [row] = await db().select().from(accounts);
 
     assert.ok(row);
-    assert.ok(!row.encryptedTokens.includes('rt'), 'refresh token is readable in the column');
-    assert.ok(!row.encryptedTokens.includes('at'));
+    assert.ok(
+      !row.encryptedTokens.includes(REFRESH_TOKEN),
+      'refresh token is readable in the column',
+    );
+    assert.ok(!row.encryptedTokens.includes(ACCESS_TOKEN));
     // And it round-trips.
-    assert.equal(decryptTokens(row.encryptedTokens).refreshToken, 'rt');
+    assert.equal(decryptTokens(row.encryptedTokens).refreshToken, REFRESH_TOKEN);
   });
 });
 
@@ -208,7 +223,7 @@ describe('POST /api/accounts/connect', () => {
   const values = {
     accountId: 'acct123',
     accessKeyId: 'AKIA',
-    secretAccessKey: 'shh',
+    secretAccessKey: SECRET_KEY,
     bucket: 'photos',
   };
 
@@ -246,11 +261,11 @@ describe('POST /api/accounts/connect', () => {
       });
 
       const text = JSON.stringify(await res.json());
-      assert.ok(!text.includes('shh'), 'the secret must not travel back to the browser');
+      assert.ok(!text.includes(SECRET_KEY), 'the secret must not travel back to the browser');
 
       const [row] = await db().select().from(accounts);
-      assert.ok(!row!.encryptedTokens.includes('shh'));
-      assert.equal(decryptTokens(row!.encryptedTokens).secretAccessKey, 'shh');
+      assert.ok(!row!.encryptedTokens.includes(SECRET_KEY));
+      assert.equal(decryptTokens(row!.encryptedTokens).secretAccessKey, SECRET_KEY);
     } finally {
       restore();
     }
