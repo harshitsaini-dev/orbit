@@ -1,0 +1,140 @@
+<!doctype html>
+<meta charset="utf-8" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 1200px;
+    height: 630px;
+    font-family: 'Segoe UI', ui-sans-serif, system-ui, -apple-system, Roboto, Arial, sans-serif;
+    color: #eef1f6;
+    background: #10131d;
+    overflow: hidden;
+  }
+
+  .stage {
+    position: relative;
+    width: 1200px;
+    height: 630px;
+    display: grid;
+    grid-template-columns: 1fr 470px;
+    align-items: center;
+    padding: 0 70px;
+  }
+
+  /* A wide accent bloom behind the mark, plus a cooler one bottom-left so the
+     card is not lit from a single point. */
+  .stage::before,
+  .stage::after {
+    content: '';
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(10px);
+  }
+  .stage::before {
+    width: 760px; height: 760px;
+    right: -120px; top: -140px;
+    background: radial-gradient(circle, rgba(108,140,255,0.30) 0%, rgba(108,140,255,0.09) 45%, rgba(108,140,255,0) 70%);
+  }
+  .stage::after {
+    width: 620px; height: 620px;
+    left: -220px; bottom: -260px;
+    background: radial-gradient(circle, rgba(139,108,245,0.22) 0%, rgba(139,108,245,0) 70%);
+  }
+
+  .content { position: relative; z-index: 2; }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 30px;
+  }
+  .brand svg { width: 46px; height: 46px; }
+  .brand span {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #9fb0cc;
+  }
+
+  h1 {
+    font-size: 60px;
+    line-height: 1.06;
+    letter-spacing: -0.035em;
+    font-weight: 700;
+    max-width: 14ch;
+  }
+  h1 em {
+    font-style: normal;
+    background: linear-gradient(100deg, #a8bcff 0%, #6c8cff 55%, #8b6cf5 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  p {
+    margin-top: 18px;
+    font-size: 23px;
+    line-height: 1.45;
+    color: #96a2ba;
+    max-width: 32ch;
+  }
+
+  .providers {
+    margin-top: 26px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    /* Thirteen pills need three rows; the sizes above are what keeps all
+       three inside the card rather than running off the bottom edge. */
+    max-width: 590px;
+  }
+  .pill {
+    font-size: 15px;
+    font-weight: 500;
+    color: #c3ccdd;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.055);
+    border: 1px solid rgba(255,255,255,0.09);
+  }
+
+  .mark {
+    position: relative;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+  }
+  .mark svg { width: 400px; height: 400px; }
+
+</style>
+
+<div class="stage">
+  <div class="content">
+    <div class="brand">
+      <!--MARK_SMALL-->
+      <span>Orbit</span>
+    </div>
+    <h1>One workspace for <em>every cloud</em> you own.</h1>
+    <p>Browse, upload and share across every connected account &mdash; without your files ever leaving them.</p>
+    <div class="providers">
+      <div class="pill">Google Drive</div>
+      <div class="pill">OneDrive</div>
+      <div class="pill">Dropbox</div>
+      <div class="pill">MEGA</div>
+      <div class="pill">pCloud</div>
+      <div class="pill">S3</div>
+      <div class="pill">R2</div>
+      <div class="pill">Supabase</div>
+      <div class="pill">Spaces</div>
+      <div class="pill">B2</div>
+      <div class="pill">GCS</div>
+      <div class="pill">Azure Blob</div>
+      <div class="pill">Bunny</div>
+    </div>
+  </div>
+
+  <div class="mark"><!--MARK_LARGE--></div>
+</div>

@@ -9,6 +9,7 @@ import type {
   OrbitFile,
   OrbitFilePage,
   ProviderAdapter,
+  ProviderCapabilities,
   ProviderId,
   Quota,
   UploadMeta,
@@ -34,13 +35,8 @@ export class ProviderError extends Error {
   }
 }
 
-export interface AdapterCapabilities {
-  star: boolean;
-  sharedWithMe: boolean;
-  delta: boolean;
-  resumableUpload: boolean;
-  rangeRequests: boolean;
-}
+/** Re-exported so adapters import their capability shape from one place. */
+export type AdapterCapabilities = ProviderCapabilities;
 
 /**
  * Every adapter extends this. Unimplemented methods throw loudly rather than

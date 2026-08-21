@@ -13,6 +13,7 @@ const NAV = [
   { to: '/starred', label: 'Starred' },
   { to: '/shared-with-me', label: 'Shared with me' },
   { to: '/quota', label: 'Quota' },
+  { to: '/developer', label: 'Developer' },
 ];
 
 function ThemeSwitch() {
@@ -159,6 +160,8 @@ function Workspace() {
             <Route path="/starred" element={<Placeholder title="Starred" phase="Phase 4" />} />
             <Route path="/shared-with-me" element={<Placeholder title="Shared with me" phase="Phase 4" />} />
             <Route path="/quota" element={<Placeholder title="Quota" phase="Phase 4" />} />
+            <Route path="/developer" element={<Placeholder title="Developer" phase="Phase 11" />} />
+            <Route path="/developer/docs" element={<Placeholder title="API docs" phase="Phase 11" />} />
             <Route
               path="/admin"
               element={

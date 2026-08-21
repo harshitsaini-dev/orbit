@@ -24,6 +24,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 8 | RBAC + superadmin | ⚪ Not started |
 | 9 | Design pass (Claymorphism, three.js, PWA) | ⚪ Not started |
 | 10 | Hardening + deploy | ⚪ Not started |
+| 11 | Developer platform (public API, tokens, OAuth apps, API docs tab) | ⚪ Designed, not started |
 
 ## Done
 
@@ -40,6 +41,16 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 - Vite + React + PWA frontend, Claymorphism tokens, three-way theming with an accent picker,
   three.js orbiting-spheres hero.
 - Playwright (headed locally, headless in CI) and GitHub Actions `ci.yml` / `e2e.yml`.
+
+### Provider coverage
+- Nine adapters, one per distinct provider API: Google Drive, OneDrive, Dropbox, MEGA, pCloud,
+  Google Cloud Storage, Azure Blob Storage, Bunny Storage, and a generic S3 adapter.
+- A **provider catalogue** of fourteen entries — what the user actually picks from — mapping onto
+  those adapters. Amazon S3, Cloudflare R2, Supabase Storage, DigitalOcean Spaces and Backblaze
+  B2 all route to the `s3` adapter with their own endpoint template and field list, so adding an
+  S3-compatible service is a data change rather than new code (ADR 0007).
+- iCloud Drive and Proton Drive are listed as **not supported**, with the reason, because neither
+  publishes an API for third-party access. See ADR 0007.
 
 ### Phase 1 — Auth
 - Passwordless 6-digit email OTP: scrypt-hashed at rest, 5-minute expiry, 5-attempt cap,
@@ -61,9 +72,16 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | Check | Result |
 |---|---|
 | `npm run typecheck --workspaces` | clean |
-| `npm test --workspaces` | 55 pass, 0 fail (28 server, 27 adapters) |
+| `npm test --workspaces` | 80 pass, 0 fail (31 server, 49 adapters) |
 | `npm run build --workspaces` | clean |
-| `npx playwright test` | 21 pass, 0 fail — four consecutive clean runs |
+| `npx playwright test` (headed) | 21 pass, 0 fail across desktop, tablet and mobile |
+
+## Designed but not built
+
+- **Phase 11 — developer platform.** Full design in `docs/06-developer-platform.md`: a versioned
+  public `/v1` API, personal access tokens, OAuth 2.0 with PKCE and per-account consent, scoped
+  permissions, webhooks, a Developer tab for token and application management, and an API docs
+  tab generated from the same Zod schemas the routes validate with.
 
 ## Next up — Phase 2 (Google Drive adapter)
 

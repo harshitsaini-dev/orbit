@@ -2,14 +2,15 @@ import { BaseAdapter, type AdapterCapabilities } from '../base.js';
 import type { AuthType, ProviderId } from '@orbit/shared-types';
 
 /**
- * S3-compatible adapter.
- * TODO(phase-2/3): implement against the provider API. Until then every call
+ * Google Cloud Storage adapter.
+ * Objects, not files: folders are synthesised from key prefixes, and a bucket reports bytes stored rather than an allowance.
+ * TODO(phase-3): implement against the provider API. Until then every call
  * throws NotImplementedError via BaseAdapter.
  */
-export class S3CompatibleAdapter extends BaseAdapter {
-  readonly id: ProviderId = 's3';
+export class GcsAdapter extends BaseAdapter {
+  readonly id: ProviderId = 'gcs';
   readonly authType: AuthType = 'access_key';
-  readonly displayName = 'S3-compatible';
+  readonly displayName = 'Google Cloud Storage';
   readonly capabilities: AdapterCapabilities = {
     star: false,
     sharedWithMe: false,

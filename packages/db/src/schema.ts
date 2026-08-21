@@ -33,9 +33,11 @@ export const accounts = sqliteTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     provider: text('provider', {
-      enum: ['google_drive', 'onedrive', 'dropbox', 'mega', 'pcloud', 's3'],
+      enum: ['google_drive', 'onedrive', 'dropbox', 'mega', 'pcloud', 'gcs', 'azure_blob', 'bunny', 's3'],
     }).notNull(),
     nickname: text('nickname').notNull(),
+    /** Which catalogue entry the user picked - several map onto the s3 adapter. */
+    catalogueKey: text('catalogue_key'),
     /** AES-256-GCM ciphertext of the AccountTokens JSON. Never logged, never returned by the API. */
     encryptedTokens: text('encrypted_tokens').notNull(),
     /** S3-compatible connections only. */

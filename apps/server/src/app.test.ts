@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createServer, type Server } from 'node:http';
 import { after, before, describe, it } from 'node:test';
-import { PROVIDER_IDS } from '@orbit/shared-types';
+import { PROVIDER_CATALOGUE, PROVIDER_IDS, UNAVAILABLE_PROVIDERS } from '@orbit/shared-types';
 import { createApp } from './app.js';
 
 let server: Server;
@@ -37,6 +37,45 @@ describe('GET /health/providers', () => {
       body.providers.map((p) => p.id).sort(),
       [...PROVIDER_IDS].sort(),
     );
+  });
+});
+
+describe('GET /api/catalogue', () => {
+  it('offers every catalogue entry, with the adapter capabilities attached', async () => {
+    const res = await fetch(`${baseUrl}/api/catalogue`);
+    assert.equal(res.status, 200);
+
+    const body = (await res.json()) as {
+      entries: Array<{ key: string; provider: string; capabilities: Record<string, boolean> }>;
+      unavailable: Array<{ key: string; reason: string }>;
+    };
+
+    assert.deepEqual(
+      body.entries.map((entry) => entry.key).sort(),
+      PROVIDER_CATALOGUE.map((entry) => entry.key).sort(),
+    );
+
+    for (const entry of body.entries) {
+      assert.equal(typeof entry.capabilities.rangeRequests, 'boolean', `${entry.key} has no capabilities`);
+    }
+  });
+
+  it('reports the services Orbit cannot support, with reasons', async () => {
+    const res = await fetch(`${baseUrl}/api/catalogue`);
+    const body = (await res.json()) as { unavailable: Array<{ key: string; reason: string }> };
+
+    assert.deepEqual(
+      body.unavailable.map((entry) => entry.key).sort(),
+      UNAVAILABLE_PROVIDERS.map((entry) => entry.key).sort(),
+    );
+    for (const entry of body.unavailable) assert.ok(entry.reason.length > 0);
+  });
+
+  it('never exposes a stored credential', async () => {
+    const res = await fetch(`${baseUrl}/api/catalogue`);
+    const raw = await res.text();
+    // Field definitions describe what to ask for; they must carry no values.
+    assert.ok(!/secretAccessKey"\s*:\s*"[^"]+"/.test(raw));
   });
 });
 

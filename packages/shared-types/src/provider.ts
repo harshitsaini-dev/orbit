@@ -10,6 +10,9 @@ export const PROVIDER_IDS = [
   'dropbox',
   'mega',
   'pcloud',
+  'gcs',
+  'azure_blob',
+  'bunny',
   's3',
 ] as const;
 
@@ -31,6 +34,17 @@ export interface AccountTokens {
   endpoint?: string;
   region?: string;
   bucket?: string;
+  forcePathStyle?: boolean;
+  /** Google Cloud Storage service-account JSON. */
+  serviceAccountJson?: string;
+  /** Azure Blob Storage. */
+  azureAccountName?: string;
+  azureAccountKey?: string;
+  azureContainer?: string;
+  /** Bunny Edge Storage. */
+  bunnyStorageZone?: string;
+  bunnyAccessKey?: string;
+  bunnyRegionHost?: string;
 }
 
 export interface OAuthCode {
@@ -111,18 +125,24 @@ export interface DeltaResult {
   hasMore: boolean;
 }
 
+export interface ProviderCapabilities {
+  star: boolean;
+  sharedWithMe: boolean;
+  delta: boolean;
+  resumableUpload: boolean;
+  rangeRequests: boolean;
+  /** Object stores have no real folders; Orbit synthesises them from key prefixes. */
+  nativeFolders: boolean;
+  /** Whether the provider reports a total allowance, or only bytes used. */
+  reportsQuota: boolean;
+}
+
 export interface ProviderAdapter {
   readonly id: ProviderId;
   readonly authType: AuthType;
   readonly displayName: string;
   /** Capabilities the UI reads to hide unsupported actions instead of failing them. */
-  readonly capabilities: {
-    star: boolean;
-    sharedWithMe: boolean;
-    delta: boolean;
-    resumableUpload: boolean;
-    rangeRequests: boolean;
-  };
+  readonly capabilities: ProviderCapabilities;
 
   connect(input: ConnectInput): Promise<AccountTokens>;
   refreshToken(tokens: AccountTokens): Promise<AccountTokens>;

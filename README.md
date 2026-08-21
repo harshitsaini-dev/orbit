@@ -73,6 +73,7 @@ npm run test:e2e:ci  # Playwright, headless
 | `docs/03-api-reference.md` | Route-by-route API reference |
 | `docs/04-deployment.md` | Deployment runbook |
 | `docs/05-owner-setup.md` | Step-by-step account, API key, and DNS setup |
+| `docs/06-developer-platform.md` | Design for the public API, OAuth apps, and API docs tab |
 | `docs/decisions/` | Architecture decision records |
 | `docs/daily-log/` | Dated development log |
 

@@ -54,6 +54,28 @@ Development only. Reads back the last code the console transport recorded, so te
 the real flow without a mailbox. Routable only when `ENABLE_DEV_AUTH_ENDPOINTS=true` **and**
 `NODE_ENV !== 'production'`; otherwise `404`.
 
+### `GET /api/catalogue`
+Everything "Connect an account" offers, plus what it cannot. Longer than
+`/health/providers`, because several entries share the `s3` adapter and differ only in endpoint.
+
+```json
+{
+  "entries": [{
+    "key": "cloudflare_r2", "label": "Cloudflare R2", "provider": "s3",
+    "blurb": "R2 bucket. Uses an S3 API token from the R2 dashboard.",
+    "endpointTemplate": "https://{accountId}.r2.cloudflarestorage.com",
+    "forcePathStyle": true,
+    "fields": [{ "name": "accountId", "label": "Cloudflare account ID" }],
+    "capabilities": { "nativeFolders": false, "reportsQuota": false }
+  }],
+  "unavailable": [{ "key": "icloud_drive", "label": "iCloud Drive",
+    "reason": "Apple publishes no API for third-party access to a user's Drive.",
+    "unblockedBy": "Apple shipping a public iCloud Drive API with third-party OAuth." }]
+}
+```
+
+`fields` describes what to ask the user for. It never carries values.
+
 ### `WS /ws`
 Channel pub/sub. Client frames: `{"type":"subscribe","channel":"..."}`, `unsubscribe`, `ping`.
 Server frames: `upload:progress`, `upload:complete`, `upload:error`, `sync:status`.

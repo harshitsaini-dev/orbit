@@ -227,7 +227,27 @@ interface OrbitFile {
 }
 ```
 
-Each adapter is one file: `adapters/google-drive.ts`, `adapters/onedrive.ts`, `adapters/dropbox.ts`, `adapters/mega.ts`, `adapters/pcloud.ts`, `adapters/s3-compatible.ts` (this single S3 adapter — talking plain S3 API — covers AWS S3, Cloudflare R2, DigitalOcean Spaces, Backblaze B2, and Bunny Storage all at once, since they all speak the same protocol; the user just supplies endpoint + access key + secret when connecting).
+Each adapter is one file under `packages/adapters/src/providers/`. There are nine, one per
+distinct provider API:
+
+| Adapter | Covers |
+|---|---|
+| `google-drive.ts` | Google Drive |
+| `onedrive.ts` | OneDrive personal and business |
+| `dropbox.ts` | Dropbox |
+| `mega.ts` | MEGA |
+| `pcloud.ts` | pCloud |
+| `gcs.ts` | Google Cloud Storage (native JSON API) |
+| `azure-blob.ts` | Azure Blob Storage |
+| `bunny.ts` | Bunny Edge Storage (own REST API, not S3) |
+| `s3-compatible.ts` | Amazon S3, Cloudflare R2, Supabase Storage, DigitalOcean Spaces, Backblaze B2, and anything else speaking the S3 API |
+
+What the user picks from is a separate, longer list — the **provider catalogue** — because six
+services share the `s3` adapter and differ only in endpoint. See ADR 0007.
+
+**Not supported:** iCloud Drive and Proton Drive. Neither publishes an API that allows
+third-party access; both are surfaced in the connect dialog with the reason rather than omitted.
+See ADR 0007.
 
 ---
 

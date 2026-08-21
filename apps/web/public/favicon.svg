@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Orbit">
+  <defs>
+    <radialGradient id="core" cx="36%" cy="30%" r="74%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="34%" stop-color="#b3c4ff"/>
+      <stop offset="100%" stop-color="#4257c8"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="55%" stop-color="#6c8cff" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#6c8cff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="orbit" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#e2e8ff" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#7d95f0" stop-opacity="0.42"/>
+    </linearGradient>
+    <!-- The orbit passes behind the hub at the top and in front at the bottom.
+         The front copy is clipped to the lower half AND to the hub's own disc
+         (nested clips intersect), so it is drawn only where it actually crosses
+         the hub. Clipping to the lower half alone would stack two semi-transparent
+         strokes outside the hub and leave a visible brightness step. -->
+    <clipPath id="lowerHalf">
+      <rect x="0" y="32" width="64" height="32"/>
+    </clipPath>
+    <clipPath id="hubDisc">
+      <circle cx="32" cy="32" r="9.2"/>
+    </clipPath>
+  </defs>
+
+  <rect width="64" height="64" rx="14" fill="#151824"/>
+
+  <ellipse cx="32" cy="32" rx="26" ry="10.5" transform="rotate(-22 32 32)"
+           fill="none" stroke="url(#orbit)" stroke-width="2.6"/>
+
+  <circle cx="32" cy="32" r="15" fill="url(#halo)"/>
+  <circle cx="32" cy="32" r="9.2" fill="url(#core)"/>
+
+  <g clip-path="url(#lowerHalf)">
+    <g clip-path="url(#hubDisc)">
+      <ellipse cx="32" cy="32" rx="26" ry="10.5" transform="rotate(-22 32 32)"
+               fill="none" stroke="url(#orbit)" stroke-width="2.6"/>
+    </g>
+  </g>
+
+  <!-- Three bodies on that one orbit, at different sizes so the icon still
+       reads as a system at 16px. -->
+  <circle cx="53.3" cy="19.5" r="4.4" fill="#f2f5ff"/>
+  <circle cx="47.5" cy="35.6" r="3.0" fill="#8ba3ff"/>
+  <circle cx="9.7" cy="43.9" r="2.6" fill="#dfe6ff"/>
+</svg>

@@ -1,28 +1,63 @@
 import { useEffect, useState } from 'react';
+import type { CatalogueEntry, UnavailableProvider } from '@orbit/shared-types';
 import { OrbitHero } from '../components/OrbitHero.js';
+import { api } from '../lib/api.js';
 
-interface ProviderInfo {
-  id: string;
-  displayName: string;
-  authType: string;
+interface CatalogueResponse {
+  entries: CatalogueEntry[];
+  unavailable: UnavailableProvider[];
 }
 
-const API_URL = import.meta.env.VITE_API_URL ?? '';
+/** Grouped the way the connect dialog will group them in Phase 2. */
+const GROUPS: Array<{ title: string; keys: string[] }> = [
+  { title: 'Cloud drives', keys: ['google_drive', 'onedrive', 'dropbox', 'pcloud', 'mega'] },
+  {
+    title: 'Object storage',
+    keys: [
+      'aws_s3',
+      'cloudflare_r2',
+      'supabase_storage',
+      'digitalocean_spaces',
+      'backblaze_b2',
+      'gcs',
+      'azure_blob',
+      'bunny',
+      's3_other',
+    ],
+  },
+];
+
+function ProviderCard({ entry }: { entry: CatalogueEntry }) {
+  return (
+    <li className="clay-sunken" style={{ padding: '0.85rem 1.1rem', display: 'grid', gap: 2 }}>
+      <span style={{ fontWeight: 600 }}>{entry.label}</span>
+      <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{entry.blurb}</span>
+    </li>
+  );
+}
+
+const GROUP_HEADING: React.CSSProperties = {
+  fontSize: 13,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+  color: 'var(--text-muted)',
+};
 
 export function Home() {
-  const [providers, setProviders] = useState<ProviderInfo[] | null>(null);
+  const [catalogue, setCatalogue] = useState<CatalogueResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch(`${API_URL}/health/providers`, { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
-      .then((body: { providers: ProviderInfo[] }) => setProviders(body.providers))
+    api<CatalogueResponse>('/api/catalogue', { signal: controller.signal })
+      .then(setCatalogue)
       .catch((err: Error) => {
         if (err.name !== 'AbortError') setError(err.message);
       });
     return () => controller.abort();
   }, []);
+
+  const byKey = new Map((catalogue?.entries ?? []).map((entry) => [entry.key, entry]));
 
   return (
     <div style={{ display: 'grid', gap: '1.5rem' }}>
@@ -34,8 +69,8 @@ export function Home() {
           One workspace for every cloud you own.
         </h1>
         <p style={{ color: 'var(--text-muted)', maxWidth: '52ch' }}>
-          Connect Google Drive, OneDrive, Dropbox, MEGA, pCloud, or any S3-compatible
-          bucket. Your files never leave your own accounts.
+          Browse, upload and share across every connected account — without your files ever leaving
+          them.
         </p>
         <button type="button" className="clay-button clay-button--accent" style={{ marginTop: '1rem' }}>
           Connect an account
@@ -43,22 +78,53 @@ export function Home() {
       </section>
 
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
-        <h2 style={{ fontSize: '1.1rem', marginBottom: '0.75rem' }}>Provider support</h2>
+        <h2 style={{ fontSize: '1.1rem' }}>Supported providers</h2>
         {error && <p style={{ color: 'var(--danger)' }}>API unreachable: {error}</p>}
-        {!providers && !error && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
-        {providers && (
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 8 }}>
-            {providers.map((provider) => (
-              <li
-                key={provider.id}
-                className="clay-sunken"
-                style={{ padding: '0.6rem 1rem', display: 'flex', justifyContent: 'space-between', gap: '1rem' }}
+        {!catalogue && !error && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
+
+        {catalogue &&
+          GROUPS.map((group) => (
+            <div key={group.title} style={{ marginTop: '1.25rem' }}>
+              <h3 style={GROUP_HEADING}>{group.title}</h3>
+              <ul
+                style={{
+                  listStyle: 'none',
+                  padding: 0,
+                  margin: '0.6rem 0 0',
+                  display: 'grid',
+                  gap: 8,
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+                }}
               >
-                <span>{provider.displayName}</span>
-                <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{provider.authType}</span>
-              </li>
-            ))}
-          </ul>
+                {group.keys.map((key) => {
+                  const entry = byKey.get(key);
+                  return entry ? <ProviderCard key={key} entry={entry} /> : null;
+                })}
+              </ul>
+            </div>
+          ))}
+
+        {catalogue && catalogue.unavailable.length > 0 && (
+          <div style={{ marginTop: '1.75rem' }}>
+            <h3 style={GROUP_HEADING}>Not supported</h3>
+            <ul style={{ listStyle: 'none', padding: 0, margin: '0.6rem 0 0', display: 'grid', gap: 8 }}>
+              {catalogue.unavailable.map((entry) => (
+                <li
+                  key={entry.key}
+                  style={{
+                    padding: '0.85rem 1.1rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px dashed var(--border)',
+                    display: 'grid',
+                    gap: 2,
+                  }}
+                >
+                  <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>{entry.label}</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{entry.reason}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </section>
     </div>

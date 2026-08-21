@@ -1,6 +1,9 @@
 import type { ProviderAdapter, ProviderId } from '@orbit/shared-types';
 import { PROVIDER_IDS } from '@orbit/shared-types';
+import { AzureBlobAdapter } from './providers/azure-blob.js';
+import { BunnyAdapter } from './providers/bunny.js';
 import { DropboxAdapter } from './providers/dropbox.js';
+import { GcsAdapter } from './providers/gcs.js';
 import { GoogleDriveAdapter } from './providers/google-drive.js';
 import { MegaAdapter } from './providers/mega.js';
 import { OneDriveAdapter } from './providers/onedrive.js';
@@ -8,7 +11,10 @@ import { PCloudAdapter } from './providers/pcloud.js';
 import { S3CompatibleAdapter } from './providers/s3-compatible.js';
 
 export * from './base.js';
+export * from './providers/azure-blob.js';
+export * from './providers/bunny.js';
 export * from './providers/dropbox.js';
+export * from './providers/gcs.js';
 export * from './providers/google-drive.js';
 export * from './providers/mega.js';
 export * from './providers/onedrive.js';
@@ -21,6 +27,9 @@ const registry: Record<ProviderId, ProviderAdapter> = {
   dropbox: new DropboxAdapter(),
   mega: new MegaAdapter(),
   pcloud: new PCloudAdapter(),
+  gcs: new GcsAdapter(),
+  azure_blob: new AzureBlobAdapter(),
+  bunny: new BunnyAdapter(),
   s3: new S3CompatibleAdapter(),
 };
 

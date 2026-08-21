@@ -11,9 +11,14 @@ test.describe('shell', () => {
 
     await expect(page.getByRole('heading', { name: /one workspace for every cloud/i })).toBeVisible();
 
-    // Provider list comes from GET /health/providers - proves web -> api wiring.
+    // The catalogue comes from GET /api/catalogue - proves web -> api wiring.
     await expect(page.getByRole('listitem').filter({ hasText: 'Google Drive' })).toBeVisible();
-    await expect(page.getByRole('listitem')).toHaveCount(6);
+    await expect(page.getByRole('listitem').filter({ hasText: 'Cloudflare R2' })).toBeVisible();
+    await expect(page.getByRole('listitem').filter({ hasText: 'Azure Blob' })).toBeVisible();
+
+    // Services Orbit cannot support are shown with a reason rather than hidden.
+    await expect(page.getByRole('listitem').filter({ hasText: 'iCloud Drive' })).toBeVisible();
+    await expect(page.getByRole('listitem').filter({ hasText: 'Proton Drive' })).toBeVisible();
   });
 
   test('navigates between workspace views', async ({ page }) => {

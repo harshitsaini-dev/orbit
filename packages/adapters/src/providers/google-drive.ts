@@ -16,5 +16,7 @@ export class GoogleDriveAdapter extends BaseAdapter {
     delta: true,
     resumableUpload: true,
     rangeRequests: true,
+    nativeFolders: true,
+    reportsQuota: true,
   };
 }

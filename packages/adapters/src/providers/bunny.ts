@@ -2,21 +2,22 @@ import { BaseAdapter, type AdapterCapabilities } from '../base.js';
 import type { AuthType, ProviderId } from '@orbit/shared-types';
 
 /**
- * S3-compatible adapter.
- * TODO(phase-2/3): implement against the provider API. Until then every call
+ * Bunny Storage adapter.
+ * Bunny Edge Storage speaks its own REST API rather than S3, and has no multipart upload.
+ * TODO(phase-3): implement against the provider API. Until then every call
  * throws NotImplementedError via BaseAdapter.
  */
-export class S3CompatibleAdapter extends BaseAdapter {
-  readonly id: ProviderId = 's3';
+export class BunnyAdapter extends BaseAdapter {
+  readonly id: ProviderId = 'bunny';
   readonly authType: AuthType = 'access_key';
-  readonly displayName = 'S3-compatible';
+  readonly displayName = 'Bunny Storage';
   readonly capabilities: AdapterCapabilities = {
     star: false,
     sharedWithMe: false,
     delta: false,
-    resumableUpload: true,
+    resumableUpload: false,
     rangeRequests: true,
-    nativeFolders: false,
+    nativeFolders: true,
     reportsQuota: false,
   };
 }

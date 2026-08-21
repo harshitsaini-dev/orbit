@@ -23,11 +23,14 @@ export default defineConfig({
 
   use: {
     baseURL: WEB_URL,
+    // Headed by default so a local run can be watched; CI is the only place
+    // this goes headless.
+    headless: !!process.env.CI,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    // `npm run test:e2e` sets this so a headed run is slow enough to follow;
-    // headless and CI runs leave it at 0 and stay fast.
-    launchOptions: { slowMo: Number(process.env.ORBIT_SLOWMO ?? 0) },
+    // Slow enough locally to follow along; `npm run test:e2e` raises it further
+    // for a single-browser walkthrough, and CI leaves it at zero.
+    launchOptions: { slowMo: Number(process.env.ORBIT_SLOWMO ?? (process.env.CI ? 0 : 250)) },
   },
 
   projects: [
