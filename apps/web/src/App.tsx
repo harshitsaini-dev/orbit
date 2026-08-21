@@ -11,6 +11,7 @@ import { Login } from './routes/Login.js';
 import { MyDrive } from './routes/MyDrive.js';
 import { Placeholder } from './routes/Placeholder.js';
 import { Quota } from './routes/Quota.js';
+import { WorkspaceViewPage } from './routes/WorkspaceView.js';
 
 const NAV = [
   { to: '/', label: 'Dashboard' },
@@ -85,9 +86,9 @@ function Workspace() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/my-drive" element={<MyDrive />} />
-            <Route path="/recent" element={<Placeholder title="Recent" phase="Phase 4" />} />
-            <Route path="/starred" element={<Placeholder title="Starred" phase="Phase 4" />} />
-            <Route path="/shared-with-me" element={<Placeholder title="Shared with me" phase="Phase 4" />} />
+            <Route path="/recent" element={<WorkspaceViewPage view="recent" />} />
+            <Route path="/starred" element={<WorkspaceViewPage view="starred" />} />
+            <Route path="/shared-with-me" element={<WorkspaceViewPage view="shared" />} />
             <Route path="/quota" element={<Quota />} />
             <Route path="/account" element={<Account />} />
             <Route path="/developer" element={<Placeholder title="Developer" phase="Phase 11" />} />

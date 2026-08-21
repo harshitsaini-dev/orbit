@@ -102,6 +102,24 @@ Lists one folder from one account.
 `{ accountId, provider, path, files, nextCursor, capabilities }`. The capabilities travel with
 the listing so the UI can hide actions the provider cannot perform.
 
+### `GET /api/views/:view`
+`recent`, `starred`, or `shared`, **merged across every connected account** — which is the point
+of the product: "recent" should mean recent everywhere, not recent in whichever account happens
+to be selected. Accounts are queried in parallel.
+
+```json
+{
+  "files": [{ "remoteId": "…", "name": "notes.txt", "modifiedAt": "…",
+              "accountId": "…", "provider": "google_drive", "accountNickname": "me@example.com" }],
+  "problems": [{ "accountId": "…", "nickname": "…", "reason": "needs reconnecting" }],
+  "unsupported": [{ "accountId": "…", "nickname": "…" }]
+}
+```
+
+`problems` names accounts that could not answer and `unsupported` those whose provider has no
+such view, so a partial result never looks complete. `recent` and `shared` come back newest
+first; `starred` by name.
+
 ### `GET /api/files/:id/content?accountId=&download=&name=`
 Streams the file straight through from the provider. The bytes never touch Orbit's disk and the
 provider's own URL never reaches the client.
@@ -148,7 +166,6 @@ Server frames: `upload:progress`, `upload:complete`, `upload:error`, `sync:statu
 
 | Route | Phase |
 |---|---|
-| `GET /api/views/{recent,starred,shared-with-me}` | 4 |
 | `POST /api/uploads/init`, `PUT /api/uploads/:id/chunk` | 5 |
 | `GET /api/allocation`, `PUT /api/allocation` | 5 |
 | `POST /api/sync/trigger`, `GET /api/health/sync` | 6 |

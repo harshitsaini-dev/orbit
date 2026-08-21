@@ -81,6 +81,13 @@ export interface OrbitFile {
   shortcutTargetId?: string;
 }
 
+/**
+ * The cross-cutting views. Each is a query the provider answers itself rather
+ * than a folder Orbit can walk to, so it needs its own call.
+ */
+export const WORKSPACE_VIEWS = ['recent', 'starred', 'shared'] as const;
+export type WorkspaceView = (typeof WORKSPACE_VIEWS)[number];
+
 export interface OrbitFilePage {
   files: OrbitFile[];
   nextPageToken?: string;
@@ -148,6 +155,8 @@ export interface ProviderCapabilities {
    * folder.
    */
   flatEnumeration: boolean;
+  /** Whether the provider can return files ordered by when they last changed. */
+  recentView: boolean;
 }
 
 export interface ProviderAdapter {
@@ -163,6 +172,11 @@ export interface ProviderAdapter {
   listFolder(tokens: AccountTokens, path: string, pageToken?: string): Promise<OrbitFilePage>;
   /** Every file in the account, flat and paginated. Gated by `flatEnumeration`. */
   listAllFiles(tokens: AccountTokens, pageToken?: string): Promise<OrbitFilePage>;
+  /**
+   * Recent, starred, or shared-with-me. Gated per view by the capabilities:
+   * `recentView`, `star` and `sharedWithMe` respectively.
+   */
+  listView(tokens: AccountTokens, view: WorkspaceView, pageToken?: string): Promise<OrbitFilePage>;
   getFileMeta(tokens: AccountTokens, remoteId: string): Promise<OrbitFile>;
   getFileStream(tokens: AccountTokens, remoteId: string, range?: ByteRange): Promise<FileStreamResult>;
 

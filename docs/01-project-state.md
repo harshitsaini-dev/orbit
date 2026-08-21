@@ -17,7 +17,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 1 | Auth (email OTP, sessions, local-mode bypass) | 🟢 Done |
 | 2 | First adapter — Google Drive | 🟢 Done |
 | 3 | Remaining adapters (OneDrive, Dropbox, MEGA, pCloud, S3) | ⚪ Not started |
-| 4 | Unified workspace views | ⚪ Not started |
+| 4 | Unified workspace views | 🟢 Done |
 | 5 | Upload system + WebSocket progress + allocation | 🟡 Upload and progress done · allocation strategies pending |
 | 6 | Sync engine | ⚪ Not started |
 | 7 | Sharing + QR | ⚪ Not started |
@@ -72,12 +72,12 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | Check | Result |
 |---|---|
 | `npm run typecheck --workspaces` | clean |
-| `npm test --workspaces` | 227 pass, 0 fail |
+| `npm test --workspaces` | 240 pass, 0 fail |
 
 Verified against the live account: 842 files, 11.9 GB scanned, categories summing exactly to the
 provider's own usage figure once the trash allowance is included.
 | `npm run build --workspaces` | clean |
-| `npx playwright test` (headed) | 90 pass, 0 fail across desktop, tablet and mobile |
+| `npx playwright test` (headed) | 102 pass, 0 fail across desktop, tablet and mobile |
 
 ## Designed but not built
 
@@ -204,6 +204,19 @@ provider's own usage figure once the trash allowance is included.
 - `window.prompt` and `window.confirm` are gone. Both are drawn by the browser, ignore the theme
   entirely, and on some platforms are suppressed outright — a feature built on them can silently
   stop working.
+
+### Phase 4 — unified views
+- Recent, Starred and Shared with me are live, **merged across every connected account**. That
+  merge is the aggregation the product exists for; a per-account view would have been three more
+  file listers.
+- `listView` joined the adapter contract, gated per view by `recentView`, `star` and
+  `sharedWithMe`. A provider that cannot answer one is never asked.
+- Accounts are queried in parallel, and the response names both the accounts that failed and the
+  providers that have no such view — a partial result must never look complete.
+- Recent excludes folders: a folder's timestamp changes whenever anything inside it does, so
+  including them would make "recent" mostly folders.
+- **Verified against the live account:** recent and shared both return real files newest-first;
+  starring a file made it appear in Starred, and unstarring removed it again.
 
 ## Next up — Phase 3 (remaining adapters)
 

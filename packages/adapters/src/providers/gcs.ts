@@ -18,6 +18,7 @@ export class GcsAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: false,
+    recentView: false,
     flatEnumeration: true,
     reportsQuota: false,
   };

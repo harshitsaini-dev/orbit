@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
 import { forgetBreakdown } from '../services/breakdown.js';
+import { listWorkspaceView } from '../services/views.js';
 
 export const filesRouter: Router = Router();
 
@@ -54,6 +55,25 @@ filesRouter.get('/api/files', requireAuth, async (req, res, next) => {
       nextCursor: page.nextPageToken,
       capabilities: active.adapter.capabilities,
     });
+  } catch (err) {
+    if (!sendProviderError(err, res)) next(err);
+  }
+});
+
+/**
+ * Recent, starred and shared-with-me, merged across every connected account.
+ * That merge is the point of the product: "recent" should mean recent
+ * everywhere, not recent in whichever drive happens to be selected.
+ */
+filesRouter.get('/api/views/:view', requireAuth, async (req, res, next) => {
+  const view = req.params.view;
+  if (view !== 'recent' && view !== 'starred' && view !== 'shared') {
+    res.status(404).json({ error: { code: 'not_found', message: 'No such view' } });
+    return;
+  }
+
+  try {
+    res.json(await listWorkspaceView(req.user!.id, view));
   } catch (err) {
     if (!sendProviderError(err, res)) next(err);
   }

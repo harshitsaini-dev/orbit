@@ -12,6 +12,7 @@ import type {
   Quota,
   UploadMeta,
   UploadSession,
+  WorkspaceView,
 } from '@orbit/shared-types';
 import { BaseAdapter, ProviderError, joinPath, normalisePath, type AdapterCapabilities } from '../base.js';
 import { providerFetch, providerJson } from '../http.js';
@@ -75,6 +76,7 @@ export class GoogleDriveAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: true,
+    recentView: true,
     flatEnumeration: true,
     reportsQuota: true,
   };
@@ -226,22 +228,47 @@ export class GoogleDriveAdapter extends BaseAdapter {
     };
   }
 
-  /** Files other people shared. A separate query, not a folder. */
-  async listSharedWithMe(tokens: AccountTokens, pageToken?: string): Promise<OrbitFilePage> {
+  /**
+   * Recent, starred, and shared-with-me.
+   *
+   * None of these is a folder Orbit can walk to - each is a query Drive answers
+   * itself - so they get one call rather than being synthesised from listings.
+   * The virtual path is the file's name alone, because a file in these views can
+   * live anywhere and resolving its real path would cost a request each.
+   */
+  override async listView(
+    tokens: AccountTokens,
+    view: WorkspaceView,
+    pageToken?: string,
+  ): Promise<OrbitFilePage> {
+    const query: Record<string, string | number | boolean | undefined> = {
+      fields: `nextPageToken,files(${FILE_FIELDS})`,
+      pageSize: 100,
+      pageToken,
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+    };
+
+    if (view === 'starred') {
+      query.q = 'starred = true and trashed = false';
+      query.orderBy = 'name_natural';
+    } else if (view === 'shared') {
+      query.q = 'sharedWithMe = true and trashed = false';
+      query.orderBy = 'sharedWithMeTime desc';
+    } else {
+      // Folders are excluded: "recent" means recent work, and a folder's
+      // timestamp changes whenever anything inside it does.
+      query.q = `trashed = false and mimeType != '${GOOGLE_DRIVE_FOLDER_MIME}'`;
+      query.orderBy = 'modifiedTime desc';
+    }
+
     const page = await providerJson<DriveList>(this.id, `${API}/files`, {
       headers: this.auth(tokens),
-      query: {
-        q: 'sharedWithMe = true and trashed = false',
-        fields: `nextPageToken,files(${FILE_FIELDS})`,
-        pageSize: 200,
-        pageToken,
-        supportsAllDrives: true,
-        includeItemsFromAllDrives: true,
-      },
+      query,
     });
 
     return {
-      files: (page.files ?? []).map((file) => toOrbitFile(file, `/Shared with me/${file.name}`)),
+      files: (page.files ?? []).map((file) => toOrbitFile(file, `/${file.name}`)),
       nextPageToken: page.nextPageToken,
     };
   }

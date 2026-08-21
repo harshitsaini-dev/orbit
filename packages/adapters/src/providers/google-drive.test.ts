@@ -498,3 +498,62 @@ describe('shortcuts', () => {
     assert.equal(result.contentType, 'image/png');
   });
 });
+
+describe('listView', () => {
+  it('asks for starred files, ordered by name', async () => {
+    respondWith(() => json({ files: [{ id: 's', name: 'a.txt', mimeType: 'text/plain', starred: true }] }));
+
+    const page = await adapter.listView(TOKENS, 'starred');
+
+    const q = calls[0]!.url.searchParams.get('q')!;
+    assert.match(q, /starred = true/);
+    assert.match(q, /trashed = false/);
+    assert.equal(calls[0]!.url.searchParams.get('orderBy'), 'name_natural');
+    assert.equal(page.files[0]!.starred, true);
+  });
+
+  it('asks for shared files, newest share first', async () => {
+    respondWith(() => json({ files: [] }));
+    await adapter.listView(TOKENS, 'shared');
+
+    assert.match(calls[0]!.url.searchParams.get('q')!, /sharedWithMe = true/);
+    assert.equal(calls[0]!.url.searchParams.get('orderBy'), 'sharedWithMeTime desc');
+  });
+
+  it('asks for recent files newest first, and leaves folders out', async () => {
+    respondWith(() => json({ files: [] }));
+    await adapter.listView(TOKENS, 'recent');
+
+    const q = calls[0]!.url.searchParams.get('q')!;
+    // A folder's timestamp changes whenever anything inside it does, so
+    // including folders would make "recent" mostly folders.
+    assert.match(q, /mimeType != .application\/vnd\.google-apps\.folder./);
+    assert.equal(calls[0]!.url.searchParams.get('orderBy'), 'modifiedTime desc');
+  });
+
+  it('includes shared drives in every view', async () => {
+    respondWith(() => json({ files: [] }));
+    await adapter.listView(TOKENS, 'recent');
+
+    assert.equal(calls[0]!.url.searchParams.get('includeItemsFromAllDrives'), 'true');
+  });
+
+  it('resolves a shortcut in a view the same way a listing does', async () => {
+    respondWith(() =>
+      json({
+        files: [
+          {
+            id: 'sc',
+            name: 'Notes',
+            mimeType: GOOGLE_DRIVE_SHORTCUT_MIME,
+            shortcutDetails: { targetId: 'folder-1', targetMimeType: 'application/vnd.google-apps.folder' },
+          },
+        ],
+      }),
+    );
+
+    const page = await adapter.listView(TOKENS, 'starred');
+    assert.equal(page.files[0]!.isFolder, true);
+    assert.equal(page.files[0]!.shortcutTargetId, 'folder-1');
+  });
+});

@@ -14,6 +14,7 @@ import type {
   Quota,
   UploadMeta,
   UploadSession,
+  WorkspaceView,
 } from '@orbit/shared-types';
 
 export class NotImplementedError extends Error {
@@ -79,6 +80,9 @@ export abstract class BaseAdapter implements ProviderAdapter {
   }
   listAllFiles(_tokens: AccountTokens, _pageToken?: string): Promise<OrbitFilePage> {
     return this.unsupported('listAllFiles');
+  }
+  listView(_tokens: AccountTokens, _view: WorkspaceView, _pageToken?: string): Promise<OrbitFilePage> {
+    return this.unsupported('listView');
   }
   getFileMeta(_tokens: AccountTokens, _remoteId: string): Promise<OrbitFile> {
     return this.unsupported('getFileMeta');
