@@ -217,7 +217,29 @@ provider's own usage figure once the trash allowance is included.
   about settings, and into a menu behind the avatar.
 - Signing out lands on the landing page rather than the sign-in form.
 
-### Uploads
+### What previews, and what does not
+
+| Format | Shown as | Note |
+|---|---|---|
+| Images, video, audio | Orbit's own viewers | SVG included: an `<img>` cannot run its scripts |
+| PDF | pdf.js, with a password prompt | |
+| Text, source, CSV | Line numbers and highlighting; CSV as a table | |
+| Markdown | Rendered or source | |
+| .xlsx .docx .pptx | Values and text | Read here; they are ZIPs of XML |
+| .ods .odt .odp .epub | The same viewers | Also ZIPs of XML |
+| Google Docs, Sheets, Slides | The same viewers | Drive exports them to the Office formats above |
+| .zip .jar .cbz | Browsed from its index | Nothing downloaded, whatever the size |
+| .tar .tar.gz .tgz | Browsed | No index, so the whole file is read - capped at 100MB |
+| .rar | Contents listed | Its compression is proprietary; nothing can be extracted |
+| .7z, .bz2, .zst | Declined | The index is itself compressed, so even listing needs the algorithm |
+| Fonts | Sample text set in the font | |
+| .doc .xls .ppt | Declined | The old binary formats share nothing with the modern ones |
+
+Every viewer says what it is not showing. Someone looking at a spreadsheet
+whose charts are the point should not conclude the file is broken when Orbit
+simply is not drawing them.
+
+## Uploads
 - Upload files, upload a folder, or drag either onto the page. A dropped folder is walked
   through the FileSystem entry API — `dataTransfer.files` alone yields nothing for a directory,
   so without it dropping a folder silently uploaded nothing.

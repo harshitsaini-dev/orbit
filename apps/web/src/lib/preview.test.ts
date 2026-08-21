@@ -43,8 +43,10 @@ describe('previewKindFor', () => {
     );
   });
 
-  it('declines SVG, which is a script-capable document', () => {
-    assert.equal(previewKindFor(file({ mimeType: 'image/svg+xml', name: 'logo.svg' })), 'none');
+  it('previews an SVG, because an img cannot run its scripts', () => {
+    // Inline or in an unsandboxed iframe an SVG is a document with script
+    // access; in an <img> it is a picture. Orbit renders it as the latter.
+    assert.equal(previewKindFor(file({ mimeType: 'image/svg+xml', name: 'logo.svg' })), 'image');
   });
 
   it('previews Google formats as what Drive exports them to', () => {
@@ -78,11 +80,29 @@ describe('previewKindFor', () => {
     }
   });
 
-  it('declines binaries and the archive formats it cannot read', () => {
+  it('declines binaries and the archives whose compression is unavailable', () => {
     assert.equal(previewKindFor(file({ name: 'setup.exe' })), 'none');
-    // RAR and 7z are not ZIPs; only ZIP has an index this can walk.
-    assert.equal(previewKindFor(file({ mimeType: 'application/vnd.rar', name: 'a.rar' })), 'none');
+    // 7z keeps its own index compressed, so even listing one needs LZMA -
+    // which no browser provides.
     assert.equal(previewKindFor(file({ name: 'a.7z' })), 'none');
+    assert.equal(previewKindFor(file({ name: 'a.bz2' })), 'none');
+  });
+
+  it('lists a RAR, which can be read far enough to say what is inside', () => {
+    assert.equal(previewKindFor(file({ mimeType: 'application/vnd.rar', name: 'a.rar' })), 'archive');
+  });
+
+  it('opens tar archives, compressed or not', () => {
+    assert.equal(previewKindFor(file({ name: 'backup.tar' })), 'archive');
+    assert.equal(previewKindFor(file({ name: 'backup.tar.gz' })), 'archive');
+    assert.equal(previewKindFor(file({ name: 'backup.tgz' })), 'archive');
+  });
+
+  it('reads LibreOffice formats and EPUB as documents', () => {
+    assert.equal(previewKindFor(file({ name: 'notes.odt' })), 'document');
+    assert.equal(previewKindFor(file({ name: 'budget.ods' })), 'spreadsheet');
+    assert.equal(previewKindFor(file({ name: 'deck.odp' })), 'presentation');
+    assert.equal(previewKindFor(file({ name: 'book.epub' })), 'document');
   });
 
   it('browses a ZIP whatever its size', () => {

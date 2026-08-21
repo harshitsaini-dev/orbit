@@ -35,7 +35,7 @@ export function decodeXml(value: string): string {
 }
 
 /** Every match of a tag, with its attribute string and its inner XML. */
-function* elements(xml: string, name: string): Generator<{ attrs: string; inner: string }> {
+export function* elements(xml: string, name: string): Generator<{ attrs: string; inner: string }> {
   const pattern = new RegExp(`<${name}(\\s[^>]*?)?(/>|>([\\s\\S]*?)</${name}>)`, 'g');
   let match = pattern.exec(xml);
   while (match) {
@@ -44,13 +44,13 @@ function* elements(xml: string, name: string): Generator<{ attrs: string; inner:
   }
 }
 
-function attribute(attrs: string, name: string): string | undefined {
+export function attribute(attrs: string, name: string): string | undefined {
   const match = new RegExp(`\\b${name}="([^"]*)"`).exec(attrs);
   return match ? decodeXml(match[1]!) : undefined;
 }
 
 /** All text inside an element, entities decoded, tags dropped. */
-function textOf(xml: string, tag: string): string {
+export function textOf(xml: string, tag: string): string {
   let out = '';
   for (const element of elements(xml, tag)) out += decodeXml(element.inner);
   return out;
@@ -66,7 +66,7 @@ export interface Sheet {
 }
 
 /** A sheet can be a million rows; a preview that renders them all is a hang. */
-const MAX_ROWS = 1000;
+export const MAX_ROWS = 1000;
 
 /**
  * Turns a column reference into an index: A is 0, Z is 25, AA is 26.

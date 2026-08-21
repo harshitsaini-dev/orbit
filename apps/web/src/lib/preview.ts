@@ -21,15 +21,42 @@ const OFFICE: Record<string, PreviewKind> = {
   xlsm: 'spreadsheet',
   docx: 'document',
   pptx: 'presentation',
+  // LibreOffice's formats are ZIPs of XML too, so the same readers open them.
+  ods: 'spreadsheet',
+  odt: 'document',
+  odp: 'presentation',
+  epub: 'document',
 };
 
 const OFFICE_MIMES: Record<string, PreviewKind> = {
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'spreadsheet',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'document',
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'presentation',
+  'application/vnd.oasis.opendocument.spreadsheet': 'spreadsheet',
+  'application/vnd.oasis.opendocument.text': 'document',
+  'application/vnd.oasis.opendocument.presentation': 'presentation',
+  'application/epub+zip': 'document',
 };
 
 const FONT_EXTENSIONS = new Set(['ttf', 'otf', 'woff', 'woff2']);
+
+/**
+ * What the archive viewer can open. RAR is listed but not extracted - its
+ * compression is proprietary and no browser implements it - and 7z is not here
+ * at all, because its index is itself compressed, so even listing one needs the
+ * algorithm.
+ */
+const ARCHIVE_EXTENSIONS = new Set(['zip', 'tar', 'tgz', 'rar', 'cbz', 'jar']);
+
+const ARCHIVE_MIMES = new Set([
+  'application/zip',
+  'application/x-tar',
+  'application/gzip',
+  'application/x-gzip',
+  'application/vnd.rar',
+  'application/x-rar',
+  'application/x-rar-compressed',
+]);
 
 /**
  * What Drive turns each of its own formats into on export, and therefore what
@@ -78,11 +105,11 @@ export function previewKindFor(file: Pick<OrbitFile, 'mimeType' | 'name' | 'size
 
   // Mime before extension throughout: a JPEG someone named .zip is a JPEG, and
   // the provider's type is the more reliable of the two.
-  if (mime.startsWith('image/')) {
-    // SVG is a script-capable document, so it is offered as a download rather
-    // than rendered inside the app.
-    return mime === 'image/svg+xml' ? 'none' : 'image';
-  }
+  // SVG included: an SVG in an <img> cannot run scripts or reach the page
+  // around it, which is what made it worth declining before. Rendered any other
+  // way - inline, or in an iframe without a sandbox - it is a document with
+  // script access, and that is the distinction that matters.
+  if (mime.startsWith('image/')) return 'image';
   if (mime.startsWith('video/')) return 'video';
   if (mime.startsWith('audio/')) return 'audio';
   if (mime === 'application/pdf') return 'pdf';
@@ -94,8 +121,11 @@ export function previewKindFor(file: Pick<OrbitFile, 'mimeType' | 'name' | 'size
 
   if (FONT_EXTENSIONS.has(extension)) return 'font';
 
-  // A ZIP is listed from its index, so its size does not matter.
-  if (extension === 'zip' || mime === 'application/zip') return 'archive';
+  // Archives are listed rather than downloaded, so size does not bar them -
+  // except a .tar.gz, which has to be decompressed from the start to be read at
+  // all. That limit lives in the viewer, where the size is known.
+  if (ARCHIVE_EXTENSIONS.has(extension) || ARCHIVE_MIMES.has(mime)) return 'archive';
+  if (file.name.toLowerCase().endsWith('.tar.gz')) return 'archive';
 
   if (extension === 'md' || extension === 'markdown') {
     return file.sizeBytes <= TEXT_PREVIEW_LIMIT ? 'markdown' : 'none';
@@ -112,7 +142,7 @@ export function previewKindFor(file: Pick<OrbitFile, 'mimeType' | 'name' | 'size
 
   // A generic mime type with a media extension still previews.
   if (mime === 'application/octet-stream' || mime === '') {
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp'].includes(extension)) return 'image';
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'svg'].includes(extension)) return 'image';
     if (['mp4', 'webm', 'mov', 'm4v', 'ogv'].includes(extension)) return 'video';
     if (['mp3', 'wav', 'flac', 'ogg', 'oga', 'm4a', 'opus'].includes(extension)) return 'audio';
     if (extension === 'pdf') return 'pdf';

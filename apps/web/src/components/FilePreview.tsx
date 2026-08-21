@@ -207,7 +207,7 @@ function PreviewBody({
   }
 
   if (kind === 'archive') {
-    return <ArchiveViewer src={src} name={file.name} sizeBytes={file.sizeBytes} />;
+    return <ArchiveViewer src={src} name={file.name} mimeType={file.mimeType} sizeBytes={file.sizeBytes} />;
   }
 
   if (kind === 'font') {

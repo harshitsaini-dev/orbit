@@ -1,14 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { formatBytes } from '../lib/format.js';
-import {
-  listArchiveFolder,
-  readZipDirectory,
-  readZipEntry,
-  urlSource,
-  type ArchiveNode,
-  type ByteSource,
-  type ZipEntry,
-} from '../lib/zip.js';
+import { openArchive, type OpenArchive } from '../lib/archive.js';
+import { listArchiveFolder, type ArchiveNode } from '../lib/zip.js';
 import { FileIcon } from './FileIcon.js';
 import { CodeViewer } from './CodeViewer.js';
 
@@ -44,14 +37,15 @@ function extensionOf(name: string): string {
 export function ArchiveViewer({
   src,
   name,
+  mimeType,
   sizeBytes,
 }: {
   src: string;
   name: string;
+  mimeType: string;
   sizeBytes: number;
 }) {
-  const [source, setSource] = useState<ByteSource | null>(null);
-  const [entries, setEntries] = useState<ZipEntry[] | null>(null);
+  const [archive, setArchive] = useState<OpenArchive | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [prefix, setPrefix] = useState('');
   const [opened, setOpened] = useState<
@@ -60,16 +54,15 @@ export function ArchiveViewer({
 
   useEffect(() => {
     let cancelled = false;
-    setEntries(null);
+    setArchive(null);
     setError(null);
+    setPrefix('');
+    setOpened(null);
 
     void (async () => {
       try {
-        const bytes = urlSource(src, sizeBytes);
-        const directory = await readZipDirectory(bytes);
-        if (cancelled) return;
-        setSource(bytes);
-        setEntries(directory);
+        const opened = await openArchive(src, name, mimeType, sizeBytes);
+        if (!cancelled) setArchive(opened);
       } catch (err) {
         if (!cancelled) setError((err as Error).message || 'This archive could not be read.');
       }
@@ -78,7 +71,7 @@ export function ArchiveViewer({
     return () => {
       cancelled = true;
     };
-  }, [src, sizeBytes]);
+  }, [src, name, mimeType, sizeBytes]);
 
   // Object URLs for images opened inside the archive have to be released, or
   // every one looked at stays in memory until the tab closes.
@@ -89,8 +82,8 @@ export function ArchiveViewer({
   }, [opened]);
 
   const nodes = useMemo(
-    () => (entries ? listArchiveFolder(entries, prefix) : []),
-    [entries, prefix],
+    () => (archive ? listArchiveFolder(archive.entries, prefix) : []),
+    [archive, prefix],
   );
 
   async function open(node: ArchiveNode): Promise<void> {
@@ -98,12 +91,18 @@ export function ArchiveViewer({
       setPrefix(node.path);
       return;
     }
-    if (!source || !node.entry) return;
+    if (!archive?.read || !node.entry) return;
 
     const extension = extensionOf(node.name);
     if (node.sizeBytes > INLINE_LIMIT) return;
 
-    const bytes = await readZipEntry(source, node.entry);
+    const bytes = await archive.read({
+      name: node.name,
+      isDirectory: false,
+      uncompressedSize: node.sizeBytes,
+      modifiedAt: node.modifiedAt,
+      entry: node.entry,
+    });
 
     if (TEXT_EXTENSIONS.has(extension)) {
       setOpened({ node, kind: 'text', text: new TextDecoder().decode(bytes) });
@@ -115,6 +114,7 @@ export function ArchiveViewer({
 
   function canOpen(node: ArchiveNode): boolean {
     if (node.isDirectory) return true;
+    if (!archive?.read) return false;
     if (node.sizeBytes > INLINE_LIMIT) return false;
     const extension = extensionOf(node.name);
     return TEXT_EXTENSIONS.has(extension) || IMAGE_EXTENSIONS.has(extension);
@@ -128,7 +128,7 @@ export function ArchiveViewer({
     );
   }
 
-  if (!entries) {
+  if (!archive) {
     return (
       <div className="office-view office-view--message">
         <p>Reading the index of {name}…</p>
@@ -187,7 +187,11 @@ export function ArchiveViewer({
                 type="button"
                 onClick={() => void open(node)}
                 disabled={!canOpen(node)}
-                title={canOpen(node) ? undefined : 'Download the archive to open this'}
+                title={
+                  canOpen(node)
+                    ? undefined
+                    : (archive.readOnlyReason ?? 'Download the archive to open this')
+                }
               >
                 <FileIcon name={node.name} mimeType="" isFolder={node.isDirectory} size={20} />
                 <span className="archive__name">{node.name}</span>
@@ -201,8 +205,10 @@ export function ArchiveViewer({
       </div>
 
       <p className="office-view__note">
-        Read from the archive's index — the file itself was not downloaded. Text and images inside
-        can be opened; anything larger needs the archive.
+        {archive.readOnlyReason ??
+          (archive.format === 'zip'
+            ? "Read from the archive's index — the file itself was not downloaded. Text and images inside can be opened; anything larger needs the archive."
+            : 'Text and images inside can be opened; anything larger needs the archive.')}
       </p>
     </div>
   );

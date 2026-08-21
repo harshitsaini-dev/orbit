@@ -248,7 +248,16 @@ export interface ArchiveNode {
   entry?: ZipEntry;
 }
 
-export function listArchiveFolder(entries: ZipEntry[], prefix: string): ArchiveNode[] {
+/** The shape every archive reader is normalised into before listing. */
+export interface FlatEntry {
+  name: string;
+  isDirectory: boolean;
+  uncompressedSize: number;
+  modifiedAt: Date | null;
+  entry?: ZipEntry;
+}
+
+export function listArchiveFolder(entries: FlatEntry[], prefix: string): ArchiveNode[] {
   const folders = new Map<string, { size: number }>();
   const files: ArchiveNode[] = [];
 
@@ -268,7 +277,9 @@ export function listArchiveFolder(entries: ZipEntry[], prefix: string): ArchiveN
         isDirectory: false,
         sizeBytes: entry.uncompressedSize,
         modifiedAt: entry.modifiedAt,
-        entry,
+        // Only a ZIP entry can be read back; tar and RAR entries carry no
+        // handle, which is what makes them listable but not openable.
+        ...(entry.entry ? { entry: entry.entry } : {}),
       });
       continue;
     }

@@ -7,6 +7,12 @@ import {
   type Sheet,
   type Slide,
 } from '../lib/office.js';
+import {
+  readEpub,
+  readOpenPresentation,
+  readOpenSpreadsheet,
+  readOpenText,
+} from '../lib/opendocument.js';
 
 /**
  * Spreadsheets, documents and presentations.
@@ -49,9 +55,32 @@ export function OfficeViewer({
         const bytes = new Uint8Array(await response.arrayBuffer());
         if (controller.signal.aborted) return;
 
-        if (kind === 'spreadsheet') setState({ status: 'ready', sheets: await readSpreadsheet(bytes) });
-        else if (kind === 'document') setState({ status: 'ready', blocks: await readDocument(bytes) });
-        else setState({ status: 'ready', slides: await readPresentation(bytes) });
+        // Microsoft's and LibreOffice's formats are both ZIPs and both end up
+        // in the same shapes, so which reader runs is decided by the name.
+        const lower = name.toLowerCase();
+        const isOpenDocument = /\.(ods|odt|odp)$/.test(lower);
+        const isEpub = lower.endsWith('.epub');
+
+        if (kind === 'spreadsheet') {
+          setState({
+            status: 'ready',
+            sheets: isOpenDocument ? await readOpenSpreadsheet(bytes) : await readSpreadsheet(bytes),
+          });
+        } else if (kind === 'document') {
+          setState({
+            status: 'ready',
+            blocks: isEpub
+              ? await readEpub(bytes)
+              : isOpenDocument
+                ? await readOpenText(bytes)
+                : await readDocument(bytes),
+          });
+        } else {
+          setState({
+            status: 'ready',
+            slides: isOpenDocument ? await readOpenPresentation(bytes) : await readPresentation(bytes),
+          });
+        }
       } catch (err) {
         if ((err as Error).name === 'AbortError') return;
         setState({
@@ -64,7 +93,7 @@ export function OfficeViewer({
     })();
 
     return () => controller.abort();
-  }, [src, kind]);
+  }, [src, kind, name]);
 
   if (state.status === 'loading') {
     return (
