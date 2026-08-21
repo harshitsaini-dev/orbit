@@ -64,7 +64,6 @@ const MIME_EXACT: Record<string, FileCategory> = {
   'application/xml': 'code',
   'text/csv': 'document',
   'text/markdown': 'document',
-  'text/plain': 'document',
   'application/zip': 'archive',
   'application/x-tar': 'archive',
   'application/gzip': 'archive',
@@ -98,6 +97,9 @@ export function categorise(mimeType: string | undefined, name = ''): FileCategor
   const byExtension = EXTENSIONS[extensionOf(name)];
   if (byExtension) return byExtension;
 
+  // text/plain last, not in the exact table: providers label source files with
+  // it as readily as they label prose, so it is a generic type like
+  // octet-stream and the extension is the better answer when there is one.
   if (mime.startsWith('text/')) return 'document';
 
   return 'other';

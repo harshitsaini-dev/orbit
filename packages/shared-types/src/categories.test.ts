@@ -115,3 +115,22 @@ describe('presentation tables', () => {
     assert.equal(new Set(colours).size, colours.length);
   });
 });
+
+describe('generic mime types', () => {
+  it('lets the extension win over text/plain', () => {
+    // Providers label source files text/plain as readily as prose, so trusting
+    // it put every .ts and .py in with the documents.
+    assert.equal(categorise('text/plain', 'index.ts'), 'code');
+    assert.equal(categorise('text/plain', 'setup.py'), 'code');
+  });
+
+  it('still calls plain text a document when nothing better is known', () => {
+    assert.equal(categorise('text/plain', 'notes.txt'), 'document');
+    assert.equal(categorise('text/plain', 'no-extension'), 'document');
+  });
+
+  it('lets the extension win over octet-stream', () => {
+    assert.equal(categorise('application/octet-stream', 'clip.mp4'), 'video');
+    assert.equal(categorise('application/octet-stream', 'photo.heic'), 'image');
+  });
+});

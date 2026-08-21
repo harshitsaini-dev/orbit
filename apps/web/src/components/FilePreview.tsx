@@ -76,7 +76,10 @@ export function FilePreview({ file, siblings, contentUrl, onSelect, onClose }: P
         background: 'rgba(8, 10, 16, 0.72)',
         backdropFilter: 'blur(6px)',
         display: 'grid',
-        gridTemplateRows: 'auto 1fr auto',
+        // minmax(0, ...) rather than a bare 1fr: a grid track's automatic
+        // minimum is its content, so a tall video grew the row instead of being
+        // bounded by it and ran off the bottom of the window.
+        gridTemplateRows: 'auto minmax(0, 1fr) auto',
         gap: '0.75rem',
         padding: 'clamp(0.6rem, 2vw, 1.5rem)',
       }}
@@ -123,15 +126,7 @@ export function FilePreview({ file, siblings, contentUrl, onSelect, onClose }: P
         </button>
       </header>
 
-      <div
-        style={{
-          minHeight: 0,
-          minWidth: 0,
-          display: 'grid',
-          placeItems: 'center',
-          overflow: 'hidden',
-        }}
-      >
+      <div className="preview-stage">
         <PreviewBody file={file} kind={kind} contentUrl={contentUrl} />
       </div>
 
