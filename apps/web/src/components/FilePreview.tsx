@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { OrbitFile } from '@orbit/shared-types';
 import { DownloadIcon } from './ActionIcon.js';
 import { FileIcon } from './FileIcon.js';
+import { ImageViewer } from './ImageViewer.js';
 import { formatBytes } from '../lib/format.js';
 import { previewKindFor, TEXT_PREVIEW_LIMIT } from '../lib/preview.js';
 
@@ -124,41 +125,51 @@ export function FilePreview({ file, siblings, contentUrl, onSelect, onClose }: P
       <div
         style={{
           minHeight: 0,
+          minWidth: 0,
           display: 'grid',
           placeItems: 'center',
-          overflow: 'auto',
+          overflow: 'hidden',
         }}
       >
         <PreviewBody file={file} kind={kind} contentUrl={contentUrl} />
       </div>
 
-      <footer style={{ display: 'flex', justifyContent: 'center', gap: 8 }}>
-        <button
-          type="button"
-          className="clay-button"
-          disabled={!previous}
-          onClick={() => step(-1)}
-          style={{ padding: '0.45rem 1.1rem', fontSize: 13, visibility: previewable.length > 1 ? 'visible' : 'hidden' }}
-        >
-          Previous
-        </button>
-        <button
-          type="button"
-          className="clay-button"
-          disabled={!next}
-          onClick={() => step(1)}
-          style={{ padding: '0.45rem 1.1rem', fontSize: 13, visibility: previewable.length > 1 ? 'visible' : 'hidden' }}
-        >
-          Next
-        </button>
+      <footer style={{ display: 'flex', justifyContent: 'center' }}>
+        {previewable.length > 1 && (
+          <div className="scrim-bar">
+            <button
+              type="button"
+              className="clay-button"
+              disabled={!previous}
+              onClick={() => step(-1)}
+              style={{ padding: '0.45rem 1.1rem', fontSize: 13 }}
+            >
+              Previous
+            </button>
+            <button
+              type="button"
+              className="clay-button"
+              disabled={!next}
+              onClick={() => step(1)}
+              style={{ padding: '0.45rem 1.1rem', fontSize: 13 }}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </footer>
     </div>
   );
 }
 
 const MEDIA_STYLE = {
+  // Fits the frame in both directions. `maxHeight` alone is not enough inside a
+  // grid track, which is what let a tall photo run off the bottom of the window.
   maxWidth: '100%',
   maxHeight: '100%',
+  width: 'auto',
+  height: 'auto',
+  objectFit: 'contain',
   borderRadius: 'var(--radius-md)',
   display: 'block',
 } as const;
@@ -175,7 +186,7 @@ function PreviewBody({
   const src = contentUrl(file, false);
 
   if (kind === 'image') {
-    return <img src={src} alt={file.name} style={MEDIA_STYLE} />;
+    return <ImageViewer src={src} alt={file.name} />;
   }
 
   if (kind === 'video') {

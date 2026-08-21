@@ -92,6 +92,7 @@ const searchQuery = z.object({
   starred: z.enum(['1', '0']).optional(),
   mine: z.enum(['1', '0']).optional(),
   fullText: z.enum(['1', '0']).optional(),
+  cursor: z.string().optional(),
 });
 
 /**
@@ -105,7 +106,8 @@ filesRouter.get('/api/search', requireAuth, async (req, res, next) => {
     return;
   }
 
-  const { q, categories, under, since, minSize, maxSize, starred, mine, fullText, accountId } = parsed.data;
+  const { q, categories, under, since, minSize, maxSize, starred, mine, fullText, accountId, cursor } =
+    parsed.data;
 
   // A search with no criterion at all would return the entire drive, which is
   // never what anyone meant.
@@ -121,18 +123,22 @@ filesRouter.get('/api/search', requireAuth, async (req, res, next) => {
 
   try {
     res.json(
-      await searchWorkspace(req.user!.id, {
-        accountId,
-        text: q,
-        fullText: fullText === '1',
-        categories: categories ? categories.split(',').filter(Boolean) : undefined,
-        underPath: under,
-        modifiedAfter: since,
-        minSizeBytes: minSize,
-        maxSizeBytes: maxSize,
-        starredOnly: starred === '1',
-        ownedByMeOnly: mine === '1',
-      }),
+      await searchWorkspace(
+        req.user!.id,
+        {
+          accountId,
+          text: q,
+          fullText: fullText === '1',
+          categories: categories ? categories.split(',').filter(Boolean) : undefined,
+          underPath: under,
+          modifiedAfter: since,
+          minSizeBytes: minSize,
+          maxSizeBytes: maxSize,
+          starredOnly: starred === '1',
+          ownedByMeOnly: mine === '1',
+        },
+        { cursor },
+      ),
     );
   } catch (err) {
     if (!sendProviderError(err, res)) next(err);

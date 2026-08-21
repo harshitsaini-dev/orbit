@@ -130,6 +130,9 @@ h3 {
 }
 
 .app-nav__link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   padding: 0.6rem 1rem;
   border-radius: var(--radius-sm);
   text-decoration: none;
@@ -479,4 +482,52 @@ body {
     animation: none;
     background: var(--surface-sunken);
   }
+}
+
+/* Buttons that pair a glyph with a word. */
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* --- controls over a scrim ----------------------------------------------
+   The clay shadows assume a surface behind them. Floating the same buttons on
+   the preview's blurred backdrop leaves a light halo and a dark blob instead of
+   depth, so controls there sit on their own solid bar and go flat inside it. */
+
+.scrim-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: var(--shadow-clay);
+}
+
+.scrim-bar .clay-button {
+  background: transparent;
+  box-shadow: none;
+  color: var(--text);
+}
+
+.scrim-bar .clay-button:hover:not(:disabled) {
+  transform: none;
+  background: var(--accent-soft);
+  box-shadow: none;
+  color: var(--accent);
+}
+
+.scrim-bar .clay-button:active:not(:disabled) {
+  box-shadow: var(--shadow-clay-inset);
+}
+
+.scrim-bar .clay-button:disabled {
+  opacity: 0.4;
+}
+
+.scrim-bar .clay-button[aria-pressed='true'] {
+  background: var(--accent-soft);
+  color: var(--accent);
 }

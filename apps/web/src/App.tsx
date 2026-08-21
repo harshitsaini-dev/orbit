@@ -1,7 +1,18 @@
 import { useEffect, type ReactNode } from 'react';
 import type { ThemeMode } from '@orbit/shared-types';
-import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AccountMenu } from './components/AccountMenu.js';
+import { BrandMark } from './components/BrandMark.js';
+import {
+  ClockIcon,
+  CodeIcon,
+  DashboardIcon,
+  DriveIcon,
+  PersonIcon,
+  QuotaIcon,
+  SharedIcon,
+  StarOutlineIcon,
+} from './components/Icons.js';
 import { useAuth } from './lib/auth.js';
 import { useTheme } from './lib/theme.js';
 import { Account } from './routes/Account.js';
@@ -14,14 +25,14 @@ import { Quota } from './routes/Quota.js';
 import { WorkspaceViewPage } from './routes/WorkspaceView.js';
 
 const NAV = [
-  { to: '/', label: 'Dashboard' },
-  { to: '/my-drive', label: 'My Drive' },
-  { to: '/recent', label: 'Recent' },
-  { to: '/starred', label: 'Starred' },
-  { to: '/shared-with-me', label: 'Shared with me' },
-  { to: '/quota', label: 'Quota' },
-  { to: '/developer', label: 'Developer' },
-  { to: '/account', label: 'Account' },
+  { to: '/', label: 'Dashboard', Icon: DashboardIcon },
+  { to: '/my-drive', label: 'My Drive', Icon: DriveIcon },
+  { to: '/recent', label: 'Recent', Icon: ClockIcon },
+  { to: '/starred', label: 'Starred', Icon: StarOutlineIcon },
+  { to: '/shared-with-me', label: 'Shared with me', Icon: SharedIcon },
+  { to: '/quota', label: 'Quota', Icon: QuotaIcon },
+  { to: '/developer', label: 'Developer', Icon: CodeIcon },
+  { to: '/account', label: 'Account', Icon: PersonIcon },
 ];
 
 /**
@@ -67,7 +78,19 @@ function Workspace() {
     <div className="app-shell">
       <ProfileAppearance />
       <header className="app-header">
-        <strong style={{ fontSize: 20, letterSpacing: '-0.03em' }}>Orbit</strong>
+        <Link
+          to="/"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 9,
+            textDecoration: 'none',
+            color: 'var(--text)',
+          }}
+        >
+          <BrandMark size={28} />
+          <strong style={{ fontSize: 20, letterSpacing: '-0.03em' }}>Orbit</strong>
+        </Link>
         <div className="app-header__actions">
           <AccountMenu />
         </div>
@@ -75,9 +98,10 @@ function Workspace() {
 
       <div className="app-body">
         <nav className="clay app-nav" aria-label="Workspace">
-          {NAV.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.to === '/'} className="app-nav__link">
-              {item.label}
+          {NAV.map(({ to, label, Icon }) => (
+            <NavLink key={to} to={to} end={to === '/'} className="app-nav__link">
+              <Icon />
+              {label}
             </NavLink>
           ))}
         </nav>

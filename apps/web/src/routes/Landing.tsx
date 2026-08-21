@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { CatalogueEntry, UnavailableProvider } from '@orbit/shared-types';
+import { BrandMark } from '../components/BrandMark.js';
 import { OrbitHero } from '../components/OrbitHero.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { Link } from 'react-router-dom';
@@ -85,7 +86,10 @@ export function Landing() {
       }}
     >
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <strong style={{ fontSize: 20, letterSpacing: '-0.03em' }}>Orbit</strong>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+          <BrandMark size={28} />
+          <strong style={{ fontSize: 20, letterSpacing: '-0.03em' }}>Orbit</strong>
+        </span>
         {mode === 'hosted' && (
           <Link to="/login" className="clay-button" style={{ padding: '0.4rem 1.1rem', fontSize: 14, textDecoration: 'none' }}>
             Sign in

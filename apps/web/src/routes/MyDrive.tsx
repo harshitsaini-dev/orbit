@@ -6,8 +6,17 @@ import { FileIcon } from '../components/FileIcon.js';
 import { FilePreview } from '../components/FilePreview.js';
 import { Checkbox } from '../components/Checkbox.js';
 import { FileGrid } from '../components/FileGrid.js';
+import {
+  NewFolderIcon,
+  RefreshIcon,
+  TrashIcon,
+  UpIcon,
+  UploadFileIcon,
+  UploadFolderIcon,
+} from '../components/Icons.js';
 import { ViewToggle, useViewMode } from '../components/ViewToggle.js';
 import { ConfirmDialog, NameDialog } from '../components/NameDialog.js';
+import { Pagination } from '../components/Pagination.js';
 import { Select } from '../components/Select.js';
 import { FileGridSkeleton, FileListSkeleton } from '../components/Skeleton.js';
 import { UploadPanel, forgetFiles, registerFile } from '../components/UploadPanel.js';
@@ -30,6 +39,16 @@ const API_BASE = import.meta.env.VITE_API_URL ?? '';
  * folder a person browses, and short of the point where the browser struggles.
  */
 const MAX_FOLDER_ITEMS = 5000;
+
+/**
+ * The same ceiling for search results. The *matching* happens at the provider
+ * over every file in the account, however many there are — this only bounds how
+ * many matches are held in the page at once.
+ */
+const MAX_SEARCH_RESULTS = 5000;
+
+/** Rows per page. Past this a single list is slow to render and worse to read. */
+const PAGE_SIZE = 1000;
 
 interface WorkspaceSearchFile extends OrbitFile {
   accountId: string;
@@ -259,18 +278,35 @@ export function MyDrive() {
       if (band.min !== undefined) params.set('minSize', String(band.min));
       if (band.max !== undefined) params.set('maxSize', String(band.max));
 
-      api<{ files: WorkspaceSearchFile[] }>(`/api/search?${params.toString()}`, {
-        signal: controller.signal,
-      })
-        .then(({ files }) => setResults(files))
-        .catch((err: Error) => {
-          if (err.name === 'AbortError') return;
+      void (async () => {
+        const collected: WorkspaceSearchFile[] = [];
+        let cursor: string | undefined;
+
+        try {
+          do {
+            const query = new URLSearchParams(params);
+            if (cursor) query.set('cursor', cursor);
+
+            const page: { files: WorkspaceSearchFile[]; nextCursor?: string } = await api(
+              `/api/search?${query.toString()}`,
+              { signal: controller.signal },
+            );
+
+            collected.push(...page.files);
+            // Shown as they arrive, so a broad search is readable immediately
+            // rather than blank until every page has landed.
+            setResults([...collected]);
+
+            cursor = collected.length >= MAX_SEARCH_RESULTS ? undefined : page.nextCursor;
+          } while (cursor);
+        } catch (err) {
+          if ((err as Error).name === 'AbortError') return;
           setResults([]);
           setError(err instanceof ApiError ? err.message : 'Search failed');
-        })
-        .finally(() => {
+        } finally {
           if (!controller.signal.aborted) setSearching(false);
-        });
+        }
+      })();
     }, 350);
 
     return () => {
@@ -417,11 +453,26 @@ export function MyDrive() {
 
   // Selection follows what is on screen: selecting all while a search is
   // running should mean the results, not the folder behind them.
-  const selectedFiles = visible.filter((file) => selected.has(file.remoteId));
-  const allVisibleSelected = visible.length > 0 && selectedFiles.length === visible.length;
+  const pageCount = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const currentPage = Math.min(Math.max(1, Number(params.get('page')) || 1), pageCount);
+  // One page at a time reaches the DOM; the rest is held but not rendered.
+  const paged = pageCount > 1 ? visible.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE) : visible;
+
+  function goToPage(next: number): void {
+    const updated = new URLSearchParams(params);
+    if (next <= 1) updated.delete('page');
+    else updated.set('page', String(next));
+    setParams(updated, { replace: false });
+    setSelected(new Set());
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Selection and select-all follow what is on screen, which is one page.
+  const selectedFiles = paged.filter((file) => selected.has(file.remoteId));
+  const allVisibleSelected = paged.length > 0 && selectedFiles.length === paged.length;
 
   function toggleSelectAll(): void {
-    setSelected(allVisibleSelected ? new Set() : new Set(visible.map((file) => file.remoteId)));
+    setSelected(allVisibleSelected ? new Set() : new Set(paged.map((file) => file.remoteId)));
   }
 
   if (accounts?.length === 0) {
@@ -538,36 +589,40 @@ export function MyDrive() {
           {path !== '/' && (
             <button
               type="button"
-              className="clay-button"
+              className="clay-button icon-button"
               style={{ padding: '0.4rem 1rem', fontSize: 13 }}
               onClick={() => navigate({ path: parentOf(path) })}
             >
+              <UpIcon size={16} />
               Up
             </button>
           )}
           <button
             type="button"
-            className="clay-button clay-button--accent"
+            className="clay-button clay-button--accent icon-button"
             style={{ padding: '0.4rem 1rem', fontSize: 13 }}
             onClick={() => fileInputRef.current?.click()}
           >
+            <UploadFileIcon size={16} />
             Upload files
           </button>
           <button
             type="button"
-            className="clay-button"
+            className="clay-button icon-button"
             style={{ padding: '0.4rem 1rem', fontSize: 13 }}
             onClick={() => folderInputRef.current?.click()}
           >
+            <UploadFolderIcon size={16} />
             Upload folder
           </button>
           <button
             type="button"
-            className="clay-button"
+            className="clay-button icon-button"
             style={{ padding: '0.4rem 1rem', fontSize: 13 }}
             disabled={busyId !== null}
             onClick={() => setDialog({ kind: 'new-folder' })}
           >
+            <NewFolderIcon size={16} />
             New folder
           </button>
 
@@ -597,22 +652,24 @@ export function MyDrive() {
           />
           <button
             type="button"
-            className="clay-button"
+            className="clay-button icon-button"
             style={{ padding: '0.4rem 1rem', fontSize: 13 }}
             disabled={loading}
             onClick={() => void load()}
           >
+            <RefreshIcon size={16} />
             Refresh
           </button>
 
           {selectedFiles.length > 0 && (
             <button
               type="button"
-              className="clay-button"
+              className="clay-button icon-button"
               style={{ padding: '0.4rem 1rem', fontSize: 13, color: 'var(--danger)' }}
               disabled={busyId !== null}
               onClick={() => setDialog({ kind: 'delete', files: selectedFiles })}
             >
+              <TrashIcon size={16} />
               Delete {selectedFiles.length}
             </button>
           )}
@@ -651,7 +708,9 @@ export function MyDrive() {
               label={
                 selectedFiles.length > 0
                   ? `${selectedFiles.length} selected`
-                  : `Select all ${visible.length}`
+                  : pageCount > 1
+                    ? `Select page (${paged.length})`
+                    : `Select all ${visible.length}`
               }
             />
           )}
@@ -687,9 +746,19 @@ export function MyDrive() {
           </div>
         )}
 
-        {visible.length > 0 && viewMode === 'grid' && (
+        {pageCount > 1 && (
+          <Pagination
+            page={currentPage}
+            pageCount={pageCount}
+            totalItems={visible.length}
+            pageSize={PAGE_SIZE}
+            onChange={goToPage}
+          />
+        )}
+
+        {paged.length > 0 && viewMode === 'grid' && (
           <FileGrid
-            files={visible}
+            files={paged}
             accountIdFor={() => accountId}
             selected={selected}
             onToggleSelect={toggleSelected}
@@ -699,9 +768,9 @@ export function MyDrive() {
           />
         )}
 
-        {visible.length > 0 && viewMode === 'list' && (
+        {paged.length > 0 && viewMode === 'list' && (
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 4 }} data-testid="file-list">
-            {visible.map((file) => (
+            {paged.map((file) => (
               <li
                 key={file.remoteId}
                 style={{
@@ -837,6 +906,16 @@ export function MyDrive() {
           </ul>
         )}
 
+        {pageCount > 1 && (
+          <Pagination
+            page={currentPage}
+            pageCount={pageCount}
+            totalItems={visible.length}
+            pageSize={PAGE_SIZE}
+            onChange={goToPage}
+          />
+        )}
+
         {!searchActive && listing && listing.files.length > 0 && (
           <p style={{ color: 'var(--text-muted)', fontSize: 13, padding: '0.75rem' }} aria-live="polite">
             {loadingMore
@@ -844,6 +923,14 @@ export function MyDrive() {
               : listing.files.length >= MAX_FOLDER_ITEMS
                 ? `Showing ${MAX_FOLDER_ITEMS.toLocaleString()} items. This folder holds more than Orbit will load at once — use search to find something specific.`
                 : `${listing.files.length} ${listing.files.length === 1 ? 'item' : 'items'}`}
+          </p>
+        )}
+
+        {searchActive && results && results.length >= MAX_SEARCH_RESULTS && (
+          <p style={{ color: 'var(--warning)', fontSize: 13, padding: '0.75rem' }}>
+            More than {MAX_SEARCH_RESULTS.toLocaleString()} files matched. The search itself covered
+            every file in the account — this is only how many matches are held at once. Narrow it
+            with a filter to see the rest.
           </p>
         )}
       </section>
@@ -902,7 +989,7 @@ export function MyDrive() {
       {previewing && (
         <FilePreview
           file={previewing}
-          siblings={visible}
+          siblings={paged}
           contentUrl={contentUrl}
           onSelect={setPreviewing}
           onClose={() => setPreviewing(null)}
