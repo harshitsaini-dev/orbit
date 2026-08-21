@@ -72,8 +72,11 @@ GOOGLE_CLIENT_SECRET=<client secret>
 Only needed for hosted mode. Local development prints the code to the server console instead.
 
 1. Sign up at <https://resend.com/> (GitHub sign-in works; no card).
-2. **Domains → Add domain** → enter `harshitsaini.in` (or `mail.harshitsaini.in` if you would
-   rather keep the root domain free).
+2. **Domains → Add domain** → enter **`signal.harshitsaini.in`**.
+
+   Sending from a subdomain rather than the root domain is deliberate: a deliverability problem
+   with application mail then cannot damage the reputation of the root domain, and the DNS
+   records stay scoped to that subdomain.
 3. Resend shows a set of DNS records (SPF/TXT, DKIM, and usually a return-path CNAME). Add each
    one in Cloudflare (section 5), then press **Verify**. Propagation is usually minutes.
 4. **API Keys → Create API Key**, permission *Sending access*. Copy it once — it is not shown
@@ -82,7 +85,7 @@ Only needed for hosted mode. Local development prints the code to the server con
 
 ```
 RESEND_API_KEY=<key>
-RESEND_FROM="Orbit <no-reply@harshitsaini.in>"
+RESEND_FROM="Orbit <no-reply@signal.harshitsaini.in>"
 ```
 
 Free tier: 3,000 emails/month, 100/day. Far beyond what sign-in codes need.
@@ -138,7 +141,7 @@ DATABASE_URL=libsql://orbit-prod-<org>.turso.io DATABASE_AUTH_TOKEN=<token> npm 
 | `TOKEN_ENCRYPTION_KEY` | a **new** 32-byte key, not your local one |
 | `SESSION_SECRET` | a **new** random value |
 | `RESEND_API_KEY` | from section 2 |
-| `RESEND_FROM` | from section 2 |
+| `RESEND_FROM` | `Orbit <no-reply@signal.harshitsaini.in>` |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | from section 1 |
 
 Never set `ENABLE_DEV_AUTH_ENDPOINTS` here. It is refused under `NODE_ENV=production` anyway,
@@ -161,7 +164,12 @@ but there is no reason for it to appear.
 |---|---|---|---|
 | CNAME | `orbit` | the target Vercel gives you (section 6) | DNS only |
 | CNAME | `api.orbit` | the target Render gave you (section 4) | DNS only |
-| _(Resend's records from section 2)_ | | | DNS only |
+| _(Resend's records for `signal`, from section 2)_ | | | DNS only |
+
+Resend's records are given relative to `signal.harshitsaini.in`. Cloudflare appends the zone
+name automatically, so a record Resend shows as `resend._domainkey` is entered as
+`resend._domainkey.signal` — check the row's preview shows the full
+`resend._domainkey.signal.harshitsaini.in` before saving.
 
 Use **DNS only** (grey cloud), not the orange proxy — the proxy interferes with the custom-domain
 verification both platforms run.
@@ -197,7 +205,7 @@ Render's free instance sleeps after 15 minutes idle, so the first visit of the d
 
 - [ ] `TOKEN_ENCRYPTION_KEY` and `SESSION_SECRET` generated and in local `.env`
 - [ ] Google OAuth client created; both redirect URIs registered; keys in `.env`
-- [ ] Resend domain verified and API key created
+- [ ] Resend domain `signal.harshitsaini.in` verified and API key created
 - [ ] Turso database created and migrated
 - [ ] Render service deployed with all environment variables
 - [ ] Cloudflare nameservers active and both CNAMEs added

@@ -21,8 +21,8 @@ DATABASE_URL=libsql://... DATABASE_AUTH_TOKEN=... npm run db:migrate
 
 ## 2. Email — Resend
 
-Verify `harshitsaini.in` (or a `mail.` subdomain) for sending, then create an API key.
-Set `RESEND_API_KEY` and `RESEND_FROM` on Render.
+Verify `signal.harshitsaini.in` for sending, then create an API key. Set `RESEND_API_KEY` and
+`RESEND_FROM="Orbit <no-reply@signal.harshitsaini.in>"` on Render.
 
 ## 3. Backend — Render
 
