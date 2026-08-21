@@ -12,9 +12,8 @@ concurrency:
 jobs:
   playwright:
     runs-on: ubuntu-latest
-    env:
-      AUTH_MODE: local
-      DATABASE_URL: 'file:./orbit-ci.db'
+    # The Playwright config owns the servers' environment (hosted mode, dev
+    # outbox, dedicated ports), so nothing needs setting here.
     steps:
       - uses: actions/checkout@v4
 

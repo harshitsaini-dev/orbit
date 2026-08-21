@@ -1,6 +1,11 @@
 import { expect, test } from '@playwright/test';
+import { signIn } from './helpers.js';
 
 test.describe('shell', () => {
+  test.beforeEach(async ({ page }) => {
+    await signIn(page);
+  });
+
   test('renders the landing page and reaches the API', async ({ page }) => {
     await page.goto('/');
 
@@ -12,14 +17,12 @@ test.describe('shell', () => {
   });
 
   test('navigates between workspace views', async ({ page }) => {
-    await page.goto('/');
     await page.getByRole('link', { name: 'My Drive' }).click();
     await expect(page).toHaveURL(/\/my-drive$/);
     await expect(page.getByRole('heading', { name: 'My Drive' })).toBeVisible();
   });
 
   test('theme choice persists across a reload', async ({ page }) => {
-    await page.goto('/');
     await page.getByRole('button', { name: 'dark', exact: true }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 

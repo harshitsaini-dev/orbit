@@ -1,14 +1,24 @@
 import { defineConfig, devices } from '@playwright/test';
+import { E2E_DB_URL } from './e2e/paths.js';
 
-const WEB_URL = 'http://localhost:5173';
-const API_URL = 'http://localhost:8787';
+// Dedicated ports so the suite never collides with - or silently reuses - a
+// hand-started dev server that lacks the env this config sets below.
+const WEB_PORT = 5174;
+const API_PORT = 8788;
+const WEB_URL = `http://localhost:${WEB_PORT}`;
+const API_URL = `http://localhost:${API_PORT}`;
 
 export default defineConfig({
   testDir: './e2e',
+  globalSetup: './e2e/global-setup.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
+  // The dev server transforms the module graph (three.js included) on the first
+  // request, so a cold parallel start is well over Playwright's 5s default.
+  timeout: 60_000,
+  expect: { timeout: 15_000 },
   reporter: process.env.CI ? [['html', { open: 'never' }], ['github']] : [['list']],
 
   use: {
@@ -33,14 +43,30 @@ export default defineConfig({
     {
       command: 'npm run dev:server',
       url: `${API_URL}/health`,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 60_000,
+      env: {
+        PORT: String(API_PORT),
+        APP_URL: WEB_URL,
+        API_URL,
+        // The suite exercises the real OTP flow, so it needs hosted mode plus the
+        // dev outbox endpoint standing in for a mailbox. Both are opt-in and
+        // refused under NODE_ENV=production.
+        AUTH_MODE: 'hosted',
+        ENABLE_DEV_AUTH_ENDPOINTS: 'true',
+        TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
+        SESSION_SECRET: 'e2e-session-secret',
+        DATABASE_URL: E2E_DB_URL,
+        // Many sign-ins from one IP; the limiter has its own unit test.
+        AUTH_RATE_LIMIT: '10000',
+      },
     },
     {
       command: 'npm run dev:web',
       url: WEB_URL,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 60_000,
+      env: { ORBIT_API_PORT: String(API_PORT), ORBIT_WEB_PORT: String(WEB_PORT) },
     },
   ],
 });

@@ -4,6 +4,8 @@ import express, { type Express, type NextFunction, type Request, type Response }
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { env } from './lib/env.js';
+import { attachUser } from './middleware/auth.js';
+import { authRouter } from './routes/auth.js';
 import { healthRouter } from './routes/health.js';
 
 export function createApp(): Express {
@@ -18,14 +20,27 @@ export function createApp(): Express {
   // Auth routes are the enumeration/brute-force surface; limit them harder than the rest.
   app.use(
     '/auth',
-    rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: 'draft-7', legacyHeaders: false }),
+    rateLimit({
+      windowMs: env.AUTH_RATE_WINDOW_MS,
+      limit: env.AUTH_RATE_LIMIT,
+      standardHeaders: 'draft-7',
+      legacyHeaders: false,
+    }),
   );
   app.use(
     '/api',
-    rateLimit({ windowMs: 60 * 1000, limit: 120, standardHeaders: 'draft-7', legacyHeaders: false }),
+    rateLimit({
+      windowMs: env.API_RATE_WINDOW_MS,
+      limit: env.API_RATE_LIMIT,
+      standardHeaders: 'draft-7',
+      legacyHeaders: false,
+    }),
   );
 
   app.use(healthRouter);
+
+  app.use(attachUser);
+  app.use(authRouter);
 
   app.use((_req, res) => {
     res.status(404).json({ error: { code: 'not_found', message: 'Route not found' } });

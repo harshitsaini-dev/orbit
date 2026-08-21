@@ -39,3 +39,8 @@ AGENTS.md
 
 # scratch
 .probe/
+orbit-e2e.db
+orbit-e2e.db-wal
+orbit-e2e.db-shm
+orbit.db-wal
+orbit.db-shm

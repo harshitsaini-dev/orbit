@@ -1,6 +1,9 @@
-import { NavLink, Route, Routes } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { useAuth } from './lib/auth.js';
 import { ACCENTS, useTheme } from './lib/theme.js';
 import { Home } from './routes/Home.js';
+import { Login } from './routes/Login.js';
 import { Placeholder } from './routes/Placeholder.js';
 
 const NAV = [
@@ -59,24 +62,72 @@ function ThemeSwitch() {
   );
 }
 
-export function App() {
+function AccountMenu() {
+  const { user, mode, logout } = useAuth();
+  if (!user) return null;
+
   return (
-    <div style={{ minHeight: '100%', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <span style={{ fontSize: 13, color: 'var(--text-muted)' }} data-testid="current-user">
+        {user.email}
+      </span>
+      {mode === 'hosted' && (
+        <button type="button" className="clay-button" style={{ padding: '0.4rem 1rem', fontSize: 13 }} onClick={() => void logout()}>
+          Sign out
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Blocks a route until a session exists, remembering where the user was headed. */
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) return <div style={{ padding: '2rem', color: 'var(--text-muted)' }}>Loading…</div>;
+  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  return <>{children}</>;
+}
+
+function RequireSuperadmin({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  if (loading) return null;
+  // Mirrors the API, which 404s rather than 403s so /admin is not confirmed to exist.
+  if (user?.role !== 'superadmin') return <Placeholder title="Not found" phase="-" />;
+  return <>{children}</>;
+}
+
+function Workspace() {
+  return (
+    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
       <header
         style={{
-          height: 'var(--topbar-h)',
+          minHeight: 'var(--topbar-h)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '1rem',
-          padding: '0 clamp(1rem, 4vw, 2.5rem)',
+          padding: '0.75rem clamp(1rem, 4vw, 2.5rem)',
+          flexWrap: 'wrap',
         }}
       >
         <strong style={{ fontSize: 20, letterSpacing: '-0.03em' }}>Orbit</strong>
-        <ThemeSwitch />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <AccountMenu />
+          <ThemeSwitch />
+        </div>
       </header>
 
-      <div style={{ display: 'flex', flex: 1, gap: '1.5rem', padding: '0 clamp(1rem, 4vw, 2.5rem) 2rem', flexWrap: 'wrap' }}>
+      <div
+        style={{
+          display: 'flex',
+          flex: 1,
+          gap: '1.5rem',
+          padding: '0 clamp(1rem, 4vw, 2.5rem) 2rem',
+          flexWrap: 'wrap',
+        }}
+      >
         <nav
           className="clay"
           style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 200, alignSelf: 'flex-start' }}
@@ -108,12 +159,34 @@ export function App() {
             <Route path="/starred" element={<Placeholder title="Starred" phase="Phase 4" />} />
             <Route path="/shared-with-me" element={<Placeholder title="Shared with me" phase="Phase 4" />} />
             <Route path="/quota" element={<Placeholder title="Quota" phase="Phase 4" />} />
-            <Route path="/login" element={<Placeholder title="Sign in" phase="Phase 1" />} />
-            <Route path="/admin" element={<Placeholder title="Admin" phase="Phase 8" />} />
+            <Route
+              path="/admin"
+              element={
+                <RequireSuperadmin>
+                  <Placeholder title="Admin" phase="Phase 8" />
+                </RequireSuperadmin>
+              }
+            />
             <Route path="*" element={<Placeholder title="Not found" phase="-" />} />
           </Routes>
         </main>
       </div>
     </div>
+  );
+}
+
+export function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<Login />} />
+      <Route
+        path="*"
+        element={
+          <RequireAuth>
+            <Workspace />
+          </RequireAuth>
+        }
+      />
+    </Routes>
   );
 }

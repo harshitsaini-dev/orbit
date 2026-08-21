@@ -2,6 +2,10 @@ import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+const WEB_PORT = Number(process.env.ORBIT_WEB_PORT ?? 5173);
+const API_PORT = process.env.ORBIT_API_PORT ?? '8787';
+const API_TARGET = `http://localhost:${API_PORT}`;
+
 export default defineConfig({
   plugins: [
     react(),
@@ -25,12 +29,13 @@ export default defineConfig({
     }),
   ],
   server: {
-    port: 5173,
+    port: WEB_PORT,
+    strictPort: true,
     proxy: {
-      '/api': { target: 'http://localhost:8787', changeOrigin: true },
-      '/auth': { target: 'http://localhost:8787', changeOrigin: true },
-      '/health': { target: 'http://localhost:8787', changeOrigin: true },
-      '/ws': { target: 'ws://localhost:8787', ws: true },
+      '/api': { target: API_TARGET, changeOrigin: true },
+      '/auth': { target: API_TARGET, changeOrigin: true },
+      '/health': { target: API_TARGET, changeOrigin: true },
+      '/ws': { target: `ws://localhost:${API_PORT}`, ws: true },
     },
   },
   build: {
