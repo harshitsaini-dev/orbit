@@ -28,6 +28,13 @@ const schema = z.object({
   AUTH_RATE_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
   API_RATE_LIMIT: z.coerce.number().int().positive().default(120),
   API_RATE_WINDOW_MS: z.coerce.number().int().positive().default(60 * 1000),
+  /**
+   * Streaming a file and fetching a thumbnail are counted separately from
+   * metadata calls. A grid of tiles fetches one preview each, so a photo folder
+   * would otherwise exhaust the metadata budget in a single scroll.
+   */
+  TRANSFER_RATE_LIMIT: z.coerce.number().int().positive().default(1200),
+  TRANSFER_RATE_WINDOW_MS: z.coerce.number().int().positive().default(60 * 1000),
 
   /**
    * Exposes /auth/dev/* so tests and local development can read back an OTP

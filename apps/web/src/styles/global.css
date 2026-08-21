@@ -387,3 +387,96 @@ body {
 .select__option[aria-selected='true'] {
   font-weight: 600;
 }
+
+/* --- grid tiles ---------------------------------------------------------- */
+
+.file-tile {
+  transition:
+    transform var(--dur-fast) var(--ease-clay),
+    box-shadow var(--dur-base) var(--ease-clay);
+}
+
+.file-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-clay-inset), var(--glow-accent);
+}
+
+.file-tile[data-selected] {
+  box-shadow: var(--shadow-clay-inset), 0 0 0 2px var(--accent);
+}
+
+/* The tick only clutters a tile until it is needed, so it appears on hover,
+   on focus, and whenever the tile is actually selected. */
+.file-tile__select {
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-clay);
+}
+
+.file-tile:hover .file-tile__select,
+.file-tile:focus-within .file-tile__select,
+.file-tile__select[data-visible] {
+  opacity: 1;
+}
+
+/* A coarse pointer has no hover, so the tick has to stay put. */
+@media (hover: none) {
+  .file-tile__select {
+    opacity: 1;
+  }
+}
+
+/* --- view toggle --------------------------------------------------------- */
+
+.view-toggle {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius-pill);
+}
+
+.view-toggle button {
+  display: grid;
+  place-items: center;
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+}
+
+.view-toggle button[aria-pressed='true'] {
+  background: var(--surface);
+  box-shadow: var(--shadow-clay);
+  color: var(--accent);
+}
+
+/* --- skeletons ----------------------------------------------------------
+   A sweep rather than a pulse: a pulse reads as "broken and blinking", while a
+   sweep reads as "on its way". */
+
+.skeleton {
+  display: block;
+  background:
+    linear-gradient(
+      90deg,
+      var(--surface-sunken) 0%,
+      color-mix(in srgb, var(--text) 8%, var(--surface-sunken)) 40%,
+      var(--surface-sunken) 80%
+    );
+  background-size: 300% 100%;
+  animation: skeleton-sweep 1.35s var(--ease-clay) infinite;
+}
+
+@keyframes skeleton-sweep {
+  from { background-position: 160% 0; }
+  to   { background-position: -60% 0; }
+}
+
+/* A shimmer with no content is exactly the kind of motion that hurts, so it
+   holds still when the user has asked for less of it. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+    background: var(--surface-sunken);
+  }
+}

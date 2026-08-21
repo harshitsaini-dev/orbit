@@ -17,6 +17,7 @@ export class DropboxAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: true,
+    thumbnails: true,
     search: true,
     fullTextSearch: true,
     recentView: true,

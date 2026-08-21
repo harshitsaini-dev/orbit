@@ -17,6 +17,7 @@ export class MegaAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: true,
+    thumbnails: false,
     search: false,
     fullTextSearch: false,
     recentView: false,

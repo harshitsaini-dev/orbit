@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import type { CatalogueEntry, PublicAccount } from '@orbit/shared-types';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { ConfirmDialog } from '../components/NameDialog.js';
+import { AccountCardsSkeleton } from '../components/Skeleton.js';
 import { StorageBar } from '../components/StorageBar.js';
 import { api, ApiError } from '../lib/api.js';
 
@@ -104,7 +105,11 @@ export function Quota() {
         </p>
 
         {error && <p role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
-        {!accounts && !error && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
+        {!accounts && !error && (
+          <div style={{ marginTop: '1.25rem' }}>
+            <AccountCardsSkeleton cards={1} />
+          </div>
+        )}
 
         {accounts?.length === 0 && (
           <p style={{ color: 'var(--text-muted)', marginTop: '1rem' }}>

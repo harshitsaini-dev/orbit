@@ -5,6 +5,7 @@ import { DownloadIcon, StarIcon } from '../components/ActionIcon.js';
 import { FileIcon } from '../components/FileIcon.js';
 import { FilePreview } from '../components/FilePreview.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
+import { FileListSkeleton } from '../components/Skeleton.js';
 import { api, ApiError } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
 
@@ -148,7 +149,7 @@ export function WorkspaceViewPage({ view }: { view: ViewName }) {
       </section>
 
       <section className="clay" style={{ padding: 'clamp(0.75rem, 2vw, 1.25rem)' }}>
-        {loading && !data && <p style={{ color: 'var(--text-muted)', padding: '1rem' }}>Loading…</p>}
+        {loading && !data && <FileListSkeleton rows={6} />}
 
         {data && files.length === 0 && (
           <p style={{ color: 'var(--text-muted)', padding: '1rem' }}>{copy.empty}</p>

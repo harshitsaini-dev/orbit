@@ -153,6 +153,18 @@ provider's own URL never reaches the client.
 - Always `Cache-Control: private, no-store` — one user's file behind their session.
 - `download=1` adds a `Content-Disposition` attachment header with `name`.
 
+### `GET /api/files/:id/thumbnail?accountId=&size=`
+A small preview image, proxied like everything else so the provider's own URL never reaches the
+browser. `size` is clamped to 64–1024. Missing is a normal answer rather than an error: a file
+with no preview gets `404 no_thumbnail`, which the grid quietly falls back from.
+
+Cached `private, max-age=900` — a grid re-requests these on every scroll back, and the image is
+derived rather than the file itself.
+
+Thumbnails and file streams are rate-limited **separately** from metadata calls
+(`TRANSFER_RATE_LIMIT`). A grid fetches one preview per tile, so a single scroll through a photo
+folder would otherwise exhaust the budget for listing anything.
+
 ### `POST /api/files/folder`
 `{ accountId, path, name }` → `201 { file }`.
 

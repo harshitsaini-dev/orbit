@@ -182,6 +182,8 @@ export interface ProviderCapabilities {
   flatEnumeration: boolean;
   /** Whether the provider can return files ordered by when they last changed. */
   recentView: boolean;
+  /** Whether the provider renders preview images Orbit can proxy. */
+  thumbnails: boolean;
   /** Whether the provider can search its own contents, rather than Orbit paging everything. */
   search: boolean;
   /** Whether that search can reach inside file contents, not just names. */
@@ -210,6 +212,11 @@ export interface ProviderAdapter {
   search(tokens: AccountTokens, query: SearchQuery, pageToken?: string): Promise<OrbitFilePage>;
   getFileMeta(tokens: AccountTokens, remoteId: string): Promise<OrbitFile>;
   getFileStream(tokens: AccountTokens, remoteId: string, range?: ByteRange): Promise<FileStreamResult>;
+  /**
+   * A small preview image, or null when the provider has none for this file.
+   * Gated by the `thumbnails` capability.
+   */
+  getThumbnail(tokens: AccountTokens, remoteId: string, size?: number): Promise<FileStreamResult | null>;
 
   createFolder(tokens: AccountTokens, path: string, name: string): Promise<OrbitFile>;
   rename(tokens: AccountTokens, remoteId: string, newName: string): Promise<void>;

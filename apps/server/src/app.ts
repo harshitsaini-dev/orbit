@@ -37,13 +37,29 @@ export function createApp(): Express {
       legacyHeaders: false,
     }),
   );
+  // Streaming a file or fetching a thumbnail is not a metadata call, and
+  // counting them together means one scroll through a grid of photos exhausts
+  // the budget for listing anything.
+  const isTransfer = (req: Request): boolean =>
+    /^\/api\/files\/[^/]+\/(content|thumbnail)$/.test(req.path);
+
   app.use(
-    '/api',
     rateLimit({
       windowMs: env.API_RATE_WINDOW_MS,
       limit: env.API_RATE_LIMIT,
       standardHeaders: 'draft-7',
       legacyHeaders: false,
+      skip: (req) => !req.path.startsWith('/api') || isTransfer(req),
+    }),
+  );
+
+  app.use(
+    rateLimit({
+      windowMs: env.TRANSFER_RATE_WINDOW_MS,
+      limit: env.TRANSFER_RATE_LIMIT,
+      standardHeaders: 'draft-7',
+      legacyHeaders: false,
+      skip: (req) => !isTransfer(req),
     }),
   );
 

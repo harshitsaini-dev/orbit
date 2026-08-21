@@ -217,6 +217,59 @@ filesRouter.get('/api/files/:id/content', requireAuth, async (req, res, next) =>
   }
 });
 
+/**
+ * A small preview image, proxied like everything else so the provider's own URL
+ * never reaches the browser. Missing is a normal answer, not an error, so a
+ * file with no preview gets a 404 the grid quietly falls back from.
+ */
+filesRouter.get('/api/files/:id/thumbnail', requireAuth, async (req, res, next) => {
+  const accountId = typeof req.query.accountId === 'string' ? req.query.accountId : '';
+  if (!accountId) {
+    res.status(400).json({ error: { code: 'invalid_request', message: 'accountId is required' } });
+    return;
+  }
+
+  const size = Math.min(Math.max(Number(req.query.size) || 400, 64), 1024);
+
+  try {
+    const active = await useAccount(req.user!.id, accountId);
+    if (!active) {
+      res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
+      return;
+    }
+
+    if (!active.adapter.capabilities.thumbnails) {
+      res.status(404).json({ error: { code: 'no_thumbnail', message: 'No preview available' } });
+      return;
+    }
+
+    const result = await active.adapter.getThumbnail(active.tokens, req.params.id!, size);
+    if (!result) {
+      res.status(404).json({ error: { code: 'no_thumbnail', message: 'No preview available' } });
+      return;
+    }
+
+    res.setHeader('content-type', result.contentType);
+    if (result.contentLength !== undefined) res.setHeader('content-length', String(result.contentLength));
+    // Private, but worth holding briefly: a grid re-requests these on every
+    // scroll back, and the image is derived rather than the file itself.
+    res.setHeader('cache-control', 'private, max-age=900');
+
+    const stream = Readable.fromWeb(result.stream as Parameters<typeof Readable.fromWeb>[0]);
+    res.on('close', () => stream.destroy());
+    stream.on('error', () => res.destroy());
+    stream.pipe(res);
+  } catch (err) {
+    // A thumbnail that cannot be fetched is not worth a 500 - the grid shows an
+    // icon instead, which is what it would do anyway.
+    if (!res.headersSent) {
+      res.status(404).json({ error: { code: 'no_thumbnail', message: 'No preview available' } });
+      return;
+    }
+    next(err);
+  }
+});
+
 // --- mutations ------------------------------------------------------------
 
 const createFolderBody = z.object({

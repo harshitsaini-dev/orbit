@@ -17,6 +17,7 @@ export class PCloudAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: true,
+    thumbnails: true,
     search: false,
     fullTextSearch: false,
     recentView: false,

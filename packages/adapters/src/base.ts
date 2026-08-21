@@ -94,6 +94,14 @@ export abstract class BaseAdapter implements ProviderAdapter {
   getFileStream(_tokens: AccountTokens, _remoteId: string, _range?: ByteRange): Promise<FileStreamResult> {
     return this.unsupported('getFileStream');
   }
+  /** Absent rather than unsupported: a missing thumbnail is normal, not an error. */
+  getThumbnail(
+    _tokens: AccountTokens,
+    _remoteId: string,
+    _size?: number,
+  ): Promise<FileStreamResult | null> {
+    return Promise.resolve(null);
+  }
   createFolder(_tokens: AccountTokens, _path: string, _name: string): Promise<OrbitFile> {
     return this.unsupported('createFolder');
   }

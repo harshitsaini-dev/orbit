@@ -77,6 +77,7 @@ export class GoogleDriveAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: true,
+    thumbnails: true,
     search: true,
     fullTextSearch: true,
     recentView: true,
@@ -422,6 +423,44 @@ export class GoogleDriveAdapter extends BaseAdapter {
       contentType: response.headers.get('content-type') ?? exportMime ?? meta.mimeType,
       contentLength: length ? Number(length) : undefined,
       contentRange: response.headers.get('content-range') ?? undefined,
+    };
+  }
+
+  /**
+   * Drive renders its own previews, including a frame from a video and a first
+   * page for a document. Fetching it here rather than handing the client
+   * `thumbnailLink` keeps the provider URL out of the browser - the same reason
+   * file content is proxied - and the link is short-lived and needs the access
+   * token anyway.
+   */
+  override async getThumbnail(
+    tokens: AccountTokens,
+    remoteId: string,
+    size = 400,
+  ): Promise<FileStreamResult | null> {
+    const meta = await providerJson<DriveFile & { hasThumbnail?: boolean; thumbnailLink?: string }>(
+      this.id,
+      `${API}/files/${encodeURIComponent(remoteId)}`,
+      {
+        headers: this.auth(tokens),
+        query: { fields: 'hasThumbnail,thumbnailLink,shortcutDetails', supportsAllDrives: true },
+      },
+    );
+
+    if (!meta.hasThumbnail || !meta.thumbnailLink) return null;
+
+    // The link carries its own size suffix; replacing it asks Drive for the
+    // size actually wanted rather than scaling a wrong one in the browser.
+    const url = meta.thumbnailLink.replace(/=s\d+(-c)?$/, `=s${size}`);
+
+    const response = await providerFetch(this.id, url, { headers: this.auth(tokens) });
+    if (!response.body) return null;
+
+    const length = response.headers.get('content-length');
+    return {
+      stream: response.body,
+      contentType: response.headers.get('content-type') ?? 'image/jpeg',
+      contentLength: length ? Number(length) : undefined,
     };
   }
 

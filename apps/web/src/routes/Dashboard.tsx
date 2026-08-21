@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { PublicAccount } from '@orbit/shared-types';
 import { ProviderIcon } from '../components/ProviderIcon.js';
+import { AccountCardsSkeleton, Skeleton } from '../components/Skeleton.js';
 import { api } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
 import { formatBytes } from '../lib/format.js';
@@ -44,9 +45,16 @@ export function Dashboard() {
           {greeting()}
           {user?.displayName ? `, ${user.displayName.split(' ')[0]}` : ''}.
         </h1>
+        {accounts === null && (
+          <div style={{ marginTop: '0.6rem', display: 'grid', gap: 10, maxWidth: 420 }}>
+            <Skeleton width="70%" height={13} />
+            <Skeleton height={12} radius="var(--radius-pill)" />
+          </div>
+        )}
+
         <p style={{ color: 'var(--text-muted)', marginTop: '0.4rem' }}>
           {accounts === null
-            ? 'Loading your storage…'
+            ? ''
             : accounts.length === 0
               ? 'No storage connected yet.'
               : `${formatBytes(totalUsed)} used across ${accounts.length} ${accounts.length === 1 ? 'account' : 'accounts'}${
@@ -117,6 +125,15 @@ export function Dashboard() {
           <Link to="/quota" style={{ color: 'var(--accent)', fontSize: 14 }}>
             Open accounts
           </Link>
+        </section>
+      )}
+
+      {accounts === null && (
+        <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
+          <h2 style={{ fontSize: '1.1rem' }}>Your storage</h2>
+          <div style={{ marginTop: '1rem' }}>
+            <AccountCardsSkeleton />
+          </div>
         </section>
       )}
 

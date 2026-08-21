@@ -5,8 +5,11 @@ import { DownloadIcon, RenameIcon, StarIcon } from '../components/ActionIcon.js'
 import { FileIcon } from '../components/FileIcon.js';
 import { FilePreview } from '../components/FilePreview.js';
 import { Checkbox } from '../components/Checkbox.js';
+import { FileGrid } from '../components/FileGrid.js';
+import { ViewToggle, useViewMode } from '../components/ViewToggle.js';
 import { ConfirmDialog, NameDialog } from '../components/NameDialog.js';
 import { Select } from '../components/Select.js';
+import { FileGridSkeleton, FileListSkeleton } from '../components/Skeleton.js';
 import { UploadPanel, forgetFiles, registerFile } from '../components/UploadPanel.js';
 import {
   EMPTY_FILTERS,
@@ -96,6 +99,7 @@ export function MyDrive() {
   const [results, setResults] = useState<WorkspaceSearchFile[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [sort, setSort] = useState<'name' | 'size' | 'modified'>('name');
+  const [viewMode, setViewMode] = useViewMode();
 
   const accountId = params.get('account') ?? '';
   const path = params.get('path') ?? '/';
@@ -340,7 +344,14 @@ export function MyDrive() {
     });
   }, [listing, results, searchActive, sort]);
 
-  const selectedFiles = (listing?.files ?? []).filter((file) => selected.has(file.remoteId));
+  // Selection follows what is on screen: selecting all while a search is
+  // running should mean the results, not the folder behind them.
+  const selectedFiles = visible.filter((file) => selected.has(file.remoteId));
+  const allVisibleSelected = visible.length > 0 && selectedFiles.length === visible.length;
+
+  function toggleSelectAll(): void {
+    setSelected(allVisibleSelected ? new Set() : new Set(visible.map((file) => file.remoteId)));
+  }
 
   if (accounts?.length === 0) {
     return (
@@ -545,19 +556,35 @@ export function MyDrive() {
           fullTextSupported={capabilities?.fullTextSearch ?? false}
         />
 
-        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, justifySelf: 'start' }}>
-          <span style={{ color: 'var(--text-muted)' }}>Sort</span>
-          <Select
-            label="Sort by"
-            value={sort}
-            onChange={setSort}
-            options={[
-              { value: 'name', label: 'Name' },
-              { value: 'size', label: 'Size' },
-              { value: 'modified', label: 'Modified' },
-            ]}
-          />
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+            <span style={{ color: 'var(--text-muted)' }}>Sort</span>
+            <Select
+              label="Sort by"
+              value={sort}
+              onChange={setSort}
+              options={[
+                { value: 'name', label: 'Name' },
+                { value: 'size', label: 'Size' },
+                { value: 'modified', label: 'Modified' },
+              ]}
+            />
+          </span>
+
+          <ViewToggle value={viewMode} onChange={setViewMode} />
+
+          {visible.length > 0 && (
+            <Checkbox
+              checked={allVisibleSelected}
+              onChange={toggleSelectAll}
+              label={
+                selectedFiles.length > 0
+                  ? `${selectedFiles.length} selected`
+                  : `Select all ${visible.length}`
+              }
+            />
+          )}
+        </div>
 
         {error && (
           <p role="alert" style={{ color: 'var(--danger)', margin: 0, fontSize: 14 }}>
@@ -567,7 +594,9 @@ export function MyDrive() {
       </section>
 
       <section className="clay" style={{ padding: 'clamp(0.75rem, 2vw, 1.25rem)' }}>
-        {loading && !listing && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
+        {(loading && !listing) || (searching && !results) ? (
+          viewMode === 'grid' ? <FileGridSkeleton /> : <FileListSkeleton />
+        ) : null}
 
         {!searchActive && listing && listing.files.length === 0 && (
           <p style={{ color: 'var(--text-muted)', padding: '1rem' }}>This folder is empty.</p>
@@ -587,7 +616,19 @@ export function MyDrive() {
           </div>
         )}
 
-        {visible.length > 0 && (
+        {visible.length > 0 && viewMode === 'grid' && (
+          <FileGrid
+            files={visible}
+            accountIdFor={() => accountId}
+            selected={selected}
+            onToggleSelect={toggleSelected}
+            onOpen={(file) => (file.isFolder ? navigate({ path: file.virtualPath }) : setPreviewing(file))}
+            showLocation={searchActive}
+            locationOf={locationOf}
+          />
+        )}
+
+        {visible.length > 0 && viewMode === 'list' && (
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 4 }} data-testid="file-list">
             {visible.map((file) => (
               <li

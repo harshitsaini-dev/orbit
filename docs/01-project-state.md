@@ -77,7 +77,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 Verified against the live account: 842 files, 11.9 GB scanned, categories summing exactly to the
 provider's own usage figure once the trash allowance is included.
 | `npm run build --workspaces` | clean |
-| `npx playwright test` (headed) | 108 pass, 0 fail across desktop, tablet and mobile |
+| `npx playwright test` (headed) | 117 pass, 0 fail across desktop, tablet and mobile |
 
 ## Designed but not built
 
@@ -214,6 +214,25 @@ provider's own usage figure once the trash allowance is included.
 - **Verified against the live account:** a file three levels down was found by name with its full
   path resolved, scoping to its ancestor folder found it, and scoping to an unrelated folder
   returned nothing.
+
+### Grid view, thumbnails and skeletons
+- A list/grid toggle, with real previews in grid: Drive renders its own, including a frame from
+  a video and a first page for a document. They are fetched server-side and proxied, so the
+  provider URL still never reaches the browser.
+- Tiles fetch a preview only once they are near the viewport. A folder of two hundred photos
+  would otherwise fire two hundred requests the moment the page opened.
+- Skeletons shaped like what replaces them, so nothing jumps when the data lands. They hold
+  still under `prefers-reduced-motion` — a shimmer with no content is exactly the motion that
+  hurts.
+- Select all, scoped to what is on screen: selecting all during a search means the results, not
+  the folder behind them.
+
+### Controls
+- The dropdown is a real listbox. A native `select` cannot be restyled past its closed state —
+  `appearance: none` reaches the control but never the popup, which the OS draws, so on a dark
+  theme the menu still opened white.
+- The checkbox keeps its native input and only moves it out of sight, so keyboard, focus, form
+  semantics and screen readers keep working.
 
 ### Dialogs
 - `window.prompt` and `window.confirm` are gone. Both are drawn by the browser, ignore the theme
