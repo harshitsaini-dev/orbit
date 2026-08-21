@@ -25,6 +25,22 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 9 | Design pass (Claymorphism, three.js, PWA) | ⚪ Not started |
 | 10 | Hardening + deploy | ⚪ Not started |
 | 11 | Developer platform (public API, tokens, OAuth apps, API docs tab) | ⚪ Designed, not started |
+| 12 | Instant directory cache + offline browsing | ⚪ Designed, not started |
+| 13 | Spotlight (Ctrl/Cmd + K) | ⚪ Designed, not started |
+| 14 | Unified storage dashboard | ⚪ Designed, not started |
+| 15 | Collections (virtual folders) | ⚪ Designed, not started |
+| 16 | Metadata viewers + remaining previewers | 🟡 Code, CSV and PDF done · fonts, markdown, archives, 3D pending |
+| 17 | Cross-cloud transfer engine | ⚪ Designed, not started |
+| 18 | Cross-cloud duplicate finder | ⚪ Designed, not started |
+| 19 | Scheduled jobs | ⚪ Designed, not started |
+| 20 | Automatic tagging by OCR | ⚪ Designed, not started |
+| 21 | Peer-to-peer direct transfer | ⚪ Designed, not started |
+| 22 | Share analytics | ⚪ Designed, not started |
+
+Phases 12 onward are specified in `18-planned-capabilities.md`, which records
+for each one what it costs, what the free tier will and will not carry, and —
+for HLS transcoding — why it is declined in favour of the Range streaming that
+already works.
 
 ## Done
 

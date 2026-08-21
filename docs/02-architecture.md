@@ -533,6 +533,8 @@ chmod +x .git/hooks/commit-msg
 | **8 — RBAC + Superadmin** | Workspace roles, superadmin panel, audit log | Non-superadmin blocked from /admin at both UI and API layer |
 | **9 — Design pass** | Claymorphism component library, theming, three.js hero, PWA manifest | Lighthouse PWA score green; theme persists across login → dashboard |
 | **10 — Hardening + deploy** | Rate limiting, token encryption audit, custom domain live, full Playwright suite in CI, docs complete | orbit.harshitsaini.in live, all docs/ files current, green CI |
+| **11 — Developer platform** | Public API, API tokens, OAuth apps, docs tab | See `06-developer-platform.md` |
+| **12+ — Planned capabilities** | Directory cache, Spotlight, dashboard, collections, transfer engine, duplicate finder, OCR, P2P, scheduled jobs, share analytics | See `18-planned-capabilities.md`, which carries the per-feature cost and feasibility notes |
 
 ---
 
