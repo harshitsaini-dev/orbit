@@ -19,7 +19,8 @@
     "typecheck": "tsc --build --verbose",
     "lint": "eslint .",
     "test": "npm run test --workspaces --if-present",
-    "test:e2e": "playwright test --headed",
+    "test:e2e": "cross-env ORBIT_SLOWMO=700 playwright test --headed --project=desktop-chromium --workers=1",
+    "test:e2e:all": "playwright test",
     "test:e2e:ci": "playwright test",
     "db:generate": "npm run db:generate --workspace=@orbit/db",
     "db:migrate": "npm run db:migrate --workspace=@orbit/db"
@@ -27,6 +28,7 @@
   "devDependencies": {
     "@playwright/test": "^1.50.0",
     "@types/node": "^22.10.0",
+    "cross-env": "^10.1.0",
     "drizzle-orm": "^0.45.2",
     "eslint": "^9.17.0",
     "typescript": "^5.7.2",

@@ -68,6 +68,7 @@ npm run test:e2e:ci  # Playwright, headless
 | `docs/02-architecture.md` | Full architecture, data model, adapter contract, roadmap |
 | `docs/03-api-reference.md` | Route-by-route API reference |
 | `docs/04-deployment.md` | Deployment runbook |
+| `docs/05-owner-setup.md` | Step-by-step account, API key, and DNS setup |
 | `docs/decisions/` | Architecture decision records |
 | `docs/daily-log/` | Dated development log |
 

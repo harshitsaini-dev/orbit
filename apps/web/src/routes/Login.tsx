@@ -83,7 +83,7 @@ export function Login() {
       }}
     >
       <div className="clay" style={{ width: '100%', maxWidth: 420, padding: 'clamp(1.5rem, 5vw, 2.5rem)' }}>
-        <div style={{ height: 160, margin: '-1rem 0 0' }}>
+        <div style={{ height: 210, margin: '-1.25rem -1rem 0' }}>
           <OrbitHero />
         </div>
 

@@ -1,0 +1,205 @@
+# Owner setup — the accounts and keys only you can create
+
+Everything here is free and none of it needs a payment card. Work top-down: the first section
+unblocks the next phase of development, the rest are needed before the first deployment.
+
+After each section, put the values in `.env` (copy `.env.example` first if you have not).
+`.env` is gitignored and must never be committed.
+
+---
+
+## 0. One-time local secrets
+
+Two random keys the app needs even in local mode. Run this twice and keep both outputs:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+In `.env`:
+
+```
+TOKEN_ENCRYPTION_KEY=<first output>
+SESSION_SECRET=<second output>
+```
+
+`TOKEN_ENCRYPTION_KEY` encrypts every provider token at rest. **If you lose it, every connected
+account has to be reconnected** — keep a copy somewhere safe, and use a *different* value in
+production than the one on your laptop.
+
+---
+
+## 1. Google Drive OAuth — unblocks Phase 2
+
+This is the next thing development needs.
+
+1. Go to <https://console.cloud.google.com/> and sign in.
+2. Top bar → project dropdown → **New project**. Name it `orbit`. Create, then make sure the
+   project dropdown now shows `orbit`.
+3. Left menu → **APIs & Services → Library**. Search for **Google Drive API** → **Enable**.
+4. Left menu → **APIs & Services → OAuth consent screen**.
+   - User type: **External** → Create.
+   - App name `Orbit`, user support email: your address, developer contact: your address.
+   - Save and continue.
+   - **Scopes** → *Add or remove scopes* → add:
+     - `https://www.googleapis.com/auth/drive` (full Drive access — needed for upload, rename,
+       delete and folder creation)
+     - `https://www.googleapis.com/auth/userinfo.email` (to label the connected account)
+   - Save and continue.
+   - **Test users** → add your own Gmail address. While the app is unpublished only listed test
+     users can connect, which is fine for now.
+5. Left menu → **APIs & Services → Credentials** → **Create credentials → OAuth client ID**.
+   - Application type: **Web application**.
+   - Name: `Orbit web`.
+   - **Authorised redirect URIs** → add both:
+     - `http://localhost:8787/auth/callback/google_drive`
+     - `https://api.orbit.harshitsaini.in/auth/callback/google_drive`
+   - Create. Copy the **Client ID** and **Client secret**.
+6. In `.env`:
+
+```
+GOOGLE_CLIENT_ID=<client id>
+GOOGLE_CLIENT_SECRET=<client secret>
+```
+
+> The redirect URI must match **character for character**, including `http` vs `https` and the
+> absence of a trailing slash. A mismatch is the single most common OAuth failure.
+
+---
+
+## 2. Resend — sending the sign-in codes
+
+Only needed for hosted mode. Local development prints the code to the server console instead.
+
+1. Sign up at <https://resend.com/> (GitHub sign-in works; no card).
+2. **Domains → Add domain** → enter `harshitsaini.in` (or `mail.harshitsaini.in` if you would
+   rather keep the root domain free).
+3. Resend shows a set of DNS records (SPF/TXT, DKIM, and usually a return-path CNAME). Add each
+   one in Cloudflare (section 5), then press **Verify**. Propagation is usually minutes.
+4. **API Keys → Create API Key**, permission *Sending access*. Copy it once — it is not shown
+   again.
+5. In `.env`:
+
+```
+RESEND_API_KEY=<key>
+RESEND_FROM="Orbit <no-reply@harshitsaini.in>"
+```
+
+Free tier: 3,000 emails/month, 100/day. Far beyond what sign-in codes need.
+
+---
+
+## 3. Turso — the hosted metadata database
+
+1. Sign up at <https://turso.tech/> with GitHub.
+2. Install the CLI (Windows PowerShell): `irm get.tur.so/install.ps1 | iex` — or skip the CLI and
+   use the dashboard's *Create database* button instead.
+3. Then:
+
+```bash
+turso auth login
+turso db create orbit-prod
+turso db show orbit-prod --url
+turso db tokens create orbit-prod
+```
+
+4. Keep both values for Render (section 4). Do **not** put them in your local `.env` — local
+   development should stay on the local SQLite file so tests never touch production data.
+
+5. Apply the migrations to it once, from the repo root:
+
+```bash
+DATABASE_URL=libsql://orbit-prod-<org>.turso.io DATABASE_AUTH_TOKEN=<token> npm run db:migrate
+```
+
+---
+
+## 4. Render — the backend
+
+1. Sign up at <https://render.com/> with GitHub, and grant it access to the `orbit` repo.
+2. **New → Web Service** → pick `harshitsaini-dev/orbit`.
+3. Settings:
+   - Root directory: leave empty (repository root)
+   - Runtime: Node
+   - Build command: `npm ci`
+   - Start command: `npm start -w @orbit/server`
+   - Instance type: **Free**
+4. **Environment** → add:
+
+| Key | Value |
+|---|---|
+| `NODE_ENV` | `production` |
+| `AUTH_MODE` | `hosted` |
+| `APP_URL` | `https://orbit.harshitsaini.in` |
+| `API_URL` | `https://api.orbit.harshitsaini.in` |
+| `COOKIE_DOMAIN` | `.harshitsaini.in` |
+| `DATABASE_URL` | from section 3 |
+| `DATABASE_AUTH_TOKEN` | from section 3 |
+| `TOKEN_ENCRYPTION_KEY` | a **new** 32-byte key, not your local one |
+| `SESSION_SECRET` | a **new** random value |
+| `RESEND_API_KEY` | from section 2 |
+| `RESEND_FROM` | from section 2 |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | from section 1 |
+
+Never set `ENABLE_DEV_AUTH_ENDPOINTS` here. It is refused under `NODE_ENV=production` anyway,
+but there is no reason for it to appear.
+
+5. **Settings → Custom domain** → add `api.orbit.harshitsaini.in`. Render shows a CNAME target;
+   use it in section 5.
+
+---
+
+## 5. Cloudflare — DNS
+
+1. Sign up at <https://dash.cloudflare.com/>, **Add a site** → `harshitsaini.in`, choose the
+   **Free** plan.
+2. Cloudflare gives you two nameservers. Set them at whichever registrar you bought the domain
+   from. This takes anywhere from minutes to a few hours.
+3. Once active, **DNS → Records** and add:
+
+| Type | Name | Target | Proxy |
+|---|---|---|---|
+| CNAME | `orbit` | the target Vercel gives you (section 6) | DNS only |
+| CNAME | `api.orbit` | the target Render gave you (section 4) | DNS only |
+| _(Resend's records from section 2)_ | | | DNS only |
+
+Use **DNS only** (grey cloud), not the orange proxy — the proxy interferes with the custom-domain
+verification both platforms run.
+
+---
+
+## 6. Vercel — the frontend
+
+1. Sign up at <https://vercel.com/> with GitHub.
+2. **Add New → Project** → import `harshitsaini-dev/orbit`.
+3. Settings:
+   - Framework preset: **Vite**
+   - Root directory: `apps/web`
+   - Build command: `npm run build`
+   - Output directory: `dist`
+4. **Environment Variables** → `VITE_API_URL` = `https://api.orbit.harshitsaini.in`
+5. Deploy, then **Settings → Domains** → add `orbit.harshitsaini.in`. Vercel shows the CNAME
+   target for section 5.
+
+---
+
+## 7. UptimeRobot — keeping the backend warm (optional)
+
+Render's free instance sleeps after 15 minutes idle, so the first visit of the day is slow.
+
+1. Sign up at <https://uptimerobot.com/> (free, no card).
+2. **Add New Monitor** → type *HTTP(s)*, URL `https://api.orbit.harshitsaini.in/health`,
+   interval 5 minutes.
+
+---
+
+## Checklist
+
+- [ ] `TOKEN_ENCRYPTION_KEY` and `SESSION_SECRET` generated and in local `.env`
+- [ ] Google OAuth client created; both redirect URIs registered; keys in `.env`
+- [ ] Resend domain verified and API key created
+- [ ] Turso database created and migrated
+- [ ] Render service deployed with all environment variables
+- [ ] Cloudflare nameservers active and both CNAMEs added
+- [ ] Vercel project deployed with the custom domain
+- [ ] UptimeRobot monitor running

@@ -25,8 +25,9 @@ export default defineConfig({
     baseURL: WEB_URL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    // Slowed down slightly so a headed local run is actually watchable.
-    launchOptions: { slowMo: process.env.CI ? 0 : 120 },
+    // `npm run test:e2e` sets this so a headed run is slow enough to follow;
+    // headless and CI runs leave it at 0 and stay fast.
+    launchOptions: { slowMo: Number(process.env.ORBIT_SLOWMO ?? 0) },
   },
 
   projects: [

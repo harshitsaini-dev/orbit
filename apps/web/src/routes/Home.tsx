@@ -27,7 +27,9 @@ export function Home() {
   return (
     <div style={{ display: 'grid', gap: '1.5rem' }}>
       <section className="clay" style={{ padding: 'clamp(1.5rem, 4vw, 2.5rem)', overflow: 'hidden' }}>
-        <OrbitHero />
+        <div style={{ height: 'clamp(220px, 30vw, 340px)', margin: '-1rem -1rem 0' }}>
+          <OrbitHero />
+        </div>
         <h1 style={{ fontSize: 'clamp(1.75rem, 5vw, 2.75rem)', marginTop: '1rem' }}>
           One workspace for every cloud you own.
         </h1>

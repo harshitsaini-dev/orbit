@@ -63,7 +63,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | `npm run typecheck --workspaces` | clean |
 | `npm test --workspaces` | 55 pass, 0 fail (28 server, 27 adapters) |
 | `npm run build --workspaces` | clean |
-| `npx playwright test` | 21 pass, 0 fail — three consecutive clean runs |
+| `npx playwright test` | 21 pass, 0 fail — four consecutive clean runs |
 
 ## Next up — Phase 2 (Google Drive adapter)
 
@@ -76,11 +76,10 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 
 ## Blocked on the owner
 
-These need accounts and cannot be done from here:
+Step-by-step instructions for all of these are in **`docs/05-owner-setup.md`**.
 
-- Turso, Render, Vercel, Resend, and Cloudflare DNS sign-ups (all card-free — see
-  `docs/04-deployment.md`).
-- Provider OAuth app registrations, starting with Google.
+- **Google OAuth client** — this is the one blocking Phase 2. Nothing else is urgent.
+- Turso, Render, Vercel, Resend, and Cloudflare DNS sign-ups (all card-free).
 - Generating production values for `TOKEN_ENCRYPTION_KEY` and `SESSION_SECRET`.
 
 ## Known issues / open questions
@@ -90,6 +89,8 @@ These need accounts and cannot be done from here:
   hook that strips any stray trailer — **run it once after every fresh clone.**
 - PWA icons `public/icon-192.png` and `public/icon-512.png` are referenced by the manifest but
   not created yet; they land in Phase 9.
+- The three.js hero rebuilds its whole scene when the accent or theme changes. That is fine at
+  human click rates but would need per-material updates if it ever animated.
 - The landing copy currently sits behind the auth gate. Phase 9 should split a public marketing
   page from the authenticated workspace.
 - MEGA has no official Node SDK with delta support, so its adapter declares `delta: false` and
