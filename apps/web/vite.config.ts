@@ -13,8 +13,13 @@ export default defineConfig({
       registerType: 'autoUpdate',
       // Without this the service worker only exists in a production build, so
       // the browser never offers to install the app while developing - and the
-      // Install button would be untestable locally.
-      devOptions: { enabled: true, type: 'module' },
+      // Install button could never be seen or tried locally.
+      //
+      // Off under Playwright: a service worker installing on first navigation
+      // holds the `load` event open long enough for the suite to time out, and
+      // then serves later navigations from its own cache, which is exactly the
+      // kind of state a test run must not carry between cases.
+      devOptions: { enabled: process.env.ORBIT_E2E !== 'true', type: 'module' },
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'og-image.png'],
       manifest: {
         name: 'Orbit',

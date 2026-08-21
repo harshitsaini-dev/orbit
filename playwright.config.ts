@@ -75,7 +75,7 @@ export default defineConfig({
       url: WEB_URL,
       reuseExistingServer: false,
       timeout: 60_000,
-      env: { ORBIT_API_PORT: String(API_PORT), ORBIT_WEB_PORT: String(WEB_PORT) },
+      env: { ORBIT_API_PORT: String(API_PORT), ORBIT_WEB_PORT: String(WEB_PORT), ORBIT_E2E: 'true' },
     },
   ],
 });

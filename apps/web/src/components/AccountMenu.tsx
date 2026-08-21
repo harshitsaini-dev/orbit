@@ -201,6 +201,28 @@ export function AccountMenu() {
               Account settings
             </Link>
 
+            {/*
+              Local mode has no session to end - every request is the owner of
+              this machine - so signing out would clear nothing and the next
+              request would be signed in again. Saying so beats a button that
+              appears broken, and beats silence that reads as a missing feature.
+            */}
+            {mode === 'local' && (
+              <p
+                style={{
+                  margin: 0,
+                  padding: '0.5rem 0.6rem',
+                  fontSize: 12.5,
+                  lineHeight: 1.45,
+                  color: 'var(--text-muted)',
+                }}
+              >
+                Running in local mode, signed in as the owner of this machine. There is no session
+                to sign out of — set <code>AUTH_MODE=hosted</code> in <code>.env</code> and restart
+                for email sign-in.
+              </p>
+            )}
+
             {mode === 'hosted' && (
               <button
                 type="button"
