@@ -63,7 +63,7 @@ flowchart TB
         GD[Google Drive]
         OD[OneDrive]
         DB2[Dropbox]
-        S3P[S3 / R2 / B2 / Wasabi / Spaces /Bunny]
+        S3P[S3 / R2 / B2 / Spaces / Bunny]
         MEGA[Mega / pCloud]
     end
 
@@ -227,7 +227,7 @@ interface OrbitFile {
 }
 ```
 
-Each adapter is one file: `adapters/google-drive.ts`, `adapters/onedrive.ts`, `adapters/dropbox.ts`, `adapters/mega.ts`, `adapters/pcloud.ts`, `adapters/s3-compatible.ts` (this single S3 adapter — talking plain S3 API — covers AWS S3, Cloudflare R2, DigitalOcean Spaces, Backblaze B2, Wasabi, and Bunny Storage all at once, since they all speak the same protocol; the user just supplies endpoint + access key + secret when connecting).
+Each adapter is one file: `adapters/google-drive.ts`, `adapters/onedrive.ts`, `adapters/dropbox.ts`, `adapters/mega.ts`, `adapters/pcloud.ts`, `adapters/s3-compatible.ts` (this single S3 adapter — talking plain S3 API — covers AWS S3, Cloudflare R2, DigitalOcean Spaces, Backblaze B2, and Bunny Storage all at once, since they all speak the same protocol; the user just supplies endpoint + access key + secret when connecting).
 
 ---
 
