@@ -48,4 +48,11 @@ test.describe('connecting an account', () => {
     await page.goto(`${API}/auth/callback/google_drive?error=access_denied`);
     await expect(page.getByRole('status')).toContainText(/access denied/i);
   });
+
+  test('there is nothing to scan with no accounts connected', async ({ page }) => {
+    await page.goto('/quota');
+    await expect(page.getByText('No accounts yet')).toBeVisible();
+    // One bar per account, so none at all here.
+    await expect(page.getByTestId('storage-bar')).toHaveCount(0);
+  });
 });

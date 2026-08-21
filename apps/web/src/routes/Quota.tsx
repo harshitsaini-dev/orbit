@@ -2,51 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { CatalogueEntry, PublicAccount } from '@orbit/shared-types';
 import { ProviderIcon } from '../components/ProviderIcon.js';
-import { StorageBreakdownPanel } from '../components/StorageBreakdown.js';
+import { StorageBar } from '../components/StorageBar.js';
 import { api, ApiError } from '../lib/api.js';
-import { formatBytes } from '../lib/format.js';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
-
-function QuotaBar({ account }: { account: PublicAccount }) {
-  // A bucket reports bytes stored but no allowance, so there is nothing to fill.
-  if (account.quotaBytes <= 0) {
-    return (
-      <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-        {formatBytes(account.usedBytes)} stored · no reported limit
-      </span>
-    );
-  }
-
-  const pct = Math.min(100, (account.usedBytes / account.quotaBytes) * 100);
-  const tight = pct > 90;
-
-  return (
-    <div style={{ display: 'grid', gap: 6 }}>
-      <div
-        className="clay-sunken"
-        style={{ height: 10, borderRadius: 'var(--radius-pill)', overflow: 'hidden' }}
-        role="progressbar"
-        aria-valuenow={Math.round(pct)}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`${account.nickname} storage used`}
-      >
-        <div
-          style={{
-            width: `${pct}%`,
-            height: '100%',
-            background: tight ? 'var(--danger)' : 'var(--accent)',
-            transition: 'width var(--dur-base) var(--ease-clay)',
-          }}
-        />
-      </div>
-      <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-        {formatBytes(account.usedBytes)} of {formatBytes(account.quotaBytes)} used
-      </span>
-    </div>
-  );
-}
 
 export function Quota() {
   const [params, setParams] = useSearchParams();
@@ -191,8 +150,7 @@ export function Quota() {
                     </button>
                   </div>
                 </div>
-                <QuotaBar account={account} />
-                <StorageBreakdownPanel accountId={account.id} />
+                <StorageBar account={account} />
               </li>
             ))}
           </ul>

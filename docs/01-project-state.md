@@ -73,8 +73,11 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 |---|---|
 | `npm run typecheck --workspaces` | clean |
 | `npm test --workspaces` | 161 pass, 0 fail |
+
+Verified against the live account: 842 files, 11.9 GB scanned, categories summing exactly to the
+provider's own usage figure once the trash allowance is included.
 | `npm run build --workspaces` | clean |
-| `npx playwright test` (headed) | 51 pass, 0 fail across desktop, tablet and mobile |
+| `npx playwright test` (headed) | 54 pass, 0 fail across desktop, tablet and mobile |
 
 ## Designed but not built
 
@@ -110,6 +113,16 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 - Google One style category breakdown: photos, video, audio, documents, archives, code, other.
   Classified by mime type first and extension second, because object stores label nearly
   everything `application/octet-stream`.
+- **One bar per account**, not a usage bar plus a breakdown bar. The track is the allowance, the
+  filled part is what is used, and the colours inside it are what is using it. Categories are
+  proportioned against the *used block* rather than the allowance: 12 GB against a 5 TB
+  allowance is 0.24% of the track, so a per-category minimum width on the track would have
+  rendered eight slivers and overstated usage by more than an order of magnitude.
+- The scan runs on its own when the page loads; the bar is drawn immediately from the cached
+  quota figures and refines in place.
+- The provider's usage figure covers what a file scan cannot see - the trash, and on Google,
+  Gmail and Photos. The difference is shown as "Trash and other services" rather than letting
+  the categories quietly fail to add up.
 - Added `listAllFiles` to the adapter contract, gated by a `flatEnumeration` capability. The
   sync engine needs the same flat pass in Phase 6 for providers without a delta feed.
 - The scan is bounded and reports `partial` rather than presenting an undercount as the total.
