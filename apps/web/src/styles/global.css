@@ -538,7 +538,10 @@ body {
 
 .media-shell {
   display: grid;
-  grid-template-rows: 1fr auto;
+  /* minmax(0, ...), never a bare 1fr: a track's automatic minimum is its own
+     content, so the stage would grow to whatever the video's natural size is
+     rather than being bounded by the window. */
+  grid-template-rows: minmax(0, 1fr) auto;
   gap: 10px;
   min-height: 0;
   min-width: 0;
@@ -556,6 +559,12 @@ body {
   min-height: 0;
   min-width: 0;
   display: grid;
+  /* The centred video is a grid item, so it resolves its max-height against
+     this track. Left implicit the track sizes to the video and the percentage
+     has nothing definite to measure - which is how a clip taller than the
+     window kept its full height and pushed its own controls off-screen. */
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   place-items: center;
 }
 
@@ -790,18 +799,58 @@ body {
 .landing__features {
   display: grid;
   gap: 12px;
+  /* One column until there is room for two; the bento spans below only apply
+     once six columns exist, so narrow screens get a plain readable stack. */
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .landing__feature {
-  padding: clamp(1.1rem, 2.5vw, 1.5rem);
+  position: relative;
+  padding: clamp(1.15rem, 2.5vw, 1.6rem);
   display: grid;
-  gap: 8px;
+  gap: 9px;
   align-content: start;
+  overflow: hidden;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+/* A wash of the accent, strongest at the corner the icon sits in, so the cards
+   read as one family without six coloured blocks competing for attention. */
+.landing__feature::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 100% at 0% 0%, var(--accent-soft) 0%, transparent 62%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.landing__feature > * {
+  position: relative;
+}
+
+.landing__feature:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-clay), var(--glow-accent);
+}
+
+.landing__feature-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  color: var(--accent);
+  background: var(--surface);
+  box-shadow: var(--shadow-clay-inset);
 }
 
 .landing__feature h2 {
-  font-size: 1.02rem;
+  font-size: 1.05rem;
+  letter-spacing: -0.01em;
+  margin: 0;
 }
 
 .landing__feature p {
@@ -809,6 +858,49 @@ body {
   font-size: 14px;
   margin: 0;
   line-height: 1.55;
+  max-width: 54ch;
+}
+
+@media (min-width: 1020px) {
+  .landing__features {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .landing__feature[data-span='wide'] {
+    grid-column: span 4;
+  }
+
+  .landing__feature[data-span='tall'] {
+    grid-column: span 2;
+  }
+
+  .landing__feature[data-span='normal'] {
+    grid-column: span 2;
+  }
+
+  .landing__feature[data-span='full'] {
+    grid-column: span 6;
+  }
+
+  /* The lead card carries the argument, so it gets the size to match. */
+  .landing__feature[data-span='wide'] h2 {
+    font-size: 1.4rem;
+  }
+
+  .landing__feature[data-span='wide'] p {
+    font-size: 15px;
+  }
+
+  /* Full width with a short line of text would strand the words on the left. */
+  .landing__feature[data-span='full'] {
+    grid-template-columns: auto 1fr;
+    column-gap: 1.1rem;
+    align-items: center;
+  }
+
+  .landing__feature[data-span='full'] .landing__feature-icon {
+    grid-row: span 2;
+  }
 }
 
 .landing__steps,
@@ -924,13 +1016,106 @@ body {
 }
 
 .landing__footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-  padding: 0.5rem 0.25rem;
+  display: grid;
+  gap: 1.5rem;
+  margin-top: 0.5rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--border);
   color: var(--text-muted);
   font-size: 13px;
+}
+
+.landing__footer-top {
+  display: grid;
+  gap: clamp(1.5rem, 5vw, 3rem);
+  grid-template-columns: minmax(240px, 1fr) auto;
+  align-items: start;
+}
+
+.landing__footer-brand {
+  display: grid;
+  gap: 0.85rem;
+  justify-items: start;
+  max-width: 42ch;
+}
+
+.landing__footer-mark {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text);
+  font-size: 17px;
+  letter-spacing: -0.03em;
+}
+
+.landing__footer-brand p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.landing__footer-links {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, auto));
+  gap: clamp(1.25rem, 4vw, 3rem);
+}
+
+.landing__footer-links > div {
+  display: grid;
+  gap: 0.55rem;
+  align-content: start;
+}
+
+.landing__footer-links h3 {
+  margin: 0 0 0.15rem;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.landing__footer-links a {
+  color: var(--text-muted);
+  text-decoration: none;
+  width: fit-content;
+  transition: color 140ms ease;
+}
+
+.landing__footer-links a:hover,
+.landing__footer-links a:focus-visible {
+  color: var(--accent);
+}
+
+.landing__footer-bottom {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+}
+
+.landing__footer-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.5;
+}
+
+@media (max-width: 860px) {
+  /* Two columns side by side stop fitting well before the links themselves do. */
+  .landing__footer-top {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 460px) {
+  .landing__footer-links {
+    grid-template-columns: repeat(2, 1fr);
+    row-gap: 1.5rem;
+  }
 }
 
 @media (max-width: 780px) {
@@ -1014,4 +1199,30 @@ body {
   display: grid;
   min-height: 100dvh;
   padding: clamp(1rem, 4vw, 2rem);
+}
+
+/* --- the area a preview is drawn in -------------------------------------- */
+
+/*
+ * The single track is minmax(0, 1fr) rather than auto so that it takes its
+ * height from the dialog instead of from whatever is inside it. A player asking
+ * for `height: 100%` needs a definite height to resolve against; against a
+ * content-sized track the percentage simply does not apply, the element falls
+ * back to its natural size, and a portrait video runs off the bottom of the
+ * screen with its controls floating over the picture.
+ */
+.preview-stage {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  place-items: center;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Players manage their own internal layout and want the whole area. */
+.preview-stage > .media-shell,
+.preview-stage > .pdf-shell {
+  place-self: stretch;
 }

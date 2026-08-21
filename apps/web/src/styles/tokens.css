@@ -25,7 +25,10 @@
   /* accent - user swappable */
   --accent: #6c8cff;
   --accent-contrast: #ffffff;
-  --accent-soft: rgba(108, 140, 255, 0.14);
+  /* Derived from --accent, which the account menu rewrites at runtime. Pinned
+     to a literal rgba() it stayed blue while everything around it turned green
+     or orange, so the glow disagreed with the colour that produced it. */
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
 
   /* scrollbars */
   --scrollbar-thumb: rgba(28, 32, 48, 0.24);
@@ -66,7 +69,7 @@
   --text: #eef1f6;
   --text-muted: #98a1b8;
   --border: rgba(238, 241, 246, 0.1);
-  --accent-soft: rgba(108, 140, 255, 0.22);
+  --accent-soft: color-mix(in srgb, var(--accent) 22%, transparent);
   --scrollbar-thumb: rgba(238, 241, 246, 0.18);
   --scrollbar-thumb-hover: rgba(238, 241, 246, 0.34);
 
@@ -87,7 +90,7 @@
     --text: #eef1f6;
     --text-muted: #98a1b8;
     --border: rgba(238, 241, 246, 0.1);
-    --accent-soft: rgba(108, 140, 255, 0.22);
+    --accent-soft: color-mix(in srgb, var(--accent) 22%, transparent);
     --scrollbar-thumb: rgba(238, 241, 246, 0.18);
     --scrollbar-thumb-hover: rgba(238, 241, 246, 0.34);
 
