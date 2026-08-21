@@ -88,6 +88,31 @@ export interface OrbitFile {
 export const WORKSPACE_VIEWS = ['recent', 'starred', 'shared'] as const;
 export type WorkspaceView = (typeof WORKSPACE_VIEWS)[number];
 
+/**
+ * A search across a whole account, not a filter over one loaded folder.
+ *
+ * Every field is optional and they compose: text plus a type plus a date is one
+ * query, not three. Providers apply what they can server-side and Orbit filters
+ * the rest, so the same query means the same thing everywhere.
+ */
+export interface SearchQuery {
+  /** Matched against the file name. */
+  text?: string;
+  /** Also match the file's contents, where the provider can. */
+  fullText?: boolean;
+  /** Restrict to these categories; empty or absent means any. */
+  categories?: string[];
+  /** ISO timestamp; only files changed since. */
+  modifiedAfter?: string;
+  minSizeBytes?: number;
+  maxSizeBytes?: number;
+  starredOnly?: boolean;
+  /** Exclude files owned by other people. */
+  ownedByMeOnly?: boolean;
+  /** Limit to one folder and everything beneath it. */
+  underPath?: string;
+}
+
 export interface OrbitFilePage {
   files: OrbitFile[];
   nextPageToken?: string;
@@ -157,6 +182,10 @@ export interface ProviderCapabilities {
   flatEnumeration: boolean;
   /** Whether the provider can return files ordered by when they last changed. */
   recentView: boolean;
+  /** Whether the provider can search its own contents, rather than Orbit paging everything. */
+  search: boolean;
+  /** Whether that search can reach inside file contents, not just names. */
+  fullTextSearch: boolean;
 }
 
 export interface ProviderAdapter {
@@ -177,6 +206,8 @@ export interface ProviderAdapter {
    * `recentView`, `star` and `sharedWithMe` respectively.
    */
   listView(tokens: AccountTokens, view: WorkspaceView, pageToken?: string): Promise<OrbitFilePage>;
+  /** Searches the whole account. Gated by the `search` capability. */
+  search(tokens: AccountTokens, query: SearchQuery, pageToken?: string): Promise<OrbitFilePage>;
   getFileMeta(tokens: AccountTokens, remoteId: string): Promise<OrbitFile>;
   getFileStream(tokens: AccountTokens, remoteId: string, range?: ByteRange): Promise<FileStreamResult>;
 

@@ -120,6 +120,30 @@ to be selected. Accounts are queried in parallel.
 such view, so a partial result never looks complete. `recent` and `shared` come back newest
 first; `starred` by name.
 
+### `GET /api/search`
+Searches whole accounts, the way a file manager searches a folder: it reaches into subfolders,
+and every result carries the path it was found at.
+
+| Parameter | Meaning |
+|---|---|
+| `q` | Matched against the file name |
+| `fullText=1` | Also match text inside documents, where the provider indexes it |
+| `categories` | Comma-separated, e.g. `video,image` |
+| `under` | Only results at or beneath this path |
+| `since` | ISO timestamp; only files changed since |
+| `minSize` / `maxSize` | Bytes |
+| `starred=1`, `mine=1` | Starred only; owned by me only |
+| `accountId` | One account; absent means every connected account |
+
+At least one criterion is required — a search with none would return the whole drive, which is
+never what was meant. Same response shape as `/api/views/:view`, so `problems` and `unsupported`
+still say which accounts could not answer.
+
+Google Drive has no "everything under folder X" query — `in parents` matches only direct
+children — so `under` is applied by resolving each result's real path and keeping the ones
+beneath it. That resolution is wanted anyway: a result is far less useful without saying where
+the file lives. Ancestors are cached per call.
+
 ### `GET /api/files/:id/content?accountId=&download=&name=`
 Streams the file straight through from the provider. The bytes never touch Orbit's disk and the
 provider's own URL never reaches the client.

@@ -150,9 +150,16 @@ export function Account() {
         )}
       </section>
 
-      <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)', display: 'grid', gap: '1rem' }}>
+      <section
+        className="clay"
+        aria-labelledby="appearance-heading"
+        data-testid="appearance"
+        style={{ padding: 'clamp(1.25rem, 3vw, 2rem)', display: 'grid', gap: '1rem' }}
+      >
         <div>
-          <h2 style={{ fontSize: '1.1rem' }}>Appearance</h2>
+          <h2 id="appearance-heading" style={{ fontSize: '1.1rem' }}>
+            Appearance
+          </h2>
           <p style={{ color: 'var(--text-muted)', marginTop: '0.3rem', fontSize: 14 }}>
             Saved to your account, so it follows you to another device.
           </p>

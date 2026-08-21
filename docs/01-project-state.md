@@ -72,12 +72,12 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | Check | Result |
 |---|---|
 | `npm run typecheck --workspaces` | clean |
-| `npm test --workspaces` | 240 pass, 0 fail |
+| `npm test --workspaces` | 248 pass, 0 fail |
 
 Verified against the live account: 842 files, 11.9 GB scanned, categories summing exactly to the
 provider's own usage figure once the trash allowance is included.
 | `npm run build --workspaces` | clean |
-| `npx playwright test` (headed) | 102 pass, 0 fail across desktop, tablet and mobile |
+| `npx playwright test` (headed) | 108 pass, 0 fail across desktop, tablet and mobile |
 
 ## Designed but not built
 
@@ -198,9 +198,24 @@ provider's own usage figure once the trash allowance is included.
 - **Verified against the live account:** a 12,900-byte file uploaded, read back through Orbit
   byte-identical, then moved to Drive's trash.
 
-### Search, filter, and dialogs
-- Search, category filter and sort over the loaded folder. Searching a whole account needs the
-  metadata mirror, so the field says "in this folder" rather than implying more than it does.
+### Search
+- Real search, run by the provider rather than as a filter over the loaded page, so it reaches
+  into subfolders the way a file manager does. Debounced on every keystroke.
+- Filters compose: text, file type, modified-within, size band, starred-only, and optional
+  full-text where the provider indexes contents.
+- Drive has no "everything under folder X" query — `in parents` matches only direct children —
+  so scoping to a subtree resolves each result's real path and keeps the ones beneath it. That
+  resolution is wanted anyway, because a result is far less useful without saying where the file
+  lives; ancestors are cached per call.
+- Category is applied by Orbit rather than pushed into each provider's query language: the
+  classification reads the extension when the mime type is useless, which no provider query can
+  express, so applying it centrally is the only way the filter means the same thing everywhere.
+- A search with no criterion at all is refused — it would return the entire drive.
+- **Verified against the live account:** a file three levels down was found by name with its full
+  path resolved, scoping to its ancestor folder found it, and scoping to an unrelated folder
+  returned nothing.
+
+### Dialogs
 - `window.prompt` and `window.confirm` are gone. Both are drawn by the browser, ignore the theme
   entirely, and on some platforms are suppressed outright — a feature built on them can silently
   stop working.

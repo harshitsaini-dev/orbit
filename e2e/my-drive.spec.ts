@@ -55,4 +55,18 @@ test.describe('my drive', () => {
     await page.reload();
     await expect(page).toHaveURL(/path=%2FPhotos%2F2026|path=\/Photos\/2026/);
   });
+
+  test('the search box says it reaches beyond the loaded folder', async ({ page }) => {
+    await page.goto('/my-drive');
+
+    // With no account there is nothing to search, but the control must still
+    // describe what it does rather than implying it only filters what is loaded.
+    const search = page.getByRole('searchbox', { name: 'Search files' });
+    await expect(search).toHaveCount(0);
+  });
+
+  test('an empty search is refused rather than returning the whole drive', async ({ page }) => {
+    const res = await page.request.get('http://localhost:8788/api/search?accountId=x');
+    expect(res.status()).toBe(400);
+  });
 });

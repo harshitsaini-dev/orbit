@@ -32,12 +32,7 @@ test.describe('account profile', () => {
   test('a saved theme survives a reload', async ({ page }) => {
     await page.goto('/account');
 
-    await page
-      .getByRole('heading', { name: 'Appearance' })
-      .locator('..')
-      .locator('..')
-      .getByRole('button', { name: 'dark', exact: true })
-      .click();
+    await page.getByTestId('appearance').getByRole('button', { name: 'dark', exact: true }).click();
 
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 

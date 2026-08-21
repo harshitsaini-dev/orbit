@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
 import { forgetBreakdown } from '../services/breakdown.js';
+import { searchWorkspace } from '../services/search.js';
 import { listWorkspaceView } from '../services/views.js';
 
 export const filesRouter: Router = Router();
@@ -74,6 +75,65 @@ filesRouter.get('/api/views/:view', requireAuth, async (req, res, next) => {
 
   try {
     res.json(await listWorkspaceView(req.user!.id, view));
+  } catch (err) {
+    if (!sendProviderError(err, res)) next(err);
+  }
+});
+
+const searchQuery = z.object({
+  q: z.string().trim().max(200).optional(),
+  accountId: z.string().optional(),
+  // Comma-separated, because this is a query string a person may well type.
+  categories: z.string().optional(),
+  under: z.string().optional(),
+  since: z.string().datetime().optional(),
+  minSize: z.coerce.number().int().nonnegative().optional(),
+  maxSize: z.coerce.number().int().nonnegative().optional(),
+  starred: z.enum(['1', '0']).optional(),
+  mine: z.enum(['1', '0']).optional(),
+  fullText: z.enum(['1', '0']).optional(),
+});
+
+/**
+ * Search across accounts, the way a file manager searches a folder: it reaches
+ * into subfolders, and every result says where it lives.
+ */
+filesRouter.get('/api/search', requireAuth, async (req, res, next) => {
+  const parsed = searchQuery.safeParse(req.query);
+  if (!parsed.success) {
+    res.status(400).json({ error: { code: 'invalid_request', message: 'Invalid search' } });
+    return;
+  }
+
+  const { q, categories, under, since, minSize, maxSize, starred, mine, fullText, accountId } = parsed.data;
+
+  // A search with no criterion at all would return the entire drive, which is
+  // never what anyone meant.
+  const hasCriterion =
+    Boolean(q) || Boolean(categories) || Boolean(since) || minSize !== undefined || maxSize !== undefined || starred === '1';
+
+  if (!hasCriterion) {
+    res.status(400).json({
+      error: { code: 'invalid_request', message: 'Give something to search for' },
+    });
+    return;
+  }
+
+  try {
+    res.json(
+      await searchWorkspace(req.user!.id, {
+        accountId,
+        text: q,
+        fullText: fullText === '1',
+        categories: categories ? categories.split(',').filter(Boolean) : undefined,
+        underPath: under,
+        modifiedAfter: since,
+        minSizeBytes: minSize,
+        maxSizeBytes: maxSize,
+        starredOnly: starred === '1',
+        ownedByMeOnly: mine === '1',
+      }),
+    );
   } catch (err) {
     if (!sendProviderError(err, res)) next(err);
   }

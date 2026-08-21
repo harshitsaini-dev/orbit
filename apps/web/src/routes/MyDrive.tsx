@@ -1,18 +1,30 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { FileCategory, OrbitFile, ProviderCapabilities, PublicAccount } from '@orbit/shared-types';
-import { CATEGORY_LABELS, categorise } from '@orbit/shared-types';
+import type { OrbitFile, ProviderCapabilities, PublicAccount } from '@orbit/shared-types';
 import { DownloadIcon, RenameIcon, StarIcon } from '../components/ActionIcon.js';
 import { FileIcon } from '../components/FileIcon.js';
 import { FilePreview } from '../components/FilePreview.js';
 import { ConfirmDialog, NameDialog } from '../components/NameDialog.js';
 import { UploadPanel, forgetFiles, registerFile } from '../components/UploadPanel.js';
+import {
+  EMPTY_FILTERS,
+  SIZE_BANDS,
+  SearchBar,
+  hasCriteria,
+  type SearchFilters,
+} from '../components/SearchBar.js';
 import { filesFromDataTransfer, type UploadItem } from '../lib/upload.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { api, ApiError } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
+
+interface WorkspaceSearchFile extends OrbitFile {
+  accountId: string;
+  provider: string;
+  accountNickname: string;
+}
 
 interface Listing {
   accountId: string;
@@ -27,6 +39,13 @@ function parentOf(path: string): string {
   const parts = path.split('/').filter(Boolean);
   parts.pop();
   return `/${parts.join('/')}`.replace(/\/+$/, '') || '/';
+}
+
+/** The folder a search result lives in, for the second line under its name. */
+function locationOf(file: OrbitFile): string {
+  const parts = file.virtualPath.split('/').filter(Boolean);
+  parts.pop();
+  return parts.length === 0 ? 'This drive' : `/${parts.join('/')}`;
 }
 
 function crumbsFor(path: string): Array<{ label: string; path: string }> {
@@ -71,8 +90,9 @@ export function MyDrive() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
-  const [query, setQuery] = useState('');
-  const [category, setCategory] = useState<FileCategory | 'all' | 'folder'>('all');
+  const [filters, setFilters] = useState<SearchFilters>(EMPTY_FILTERS);
+  const [results, setResults] = useState<WorkspaceSearchFile[] | null>(null);
+  const [searching, setSearching] = useState(false);
   const [sort, setSort] = useState<'name' | 'size' | 'modified'>('name');
 
   const accountId = params.get('account') ?? '';
@@ -128,6 +148,59 @@ export function MyDrive() {
   }, [load]);
 
   const capabilities = listing?.capabilities;
+  const searchActive = hasCriteria(filters);
+
+  /**
+   * Runs against the provider rather than over the loaded page, so it reaches
+   * into subfolders the way a file manager does. Debounced, because it fires
+   * on every keystroke.
+   */
+  useEffect(() => {
+    if (!accountId || !searchActive) {
+      setResults(null);
+      setSearching(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setSearching(true);
+
+    const timer = window.setTimeout(() => {
+      const params = new URLSearchParams({ accountId });
+      if (filters.text.trim()) params.set('q', filters.text.trim());
+      if (filters.categories.length) params.set('categories', filters.categories.join(','));
+      if (filters.scope === 'folder' && path !== '/') params.set('under', path);
+      if (filters.starredOnly) params.set('starred', '1');
+      if (filters.fullText) params.set('fullText', '1');
+
+      if (filters.withinDays > 0) {
+        const since = new Date(Date.now() - filters.withinDays * 86_400_000);
+        params.set('since', since.toISOString());
+      }
+
+      const band = SIZE_BANDS[filters.size];
+      if (band.min !== undefined) params.set('minSize', String(band.min));
+      if (band.max !== undefined) params.set('maxSize', String(band.max));
+
+      api<{ files: WorkspaceSearchFile[] }>(`/api/search?${params.toString()}`, {
+        signal: controller.signal,
+      })
+        .then(({ files }) => setResults(files))
+        .catch((err: Error) => {
+          if (err.name === 'AbortError') return;
+          setResults([]);
+          setError(err instanceof ApiError ? err.message : 'Search failed');
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setSearching(false);
+        });
+    }, 350);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [accountId, path, filters, searchActive]);
 
   function contentUrl(file: OrbitFile, download: boolean): string {
     const query = new URLSearchParams({ accountId });
@@ -252,21 +325,9 @@ export function MyDrive() {
     });
   }
 
-  /**
-   * Search, filter and sort all act on the folder that is loaded. Searching
-   * across every account needs the metadata mirror, which arrives in Phase 6 -
-   * so the field says "in this folder" rather than implying more than it does.
-   */
+  /** Search results when a search is running, otherwise the loaded folder. */
   const visible = useMemo(() => {
-    let files = listing?.files ?? [];
-
-    const needle = query.trim().toLowerCase();
-    if (needle) files = files.filter((file) => file.name.toLowerCase().includes(needle));
-
-    if (category === 'folder') files = files.filter((file) => file.isFolder);
-    else if (category !== 'all') {
-      files = files.filter((file) => !file.isFolder && categorise(file.mimeType, file.name) === category);
-    }
+    const files: OrbitFile[] = searchActive ? (results ?? []) : (listing?.files ?? []);
 
     return [...files].sort((a, b) => {
       // Folders stay above files whatever the sort, the way a file manager does.
@@ -275,19 +336,7 @@ export function MyDrive() {
       if (sort === 'modified') return Date.parse(b.modifiedAt) - Date.parse(a.modifiedAt);
       return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
     });
-  }, [listing, query, category, sort]);
-
-  /** Only offer a filter that would actually match something here. */
-  const availableCategories = useMemo(() => {
-    const present = new Set<FileCategory>();
-    for (const file of listing?.files ?? []) {
-      if (!file.isFolder) present.add(categorise(file.mimeType, file.name));
-    }
-    return [...present].sort();
-  }, [listing]);
-
-  const hasFolders = (listing?.files ?? []).some((file) => file.isFolder);
-  const filtering = query.trim() !== '' || category !== 'all';
+  }, [listing, results, searchActive, sort]);
 
   const selectedFiles = (listing?.files ?? []).filter((file) => selected.has(file.remoteId));
 
@@ -485,73 +534,36 @@ export function MyDrive() {
           )}
         </div>
 
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search in this folder"
-            aria-label="Search in this folder"
+        <SearchBar
+          filters={filters}
+          onChange={setFilters}
+          currentPath={path}
+          searching={searching}
+          resultCount={results?.length ?? null}
+          fullTextSupported={capabilities?.fullTextSearch ?? false}
+        />
+
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, justifySelf: 'start' }}>
+          <span style={{ color: 'var(--text-muted)' }}>Sort</span>
+          <select
+            value={sort}
+            onChange={(event) => setSort(event.target.value as typeof sort)}
+            aria-label="Sort by"
             className="clay-sunken"
             style={{
-              flex: '1 1 200px',
-              minWidth: 0,
               border: 0,
-              padding: '0.55rem 0.9rem',
+              padding: '0.45rem 0.7rem',
               font: 'inherit',
-              fontSize: 14,
+              fontSize: 13,
               color: 'var(--text)',
-              borderRadius: 'var(--radius-pill)',
+              borderRadius: 'var(--radius-sm)',
             }}
-          />
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-            <span style={{ color: 'var(--text-muted)' }}>Sort</span>
-            <select
-              value={sort}
-              onChange={(event) => setSort(event.target.value as typeof sort)}
-              aria-label="Sort by"
-              className="clay-sunken"
-              style={{
-                border: 0,
-                padding: '0.45rem 0.7rem',
-                font: 'inherit',
-                fontSize: 13,
-                color: 'var(--text)',
-                borderRadius: 'var(--radius-sm)',
-              }}
-            >
-              <option value="name">Name</option>
-              <option value="size">Size</option>
-              <option value="modified">Modified</option>
-            </select>
-          </label>
-        </div>
-
-        {(availableCategories.length > 1 || hasFolders) && (
-          <div className="scroll-x" style={{ display: 'flex', gap: 6, paddingBottom: 2 }}>
-            {(['all', ...(hasFolders ? (['folder'] as const) : []), ...availableCategories] as const).map(
-              (option) => (
-                <button
-                  key={option}
-                  type="button"
-                  className="clay-button"
-                  aria-pressed={category === option}
-                  onClick={() => setCategory(option)}
-                  style={{
-                    padding: '0.3rem 0.85rem',
-                    fontSize: 12,
-                    whiteSpace: 'nowrap',
-                    boxShadow: category === option ? 'var(--shadow-clay-inset)' : 'var(--shadow-clay)',
-                    color: category === option ? 'var(--accent)' : undefined,
-                  }}
-                >
-                  {option === 'all' ? 'All' : option === 'folder' ? 'Folders' : CATEGORY_LABELS[option]}
-                </button>
-              ),
-            )}
-          </div>
-        )}
+          >
+            <option value="name">Name</option>
+            <option value="size">Size</option>
+            <option value="modified">Modified</option>
+          </select>
+        </label>
 
         {error && (
           <p role="alert" style={{ color: 'var(--danger)', margin: 0, fontSize: 14 }}>
@@ -563,23 +575,20 @@ export function MyDrive() {
       <section className="clay" style={{ padding: 'clamp(0.75rem, 2vw, 1.25rem)' }}>
         {loading && !listing && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
 
-        {listing && listing.files.length === 0 && (
+        {!searchActive && listing && listing.files.length === 0 && (
           <p style={{ color: 'var(--text-muted)', padding: '1rem' }}>This folder is empty.</p>
         )}
 
-        {listing && listing.files.length > 0 && visible.length === 0 && (
+        {searchActive && !searching && visible.length === 0 && (
           <div style={{ padding: '1rem', display: 'grid', gap: 8, justifyItems: 'start' }}>
-            <p style={{ color: 'var(--text-muted)', margin: 0 }}>Nothing here matches that.</p>
+            <p style={{ color: 'var(--text-muted)', margin: 0 }}>Nothing matched that search.</p>
             <button
               type="button"
               className="clay-button"
               style={{ padding: '0.35rem 0.9rem', fontSize: 13 }}
-              onClick={() => {
-                setQuery('');
-                setCategory('all');
-              }}
+              onClick={() => setFilters({ ...EMPTY_FILTERS, scope: filters.scope })}
             >
-              Clear filters
+              Clear search
             </button>
           </div>
         )}
@@ -610,49 +619,43 @@ export function MyDrive() {
 
                 <FileIcon name={file.name} mimeType={file.mimeType} isFolder={file.isFolder} />
 
-                {file.isFolder ? (
-                  <button
-                    type="button"
-                    onClick={() => navigate({ path: file.virtualPath })}
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      textAlign: 'left',
-                      background: 'none',
-                      border: 0,
-                      font: 'inherit',
-                      color: 'inherit',
-                      cursor: 'pointer',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      padding: 0,
-                    }}
-                  >
+                <button
+                  type="button"
+                  onClick={() =>
+                    file.isFolder ? navigate({ path: file.virtualPath }) : setPreviewing(file)
+                  }
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    textAlign: 'left',
+                    background: 'none',
+                    border: 0,
+                    font: 'inherit',
+                    color: 'inherit',
+                    cursor: 'pointer',
+                    padding: 0,
+                    display: 'grid',
+                    gap: 1,
+                  }}
+                >
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {file.name}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setPreviewing(file)}
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      textAlign: 'left',
-                      background: 'none',
-                      border: 0,
-                      font: 'inherit',
-                      color: 'inherit',
-                      cursor: 'pointer',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      padding: 0,
-                    }}
-                  >
-                    {file.name}
-                  </button>
-                )}
+                  </span>
+                  {/* A result is far less useful without saying where it lives. */}
+                  {searchActive && (
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: 'var(--text-muted)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {locationOf(file)}
+                    </span>
+                  )}
+                </button>
 
                 {!file.isFolder && (
                   <span
@@ -730,11 +733,10 @@ export function MyDrive() {
           </ul>
         )}
 
-        {listing?.nextCursor && (
+        {!searchActive && listing?.nextCursor && (
           <p style={{ color: 'var(--text-muted)', fontSize: 13, padding: '0.75rem' }}>
-            {filtering
-              ? `Filtering the first ${listing.files.length} loaded items. Searching a whole account arrives with the sync engine in Phase 6.`
-              : `Showing the first ${listing.files.length} items. Paging arrives with the sync engine in Phase 6.`}
+            Showing the first {listing.files.length} items of this folder. Search reaches the whole
+            account, including subfolders.
           </p>
         )}
       </section>

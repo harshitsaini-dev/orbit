@@ -10,6 +10,7 @@ import type {
   OrbitFilePage,
   ProviderId,
   Quota,
+  SearchQuery,
   UploadMeta,
   UploadSession,
   WorkspaceView,
@@ -76,6 +77,8 @@ export class GoogleDriveAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: true,
+    search: true,
+    fullTextSearch: true,
     recentView: true,
     flatEnumeration: true,
     reportsQuota: true,
@@ -271,6 +274,113 @@ export class GoogleDriveAdapter extends BaseAdapter {
       files: (page.files ?? []).map((file) => toOrbitFile(file, `/${file.name}`)),
       nextPageToken: page.nextPageToken,
     };
+  }
+
+
+  /**
+   * Searches the whole account, the way a file manager does.
+   *
+   * Drive has no "everything under folder X" query - `in parents` matches only
+   * direct children - so scoping to a subtree is done by resolving each result's
+   * real path and keeping the ones beneath it. That resolution is wanted anyway:
+   * a search result is far less useful without showing where the file lives.
+   * Ancestors are cached per call, so a hundred results in the same few folders
+   * cost a handful of requests rather than a hundred.
+   */
+  override async search(
+    tokens: AccountTokens,
+    query: SearchQuery,
+    pageToken?: string,
+  ): Promise<OrbitFilePage> {
+    const clauses = ['trashed = false'];
+
+    if (query.text?.trim()) {
+      const needle = escapeQuery(query.text.trim());
+      clauses.push(
+        query.fullText
+          ? `(name contains '${needle}' or fullText contains '${needle}')`
+          : `name contains '${needle}'`,
+      );
+    }
+
+    if (query.starredOnly) clauses.push('starred = true');
+    if (query.ownedByMeOnly) clauses.push("'me' in owners");
+    if (query.modifiedAfter) clauses.push(`modifiedTime > '${query.modifiedAfter}'`);
+
+    const page = await providerJson<DriveList>(this.id, `${API}/files`, {
+      headers: this.auth(tokens),
+      query: {
+        q: clauses.join(' and '),
+        fields: `nextPageToken,files(${FILE_FIELDS})`,
+        pageSize: 100,
+        pageToken,
+        orderBy: 'modifiedTime desc',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      },
+    });
+
+    const ancestors = new Map<string, { name: string; parent?: string }>();
+    const files: OrbitFile[] = [];
+
+    for (const raw of page.files ?? []) {
+      const virtualPath = await this.resolveVirtualPath(tokens, raw, ancestors);
+      const file = toOrbitFile(raw, virtualPath);
+
+      // Size is not expressible in a Drive query, so it is applied here.
+      if (query.minSizeBytes !== undefined && file.sizeBytes < query.minSizeBytes) continue;
+      if (query.maxSizeBytes !== undefined && file.sizeBytes > query.maxSizeBytes) continue;
+
+      if (query.underPath && query.underPath !== '/') {
+        const scope = normalisePath(query.underPath);
+        if (virtualPath !== scope && !virtualPath.startsWith(`${scope}/`)) continue;
+      }
+
+      files.push(file);
+    }
+
+    return { files, nextPageToken: page.nextPageToken };
+  }
+
+  /** Walks a file's parents to the root, caching every ancestor it sees. */
+  private async resolveVirtualPath(
+    tokens: AccountTokens,
+    file: DriveFile,
+    cache: Map<string, { name: string; parent?: string }>,
+  ): Promise<string> {
+    const segments: string[] = [];
+    let parentId = file.parents?.[0];
+    let hops = 0;
+
+    // A depth cap: Drive is a graph, and a cycle would otherwise spin forever.
+    while (parentId && hops < 24) {
+      let entry = cache.get(parentId);
+
+      if (!entry) {
+        try {
+          const parent = await providerJson<DriveFile>(
+            this.id,
+            `${API}/files/${encodeURIComponent(parentId)}`,
+            { headers: this.auth(tokens), query: { fields: 'id,name,parents', supportsAllDrives: true } },
+          );
+          entry = { name: parent.name, parent: parent.parents?.[0] };
+        } catch {
+          // A parent we cannot read - someone else's folder, most often - ends
+          // the walk rather than failing the whole search.
+          break;
+        }
+        cache.set(parentId, entry);
+      }
+
+      // The root reports itself as "My Drive"; it is the path root, not a segment.
+      if (!entry.parent) break;
+
+      segments.unshift(entry.name);
+      parentId = entry.parent;
+      hops += 1;
+    }
+
+    return joinPath(`/${segments.join('/')}`, file.name);
   }
 
   override async getFileMeta(tokens: AccountTokens, remoteId: string): Promise<OrbitFile> {

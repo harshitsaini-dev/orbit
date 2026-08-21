@@ -12,6 +12,7 @@ import type {
   ProviderCapabilities,
   ProviderId,
   Quota,
+  SearchQuery,
   UploadMeta,
   UploadSession,
   WorkspaceView,
@@ -83,6 +84,9 @@ export abstract class BaseAdapter implements ProviderAdapter {
   }
   listView(_tokens: AccountTokens, _view: WorkspaceView, _pageToken?: string): Promise<OrbitFilePage> {
     return this.unsupported('listView');
+  }
+  search(_tokens: AccountTokens, _query: SearchQuery, _pageToken?: string): Promise<OrbitFilePage> {
+    return this.unsupported('search');
   }
   getFileMeta(_tokens: AccountTokens, _remoteId: string): Promise<OrbitFile> {
     return this.unsupported('getFileMeta');
