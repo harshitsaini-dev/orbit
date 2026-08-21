@@ -1,0 +1,41 @@
+name: E2E
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright:
+    runs-on: ubuntu-latest
+    env:
+      AUTH_MODE: local
+      DATABASE_URL: 'file:./orbit-ci.db'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # Headless in CI only; local runs use `npm run test:e2e` (headed) so the
+      # browser is visible while it works.
+      - name: Run E2E suite
+        run: npm run test:e2e:ci
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

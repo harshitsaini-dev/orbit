@@ -1,0 +1,60 @@
+import type { Server } from 'node:http';
+import type { ClientEvent, ServerEvent } from '@orbit/shared-types';
+import { WebSocketServer, type WebSocket } from 'ws';
+
+/**
+ * Channel-based pub/sub over a single WebSocket server. Upload progress and sync
+ * status are the only publishers today; both address a channel string that the
+ * REST layer hands the client when it starts the work.
+ */
+class Hub {
+  private wss: WebSocketServer | null = null;
+  private readonly channels = new Map<string, Set<WebSocket>>();
+
+  attach(server: Server): void {
+    this.wss = new WebSocketServer({ server, path: '/ws' });
+
+    this.wss.on('connection', (socket) => {
+      socket.on('message', (raw) => {
+        let event: ClientEvent;
+        try {
+          event = JSON.parse(raw.toString()) as ClientEvent;
+        } catch {
+          return;
+        }
+        if (event.type === 'subscribe') this.subscribe(event.channel, socket);
+        if (event.type === 'unsubscribe') this.unsubscribe(event.channel, socket);
+        if (event.type === 'ping') socket.send(JSON.stringify({ type: 'pong' }));
+      });
+
+      socket.on('close', () => {
+        for (const subscribers of this.channels.values()) subscribers.delete(socket);
+      });
+    });
+  }
+
+  private subscribe(channel: string, socket: WebSocket): void {
+    const set = this.channels.get(channel) ?? new Set<WebSocket>();
+    set.add(socket);
+    this.channels.set(channel, set);
+  }
+
+  private unsubscribe(channel: string, socket: WebSocket): void {
+    this.channels.get(channel)?.delete(socket);
+  }
+
+  publish(channel: string, event: ServerEvent): void {
+    const subscribers = this.channels.get(channel);
+    if (!subscribers?.size) return;
+    const payload = JSON.stringify(event);
+    for (const socket of subscribers) {
+      if (socket.readyState === socket.OPEN) socket.send(payload);
+    }
+  }
+
+  get connectionCount(): number {
+    return this.wss?.clients.size ?? 0;
+  }
+}
+
+export const hub = new Hub();

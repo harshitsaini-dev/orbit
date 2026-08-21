@@ -1,0 +1,83 @@
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--text);
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  transition: background var(--dur-base) var(--ease-clay), color var(--dur-base) var(--ease-clay);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: var(--radius-sm);
+}
+
+/* --- clay primitives --------------------------------------------------- */
+
+.clay {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-clay);
+}
+
+.clay-sunken {
+  background: var(--surface-sunken);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-clay-inset);
+}
+
+.clay-button {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--surface);
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-clay);
+  transition:
+    transform var(--dur-fast) var(--ease-clay),
+    box-shadow var(--dur-base) var(--ease-clay);
+}
+
+.clay-button:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-clay), var(--glow-accent);
+}
+
+.clay-button:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-clay-inset);
+}
+
+.clay-button--accent {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}

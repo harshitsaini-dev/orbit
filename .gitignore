@@ -1,0 +1,41 @@
+# dependencies
+node_modules/
+.npm/
+
+# builds
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# env & secrets
+.env
+.env.*
+!.env.example
+
+# local database
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# test artifacts
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# editor / os
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# agent tooling (never committed)
+.claude/
+CLAUDE.md
+AGENTS.md
+
+# scratch
+.probe/

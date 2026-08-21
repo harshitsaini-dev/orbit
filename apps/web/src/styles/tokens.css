@@ -1,0 +1,101 @@
+/*
+ * Orbit design tokens - Claymorphism.
+ *
+ * The clay look is two soft shadows on opposite corners (one light, one dark)
+ * over a low-contrast surface. Pressed states swap both for the inset pair.
+ * Every colour here is a variable so light/dark and the accent picker can swap
+ * the whole skin - landing page, login, and control panel alike.
+ */
+
+:root {
+  /* radii */
+  --radius-sm: 14px;
+  --radius-md: 22px;
+  --radius-lg: 32px;
+  --radius-pill: 999px;
+
+  /* surfaces */
+  --surface: #eef1f6;
+  --surface-raised: #f4f6fa;
+  --surface-sunken: #e4e8f0;
+  --text: #1c2030;
+  --text-muted: #5b6479;
+  --border: rgba(28, 32, 48, 0.08);
+
+  /* accent - user swappable */
+  --accent: #6c8cff;
+  --accent-contrast: #ffffff;
+  --accent-soft: rgba(108, 140, 255, 0.14);
+
+  /* status */
+  --success: #2fa87a;
+  --warning: #d99327;
+  --danger: #e05252;
+
+  /* clay shadows */
+  --shadow-clay-light: -8px -8px 16px rgba(255, 255, 255, 0.75);
+  --shadow-clay-dark: 8px 8px 16px rgba(163, 177, 198, 0.5);
+  --shadow-clay: var(--shadow-clay-light), var(--shadow-clay-dark);
+  --shadow-clay-inset:
+    inset 4px 4px 8px rgba(163, 177, 198, 0.35),
+    inset -4px -4px 8px rgba(255, 255, 255, 0.6);
+  --glow-accent: 0 0 24px var(--accent-soft);
+
+  /* motion */
+  --ease-clay: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 140ms;
+  --dur-base: 240ms;
+
+  /* layout */
+  --sidebar-w: 264px;
+  --topbar-h: 68px;
+
+  color-scheme: light;
+}
+
+/* Explicit dark choice wins in both directions; system default falls through to
+   the media query below. Never define a colour only inside one of these blocks. */
+:root[data-theme='dark'] {
+  --surface: #1c1f2b;
+  --surface-raised: #232736;
+  --surface-sunken: #161923;
+  --text: #eef1f6;
+  --text-muted: #98a1b8;
+  --border: rgba(238, 241, 246, 0.1);
+  --accent-soft: rgba(108, 140, 255, 0.22);
+
+  --shadow-clay-light: -8px -8px 16px rgba(255, 255, 255, 0.04);
+  --shadow-clay-dark: 8px 8px 16px rgba(0, 0, 0, 0.55);
+  --shadow-clay-inset:
+    inset 4px 4px 8px rgba(0, 0, 0, 0.5),
+    inset -4px -4px 8px rgba(255, 255, 255, 0.04);
+
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --surface: #1c1f2b;
+    --surface-raised: #232736;
+    --surface-sunken: #161923;
+    --text: #eef1f6;
+    --text-muted: #98a1b8;
+    --border: rgba(238, 241, 246, 0.1);
+    --accent-soft: rgba(108, 140, 255, 0.22);
+
+    --shadow-clay-light: -8px -8px 16px rgba(255, 255, 255, 0.04);
+    --shadow-clay-dark: 8px 8px 16px rgba(0, 0, 0, 0.55);
+    --shadow-clay-inset:
+      inset 4px 4px 8px rgba(0, 0, 0, 0.5),
+      inset -4px -4px 8px rgba(255, 255, 255, 0.04);
+
+    color-scheme: dark;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-fast: 0ms;
+    --dur-base: 0ms;
+  }
+}
