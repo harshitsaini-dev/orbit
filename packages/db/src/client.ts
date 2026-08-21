@@ -1,6 +1,6 @@
 import { createClient, type Client } from '@libsql/client';
 import { drizzle } from 'drizzle-orm/libsql';
-import { defaultLocalDatabaseUrl } from './paths.js';
+import { resolveDatabaseUrl } from './paths.js';
 import * as schema from './schema.js';
 
 export type Database = ReturnType<typeof createDatabase>;
@@ -18,8 +18,8 @@ export async function applySqlitePragmas(client: Client, url: string): Promise<v
 }
 
 export function createDatabase(
-  url: string = process.env.DATABASE_URL ?? defaultLocalDatabaseUrl(),
-  authToken: string | undefined = process.env.DATABASE_AUTH_TOKEN,
+  url: string = resolveDatabaseUrl(process.env.DATABASE_URL),
+  authToken: string | undefined = process.env.DATABASE_AUTH_TOKEN || undefined,
 ) {
   const client: Client = createClient({ url, authToken });
 

@@ -48,8 +48,15 @@ export function createApp(): Express {
     res.status(404).json({ error: { code: 'not_found', message: 'Route not found' } });
   });
 
-  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-    console.error(err.name, err.message);
+  app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
+    // Log the cause chain: a wrapped driver error otherwise reports only
+    // "Failed query", which says nothing about why it failed.
+    console.error(`${req.method} ${req.path} ->`, err.name, err.message);
+    let cause = (err as { cause?: unknown }).cause;
+    while (cause instanceof Error) {
+      console.error('  caused by:', cause.name, cause.message);
+      cause = (cause as { cause?: unknown }).cause;
+    }
     res.status(500).json({ error: { code: 'internal_error', message: 'Something went wrong' } });
   });
 
