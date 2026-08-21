@@ -46,6 +46,10 @@ npm run db:migrate
 npm run dev          # api on :8787, web on :5173
 ```
 
+On Windows you can skip all of that and double-click **`start.bat`** — it installs
+dependencies, creates `.env` and the database on first run, then opens both servers in their own
+windows. **`stop.bat`** shuts them down, **`restart.bat`** does both.
+
 Install the local git hooks once per clone:
 
 ```bash

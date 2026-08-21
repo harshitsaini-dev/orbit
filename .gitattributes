@@ -1,4 +1,7 @@
 * text=auto eol=lf
 *.sh text eol=lf
+# Batch labels are not resolved reliably when the file uses LF endings.
+*.bat text eol=crlf
+*.cmd text eol=crlf
 *.png binary
 *.db binary
