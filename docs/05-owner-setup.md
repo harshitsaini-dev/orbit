@@ -65,6 +65,28 @@ GOOGLE_CLIENT_SECRET=<client secret>
 > The redirect URI must match **character for character**, including `http` vs `https` and the
 > absence of a trailing slash. A mismatch is the single most common OAuth failure.
 
+### About the `drive` scope and Google's verification
+
+`https://www.googleapis.com/auth/drive` is one of Google's **restricted** scopes. While the app
+is in **Testing** mode this costs nothing and works immediately, with two limits:
+
+- only the addresses listed under *Test users* can connect (up to 100), and
+- their refresh tokens expire after **7 days**, so a test connection needs reconnecting weekly.
+
+Publishing the app to *In production* removes both limits, but a restricted scope then requires
+Google's OAuth verification — which for `drive` includes an annual third-party security
+assessment that is not free. Two ways out, neither of which needs verification:
+
+1. **Stay in Testing.** Fine for a personal deployment: add every address that will use Orbit as
+   a test user and accept the weekly reconnect.
+2. **Use `drive.file` instead.** This narrower scope is not restricted, so it needs no
+   verification and no weekly reconnect — but it only grants access to files the app itself
+   created or the user explicitly picked. Orbit could not browse a Drive the user already has,
+   which defeats the point of an aggregator.
+
+Start in Testing with the full `drive` scope. Revisit this before opening Orbit up to anyone
+beyond the test-user list.
+
 ---
 
 ## 2. Resend — sending the sign-in codes
