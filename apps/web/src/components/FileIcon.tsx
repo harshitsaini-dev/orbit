@@ -21,6 +21,10 @@ type Shape =
   | 'document'
   | 'archive'
   | 'code'
+  | 'design'
+  | 'font'
+  | 'app'
+  | 'disk'
   | 'other';
 
 /** Formats distinctive enough to be worth telling apart inside their category. */
@@ -37,6 +41,26 @@ const BY_EXTENSION: Record<string, Shape> = {
   pptx: 'slides',
   odp: 'slides',
   key: 'slides',
+  // "system" covers three quite different things, and an installer, a disk
+  // image and a typeface have nothing to do with each other on screen.
+  ttf: 'font',
+  otf: 'font',
+  woff: 'font',
+  woff2: 'font',
+  exe: 'app',
+  msi: 'app',
+  apk: 'app',
+  aab: 'app',
+  ipa: 'app',
+  deb: 'app',
+  rpm: 'app',
+  pkg: 'app',
+  appimage: 'app',
+  iso: 'disk',
+  dmg: 'disk',
+  img: 'disk',
+  vmdk: 'disk',
+  vdi: 'disk',
 };
 
 const BY_CATEGORY: Record<FileCategory, Shape> = {
@@ -46,6 +70,8 @@ const BY_CATEGORY: Record<FileCategory, Shape> = {
   document: 'document',
   archive: 'archive',
   code: 'code',
+  design: 'design',
+  system: 'app',
   other: 'other',
 };
 
@@ -195,6 +221,46 @@ function Glyph({ shape, colour }: { shape: Shape; colour: string }) {
           <path d="M3.2 9.6h17.6v1.9H3.2z" {...mid} />
           {/* The zip's own pull tab, offset so the box does not read as a folder. */}
           <path d="M10.9 5.6h2.2v3h-2.2zm0 4.6h2.2v2.2h-2.2zm.1 3.4h2v3.6a1 1 0 0 1-2 0z" {...strong} />
+        </>
+      );
+
+    case 'design':
+      return (
+        <>
+          <rect x="3.2" y="3.4" width="17.6" height="17.2" rx="3" {...body} />
+          {/* A pen nib: the mark every design tool uses for itself. */}
+          <path d="M12 6.4 15.4 13a3.8 3.8 0 1 1-6.8 0z" {...strong} />
+          <path d="M12 14.6v3.2" {...mid} />
+        </>
+      );
+
+    case 'font':
+      return (
+        <>
+          <Page body={body} mid={mid} />
+          {/* A serif A, which is what a typeface file previews as anywhere. */}
+          <path d="M11 11.4h2l3.2 8.2h-1.9l-.7-2h-3.2l-.7 2H7.8zm.3 4.7h2.2L12.4 13z" {...strong} />
+        </>
+      );
+
+    case 'app':
+      return (
+        <>
+          <rect x="3.4" y="3.4" width="17.2" height="17.2" rx="4.2" {...body} />
+          {/* Rounded square with a launch arrow: an installer, not a document. */}
+          <path d="M12 15.6V7.8" {...strong} />
+          <path d="M8.9 10.9 12 7.8l3.1 3.1" {...strong} />
+          <path d="M7.6 16.4h8.8" {...mid} />
+        </>
+      );
+
+    case 'disk':
+      return (
+        <>
+          <circle cx="12" cy="12" r="8.6" {...body} />
+          <circle cx="12" cy="12" r="4.4" {...mid} />
+          <circle cx="12" cy="12" r="1.6" fill="var(--surface)" />
+          <path d="M12 3.4a8.6 8.6 0 0 1 7.5 4.4l-3.8 2.2A4.4 4.4 0 0 0 12 7.8z" {...strong} />
         </>
       );
 

@@ -1221,8 +1221,181 @@ body {
   overflow: hidden;
 }
 
-/* Players manage their own internal layout and want the whole area. */
+/* Players and viewers manage their own internal layout and want the whole area. */
 .preview-stage > .media-shell,
+.preview-stage > .code-view,
 .preview-stage > .pdf-shell {
   place-self: stretch;
+}
+
+/* --- code and table previews --------------------------------------------- */
+
+.code-view {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-clay);
+  overflow: hidden;
+}
+
+.code-view__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.5rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+}
+
+.code-view__bar .clay-button {
+  padding: 0.3rem 0.7rem;
+  font-size: 12.5px;
+}
+
+.code-view__lang {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.code-view__meta {
+  color: var(--text-muted);
+}
+
+.code-view__scroll {
+  overflow: auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.code-view__lines {
+  margin: 0;
+  padding: 0.6rem 0;
+  list-style: none;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  /* The counter lives on the list rather than on a column of its own elements,
+     so the numbers cannot be selected and copied along with the code. */
+  counter-reset: line;
+  /* Without this the longest line sets the width and the highlight on shorter
+     rows stops halfway across. */
+  min-width: max-content;
+}
+
+.code-view__lines > li {
+  counter-increment: line;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1rem;
+  padding: 0 1rem 0 0;
+}
+
+.code-view__lines > li::before {
+  content: counter(line);
+  position: sticky;
+  left: 0;
+  min-width: 3.2ch;
+  padding: 0 0.85rem;
+  text-align: right;
+  color: var(--text-muted);
+  opacity: 0.55;
+  background: var(--surface);
+  user-select: none;
+}
+
+.code-view__lines > li:hover {
+  background: var(--accent-soft);
+}
+
+.code-view__lines code {
+  font: inherit;
+  white-space: pre;
+}
+
+.code-view__scroll[data-wrap] .code-view__lines {
+  min-width: 0;
+}
+
+.code-view__scroll[data-wrap] .code-view__lines code {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Token colours. Chosen to survive both themes rather than being inverted per
+   theme: the hues sit mid-lightness, where they read on either ground. */
+.tok--comment {
+  color: var(--text-muted);
+  font-style: italic;
+}
+.tok--string {
+  color: #2fa87a;
+}
+.tok--number {
+  color: #e08a2e;
+}
+.tok--keyword {
+  color: #c4569b;
+}
+.tok--literal {
+  color: #8b6cf5;
+}
+.tok--tag {
+  color: #d95c8a;
+}
+.tok--attribute {
+  color: #37a6c4;
+}
+.tok--punctuation {
+  opacity: 0.65;
+}
+
+.csv-table {
+  border-collapse: collapse;
+  font-size: 13px;
+  min-width: max-content;
+}
+
+.csv-table th,
+.csv-table td {
+  padding: 0.4rem 0.85rem;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: pre;
+  vertical-align: top;
+}
+
+.csv-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  font-weight: 700;
+  /* A sticky header loses its border when it detaches, so it carries a shadow
+     in place of one. */
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+
+.csv-table__gutter {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--surface);
+  color: var(--text-muted);
+  text-align: right;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.csv-table thead .csv-table__gutter {
+  z-index: 2;
+}
+
+.csv-table tbody tr:hover td {
+  background: var(--accent-soft);
 }

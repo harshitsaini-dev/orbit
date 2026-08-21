@@ -8,7 +8,7 @@
  * mean nothing to anyone else.
  */
 
-export const FILE_CATEGORIES = ['image', 'video', 'audio', 'document', 'archive', 'code', 'other'] as const;
+export const FILE_CATEGORIES = ['image', 'video', 'audio', 'document', 'archive', 'code', 'design', 'system', 'other'] as const;
 export type FileCategory = (typeof FILE_CATEGORIES)[number];
 
 export const CATEGORY_LABELS: Record<FileCategory, string> = {
@@ -18,6 +18,8 @@ export const CATEGORY_LABELS: Record<FileCategory, string> = {
   document: 'Documents',
   archive: 'Archives',
   code: 'Code',
+  design: 'Design files',
+  system: 'Apps & disk images',
   other: 'Other',
 };
 
@@ -29,6 +31,8 @@ export const CATEGORY_COLOURS: Record<FileCategory, string> = {
   document: '#2fa87a',
   archive: '#e08a2e',
   code: '#37a6c4',
+  design: '#c4569b',
+  system: '#6f7ba8',
   other: '#8a93a8',
 };
 
@@ -38,12 +42,22 @@ function register(category: FileCategory, extensions: string[]): void {
   for (const extension of extensions) EXTENSIONS[extension] = category;
 }
 
-register('image', ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tif', 'tiff', 'svg', 'heic', 'heif', 'avif', 'ico', 'raw', 'cr2', 'nef', 'arw', 'dng', 'psd', 'ai', 'eps']);
+register('image', ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tif', 'tiff', 'svg', 'heic', 'heif', 'avif', 'ico', 'raw', 'cr2', 'nef', 'arw', 'dng']);
 register('video', ['mp4', 'mkv', 'mov', 'avi', 'wmv', 'flv', 'webm', 'm4v', 'mpg', 'mpeg', '3gp', 'ts', 'm2ts', 'ogv']);
 register('audio', ['mp3', 'wav', 'flac', 'aac', 'ogg', 'oga', 'm4a', 'wma', 'opus', 'aiff', 'mid', 'midi']);
 register('document', ['pdf', 'doc', 'docx', 'odt', 'rtf', 'txt', 'md', 'xls', 'xlsx', 'ods', 'csv', 'tsv', 'ppt', 'pptx', 'odp', 'epub', 'mobi', 'pages', 'numbers', 'key']);
-register('archive', ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'iso', 'dmg', 'tgz', 'zst', 'cab']);
-register('code', ['js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'json', 'html', 'htm', 'css', 'scss', 'py', 'rb', 'go', 'rs', 'java', 'kt', 'c', 'h', 'cpp', 'hpp', 'cs', 'php', 'sh', 'bash', 'ps1', 'sql', 'yml', 'yaml', 'toml', 'xml', 'ipynb']);
+register('archive', ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'tgz', 'zst', 'cab']);
+register('code', ['js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'json', 'html', 'htm', 'css', 'scss', 'sass', 'less', 'py', 'rb', 'go', 'rs', 'java', 'kt', 'swift', 'c', 'h', 'cpp', 'hpp', 'cs', 'php', 'sh', 'bash', 'zsh', 'ps1', 'bat', 'sql', 'yml', 'yaml', 'toml', 'xml', 'ipynb', 'vue', 'svelte', 'dart', 'lua', 'r', 'pl', 'scala', 'ex', 'exs']);
+
+// Kept apart from images: a layered PSD is not a photograph, and a folder of
+// them looking like holiday snaps in the breakdown says nothing useful about
+// where a hundred gigabytes went.
+register('design', ['psd', 'ai', 'eps', 'fig', 'xd', 'sketch', 'indd', 'afdesign', 'afphoto', 'blend', 'obj', 'fbx', 'stl', '3ds']);
+
+// Apps and disk images, which used to land in "archive" or "other" - the two
+// places least likely to be where someone looks for the four gigabytes an ISO
+// is taking up.
+register('system', ['exe', 'msi', 'apk', 'aab', 'ipa', 'iso', 'dmg', 'pkg', 'deb', 'rpm', 'appimage', 'bin', 'img', 'vmdk', 'vdi', 'jar', 'ttf', 'otf', 'woff', 'woff2']);
 
 /** Google's own document types, which carry no meaningful mime prefix. */
 const GOOGLE_APPS: Record<string, FileCategory> = {

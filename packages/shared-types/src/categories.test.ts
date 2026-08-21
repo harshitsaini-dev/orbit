@@ -134,3 +134,34 @@ describe('generic mime types', () => {
     assert.equal(categorise('application/octet-stream', 'photo.heic'), 'image');
   });
 });
+
+describe('design and system files', () => {
+  it('keeps design files out of photos', () => {
+    // A folder of layered PSDs reading as holiday snaps says nothing useful
+    // about where a hundred gigabytes went.
+    assert.equal(categorise(undefined, 'poster.psd'), 'design');
+    assert.equal(categorise(undefined, 'logo.ai'), 'design');
+    assert.equal(categorise(undefined, 'app.fig'), 'design');
+    assert.equal(categorise(undefined, 'model.blend'), 'design');
+  });
+
+  it('separates apps and disk images from archives', () => {
+    // "Archive" and "other" are the two places least likely to be where someone
+    // looks for the four gigabytes an ISO is taking up.
+    assert.equal(categorise(undefined, 'ubuntu.iso'), 'system');
+    assert.equal(categorise(undefined, 'app.dmg'), 'system');
+    assert.equal(categorise(undefined, 'game.apk'), 'system');
+    assert.equal(categorise(undefined, 'setup.exe'), 'system');
+  });
+
+  it('still calls a real archive an archive', () => {
+    assert.equal(categorise(undefined, 'backup.zip'), 'archive');
+    assert.equal(categorise(undefined, 'source.tar.gz'), 'archive');
+  });
+
+  it('covers the languages a developer would expect', () => {
+    for (const name of ['App.vue', 'main.swift', 'index.svelte', 'run.bat', 'lib.dart']) {
+      assert.equal(categorise(undefined, name), 'code', name);
+    }
+  });
+});

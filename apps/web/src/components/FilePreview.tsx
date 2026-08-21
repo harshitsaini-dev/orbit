@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { OrbitFile } from '@orbit/shared-types';
 import { DownloadIcon } from './ActionIcon.js';
+import { CodeViewer } from './CodeViewer.js';
+import { CsvViewer } from './CsvViewer.js';
 import { FileIcon } from './FileIcon.js';
 import { ImageViewer } from './ImageViewer.js';
 import { MediaPlayer } from './MediaPlayer.js';
@@ -199,6 +201,7 @@ function PreviewBody({
     return <TextPreview src={src} name={file.name} />;
   }
 
+
   return <NoPreview file={file} contentUrl={contentUrl} />;
 }
 
@@ -289,26 +292,12 @@ function TextPreview({ src, name }: { src: string; name: string }) {
   if (error) return <p style={{ color: 'var(--danger)' }}>{error}</p>;
   if (text === null) return <p style={{ color: 'var(--text-muted)' }}>Loading…</p>;
 
-  return (
-    <pre
-      aria-label={`Contents of ${name}`}
-      className="clay"
-      style={{
-        margin: 0,
-        padding: '1rem 1.1rem',
-        width: '100%',
-        maxHeight: '100%',
-        overflow: 'auto',
-        fontSize: 13,
-        lineHeight: 1.55,
-        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-        whiteSpace: 'pre-wrap',
-        wordBreak: 'break-word',
-      }}
-    >
-      {text}
-    </pre>
-  );
+  // A spreadsheet export read as source is a wall of commas; the point of the
+  // file is its columns.
+  const extension = name.slice(name.lastIndexOf('.') + 1).toLowerCase();
+  if (extension === 'csv' || extension === 'tsv') return <CsvViewer text={text} name={name} />;
+
+  return <CodeViewer text={text} name={name} />;
 }
 
 function NoPreview({ file, contentUrl }: { file: OrbitFile; contentUrl: Props['contentUrl'] }) {
