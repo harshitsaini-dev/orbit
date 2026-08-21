@@ -16,7 +16,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 0 | Foundation (monorepo, CI, docs, infra accounts) | 🟢 Code done · infra accounts pending |
 | 1 | Auth (email OTP, sessions, local-mode bypass) | 🟢 Done |
 | 2 | First adapter — Google Drive | 🟢 Done |
-| 3 | Remaining adapters (OneDrive, Dropbox, MEGA, pCloud, S3) | 🟡 S3-compatible done · OneDrive, Dropbox, GCS, Azure, Bunny, MEGA pending |
+| 3 | Remaining adapters (OneDrive, Dropbox, MEGA, pCloud, S3) | 🟡 S3, OneDrive, Dropbox done · GCS, Azure, Bunny, MEGA, pCloud pending |
 | 4 | Unified workspace views | 🟢 Done |
 | 5 | Upload system + WebSocket progress + allocation | 🟡 Upload and progress done · allocation strategies pending |
 | 6 | Sync engine | ⚪ Not started |
@@ -317,8 +317,28 @@ simply is not drawing them.
 
 ## Next up — Phase 3 (remaining adapters)
 
-1. OneDrive and Dropbox, which are the closest in shape to Drive.
-2. GCS, Azure Blob, Bunny, MEGA.
+1. GCS and Azure Blob, which are object stores like S3 but with their own
+   protocols rather than the S3 API.
+2. Bunny Edge Storage, which is a simple HTTP API.
+3. MEGA and pCloud, which need their own account/password flows rather than
+   OAuth.
+
+### What each provider can and cannot do
+
+Capabilities are what the provider actually offers, not what would be
+convenient, because the UI hides a control rather than offering it and then
+failing.
+
+| | Drive | OneDrive | Dropbox | S3-compatible |
+|---|---|---|---|---|
+| Starred | yes | no | no (no API) | no |
+| Shared with me | yes | yes | yes | no |
+| Recent | yes | yes | no (no API) | no |
+| Delta feed | yes | yes | yes | no |
+| Search | yes | yes | names only | prefix + local match |
+| Full-text search | yes | yes | no (paid plans) | no |
+| Thumbnails | yes | yes | yes | no |
+| Reports an allowance | yes | yes | yes | no |
 
 The S3-compatible adapter is done, which makes Amazon S3, Cloudflare R2,
 Supabase Storage, DigitalOcean Spaces, Backblaze B2 and any other S3 API
