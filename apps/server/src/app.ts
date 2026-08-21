@@ -27,14 +27,23 @@ export function createApp(): Express {
   );
   app.use(cookieParser());
 
-  // Auth routes are the enumeration/brute-force surface; limit them harder than the rest.
+  /**
+   * Only the two endpoints that actually are a brute-force surface. Applied to
+   * all of `/auth` it also counted `GET /auth/me`, which the app calls on every
+   * page load: a few tabs and a couple of reloads used the whole budget, and
+   * the punishment for that was being unable to sign in for the rest of the
+   * window. Reading a session is not guessing a code.
+   */
+  const isOtp = (req: Request): boolean =>
+    req.path === '/auth/request-otp' || req.path === '/auth/verify-otp';
+
   app.use(
-    '/auth',
     rateLimit({
       windowMs: env.AUTH_RATE_WINDOW_MS,
       limit: env.AUTH_RATE_LIMIT,
       standardHeaders: 'draft-7',
       legacyHeaders: false,
+      skip: (req) => !isOtp(req),
     }),
   );
   // Streaming a file or fetching a thumbnail is not a metadata call, and
@@ -49,7 +58,12 @@ export function createApp(): Express {
       limit: env.API_RATE_LIMIT,
       standardHeaders: 'draft-7',
       legacyHeaders: false,
-      skip: (req) => !req.path.startsWith('/api') || isTransfer(req),
+      // The rest of /auth belongs here rather than nowhere: still limited, but
+      // against the budget sized for ordinary use.
+      skip: (req) =>
+        !(req.path.startsWith('/api') || req.path.startsWith('/auth')) ||
+        isTransfer(req) ||
+        isOtp(req),
     }),
   );
 

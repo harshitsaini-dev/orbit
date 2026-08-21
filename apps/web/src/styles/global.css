@@ -1399,3 +1399,130 @@ body {
 .csv-table tbody tr:hover td {
   background: var(--accent-soft);
 }
+
+/* --- PDF viewer ---------------------------------------------------------- */
+
+.pdf-shell {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+}
+
+.pdf-shell--fullscreen {
+  background: var(--bg);
+  padding: 12px;
+}
+
+.pdf-shell--message {
+  place-items: center;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.pdf-shell__page {
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  display: grid;
+  place-items: start center;
+  padding: 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-clay-inset);
+}
+
+.pdf-shell__page canvas {
+  display: block;
+  border-radius: 4px;
+  /* A page is white whatever the theme is; a shadow is what separates it from
+     the surface behind rather than a border that would read as part of it. */
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.28);
+  background: #fff;
+}
+
+.pdf-shell__loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.pdf-shell__bar {
+  display: flex;
+  justify-content: center;
+}
+
+.pdf-shell__bar .clay-button {
+  padding: 0.32rem 0.7rem;
+  font-size: 14px;
+  min-width: 2.1rem;
+}
+
+.pdf-shell__count {
+  padding: 0 0.4rem;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pdf-shell__divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 0.25rem 0.15rem;
+  background: var(--border);
+}
+
+.pdf-password {
+  display: grid;
+  justify-items: center;
+  gap: 0.7rem;
+  max-width: 420px;
+  padding: clamp(1.5rem, 4vw, 2.25rem);
+  text-align: center;
+}
+
+.pdf-password__glyph {
+  display: grid;
+  place-items: center;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  color: var(--accent);
+  background: var(--surface);
+  box-shadow: var(--shadow-clay-inset);
+}
+
+.pdf-password h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.pdf-password p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.pdf-password input {
+  width: 100%;
+  border: 0;
+  padding: 0.65rem 0.9rem;
+  font: inherit;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+}
+
+.pdf-password__error {
+  color: var(--danger) !important;
+}
+
+.pdf-password .clay-button {
+  padding: 0.5rem 1.6rem;
+}

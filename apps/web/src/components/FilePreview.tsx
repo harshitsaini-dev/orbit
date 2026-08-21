@@ -6,6 +6,7 @@ import { CsvViewer } from './CsvViewer.js';
 import { FileIcon } from './FileIcon.js';
 import { ImageViewer } from './ImageViewer.js';
 import { MediaPlayer } from './MediaPlayer.js';
+import { PdfViewer } from './PdfViewer.js';
 import { formatBytes } from '../lib/format.js';
 import { previewKindFor, TEXT_PREVIEW_LIMIT } from '../lib/preview.js';
 
@@ -210,62 +211,6 @@ function PreviewBody({
  * be restyled — but it can be given the whole screen, which is the thing people
  * actually want from a document preview.
  */
-function PdfViewer({ src, name }: { src: string; name: string }) {
-  const shellRef = useRef<HTMLDivElement>(null);
-  const [fullscreen, setFullscreen] = useState(false);
-
-  useEffect(() => {
-    const onChange = () => setFullscreen(document.fullscreenElement === shellRef.current);
-    document.addEventListener('fullscreenchange', onChange);
-    return () => document.removeEventListener('fullscreenchange', onChange);
-  }, []);
-
-  return (
-    <div
-      ref={shellRef}
-      style={{
-        display: 'grid',
-        gridTemplateRows: '1fr auto',
-        gap: 10,
-        width: '100%',
-        height: '100%',
-        minHeight: 0,
-        background: fullscreen ? 'var(--surface)' : 'transparent',
-        padding: fullscreen ? 12 : 0,
-      }}
-    >
-      <iframe
-        src={src}
-        title={name}
-        style={{
-          width: '100%',
-          height: '100%',
-          minHeight: 0,
-          border: 0,
-          borderRadius: 'var(--radius-md)',
-          background: '#fff',
-        }}
-      />
-
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <div className="scrim-bar">
-          <button
-            type="button"
-            className="clay-button"
-            style={{ padding: '0.35rem 0.9rem', fontSize: 13 }}
-            onClick={() => {
-              if (document.fullscreenElement) void document.exitFullscreen();
-              else void shellRef.current?.requestFullscreen().catch(() => undefined);
-            }}
-          >
-            {fullscreen ? 'Exit full screen' : 'Full screen'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function TextPreview({ src, name }: { src: string; name: string }) {
   const [text, setText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);

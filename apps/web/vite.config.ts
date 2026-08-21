@@ -7,6 +7,11 @@ const API_PORT = process.env.ORBIT_API_PORT ?? '8787';
 const API_TARGET = `http://localhost:${API_PORT}`;
 
 export default defineConfig({
+  // pdf.js is imported dynamically, so Vite only discovers it the first time
+  // someone opens a PDF - and re-optimising mid-session forces a full page
+  // reload, which aborts whatever navigation was in flight. Pre-bundling it at
+  // server start costs a moment once instead.
+  optimizeDeps: { include: ['pdfjs-dist'] },
   plugins: [
     react(),
     VitePWA({
