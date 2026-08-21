@@ -15,7 +15,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 |---|---|---|
 | 0 | Foundation (monorepo, CI, docs, infra accounts) | 🟢 Code done · infra accounts pending |
 | 1 | Auth (email OTP, sessions, local-mode bypass) | 🟢 Done |
-| 2 | First adapter — Google Drive | 🟡 Adapter, OAuth and browsing done · file operations in the UI pending |
+| 2 | First adapter — Google Drive | 🟢 Done |
 | 3 | Remaining adapters (OneDrive, Dropbox, MEGA, pCloud, S3) | ⚪ Not started |
 | 4 | Unified workspace views | ⚪ Not started |
 | 5 | Upload system + WebSocket progress + allocation | ⚪ Not started |
@@ -72,12 +72,12 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | Check | Result |
 |---|---|
 | `npm run typecheck --workspaces` | clean |
-| `npm test --workspaces` | 161 pass, 0 fail |
+| `npm test --workspaces` | 182 pass, 0 fail |
 
 Verified against the live account: 842 files, 11.9 GB scanned, categories summing exactly to the
 provider's own usage figure once the trash allowance is included.
 | `npm run build --workspaces` | clean |
-| `npx playwright test` (headed) | 54 pass, 0 fail across desktop, tablet and mobile |
+| `npx playwright test` (headed) | 63 pass, 0 fail across desktop, tablet and mobile |
 
 ## Designed but not built
 
@@ -136,12 +136,30 @@ provider's own usage figure once the trash allowance is included.
   view, every nav item reachable, tap targets at least 36px, and long email addresses staying
   inside their card.
 
-## Next up — finishing Phase 2
+### File browser and operations
+- `/my-drive`: breadcrumb navigation, account switcher, folder open, multi-select, new folder,
+  rename, star, bulk delete, download and open-in-tab.
+- Account and path live in the URL, so a folder can be bookmarked or linked to.
+- `GET /api/files/:id/content` streams bytes straight through from the provider — never onto
+  Orbit's disk, and the provider's URL never reaches the client. Range requests are honoured, so
+  a client can seek video without pulling the whole file.
+- Deleting answers **207** for a mixed batch, so a caller cannot read a 200 as "all done".
+- Action glyphs are SVG rather than text characters: several platforms substitute a solid star
+  for `☆`, which makes an unstarred file look starred.
 
-1. File browser UI on `/my-drive` reading `GET /api/files`.
-2. Routes for create-folder, rename, star and delete, wired to the adapter methods that already
-   exist and are tested.
-3. Download and preview through `getFileStream`, with range support.
+### Verified against the real account
+- Navigated real folders, including ones reached through shortcuts.
+- Downloaded a 3,222,799-byte JPEG: byte count exact, magic bytes intact, correct content type,
+  `private, no-store`, and the right filename.
+- `Range: bytes=0-99` answered `206` with `content-range: bytes 0-99/3222799` and exactly 100
+  bytes.
+- No response header mentions the provider's domain.
+
+## Next up — Phase 3 (remaining adapters)
+
+1. OneDrive and Dropbox, which are the closest in shape to Drive.
+2. The generic S3 adapter, which unlocks five catalogue entries at once.
+3. GCS, Azure Blob, Bunny, MEGA.
 
 ## Blocked on the owner
 

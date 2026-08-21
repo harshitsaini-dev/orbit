@@ -1,7 +1,6 @@
 import { GoogleDriveAdapter, getAdapter } from '@orbit/adapters';
 import { catalogueEntry } from '@orbit/shared-types';
 import { Router } from 'express';
-import { z } from 'zod';
 import { env } from '../lib/env.js';
 import {
   beginAuthorisation,
@@ -15,7 +14,6 @@ import {
   deleteAccount,
   listAccounts,
   refreshQuota,
-  useAccount,
 } from '../services/accounts.js';
 import { forgetBreakdown, getBreakdown } from '../services/breakdown.js';
 
@@ -185,48 +183,6 @@ accountsRouter.get('/api/accounts/:id/breakdown', requireAuth, async (req, res, 
       });
       return;
     }
-    if (err instanceof Error && err.message === 'needs_reauth') {
-      res.status(409).json({
-        error: { code: 'needs_reauth', message: 'This account needs to be reconnected' },
-      });
-      return;
-    }
-    next(err);
-  }
-});
-
-// --- browsing -------------------------------------------------------------
-
-const listQuery = z.object({
-  accountId: z.string().min(1),
-  path: z.string().default('/'),
-  pageToken: z.string().optional(),
-});
-
-accountsRouter.get('/api/files', requireAuth, async (req, res, next) => {
-  const parsed = listQuery.safeParse(req.query);
-  if (!parsed.success) {
-    res.status(400).json({ error: { code: 'invalid_request', message: 'accountId is required' } });
-    return;
-  }
-
-  try {
-    const active = await useAccount(req.user!.id, parsed.data.accountId);
-    if (!active) {
-      res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
-      return;
-    }
-
-    const page = await active.adapter.listFolder(active.tokens, parsed.data.path, parsed.data.pageToken);
-
-    res.json({
-      accountId: active.row.id,
-      provider: active.row.provider,
-      path: parsed.data.path,
-      files: page.files,
-      nextCursor: page.nextPageToken,
-    });
-  } catch (err) {
     if (err instanceof Error && err.message === 'needs_reauth') {
       res.status(409).json({
         error: { code: 'needs_reauth', message: 'This account needs to be reconnected' },

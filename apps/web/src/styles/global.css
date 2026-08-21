@@ -202,3 +202,11 @@ body {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
+
+/* The modified date is the first thing to drop on a narrow screen: the name,
+   size and actions all matter more. */
+@media (max-width: 600px) {
+  .file-row__date {
+    display: none;
+  }
+}

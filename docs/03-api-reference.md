@@ -98,7 +98,30 @@ Re-reads usage from the provider and caches it. `409 needs_reauth` when the gran
 Disconnects. `204`. Files in the provider account are untouched.
 
 ### `GET /api/files?accountId=&path=&pageToken=`
-Lists one folder from one account. `{ accountId, provider, path, files, nextCursor }`.
+Lists one folder from one account.
+`{ accountId, provider, path, files, nextCursor, capabilities }`. The capabilities travel with
+the listing so the UI can hide actions the provider cannot perform.
+
+### `GET /api/files/:id/content?accountId=&download=&name=`
+Streams the file straight through from the provider. The bytes never touch Orbit's disk and the
+provider's own URL never reaches the client.
+
+- Honours `Range`, answering `206` with `Content-Range`. A suffix range (`bytes=-500`) is
+  declined rather than guessed at, since this layer does not know the length.
+- Always `Cache-Control: private, no-store` — one user's file behind their session.
+- `download=1` adds a `Content-Disposition` attachment header with `name`.
+
+### `POST /api/files/folder`
+`{ accountId, path, name }` → `201 { file }`.
+
+### `PATCH /api/files/:id`
+`{ accountId, name?, starred? }` → `204`. At least one of `name` or `starred` is required.
+`501 unsupported` when starring a provider that cannot star.
+
+### `DELETE /api/files`
+`{ accountId, remoteIds: [] }` → `200 { succeeded, failed }`, or **`207`** when the batch was
+mixed, so a caller cannot read a 200 as "all done". On Google Drive this trashes rather than
+destroys.
 
 ### `GET /api/accounts/:id/breakdown`
 What is using the space, by category — the Google One style panel. There is no aggregate
@@ -125,8 +148,6 @@ Server frames: `upload:progress`, `upload:complete`, `upload:error`, `sync:statu
 
 | Route | Phase |
 |---|---|
-| `POST /api/files/folder`, `PATCH /api/files/:id`, `DELETE /api/files` | 2 |
-| `GET /api/files/:id/content` (range-aware stream) | 2 |
 | `GET /api/views/{recent,starred,shared-with-me}` | 4 |
 | `POST /api/uploads/init`, `PUT /api/uploads/:id/chunk` | 5 |
 | `GET /api/allocation`, `PUT /api/allocation` | 5 |

@@ -32,7 +32,7 @@ test.describe('small-screen layout', () => {
   test('the workspace does not scroll sideways on any view', async ({ page }) => {
     await signIn(page);
 
-    for (const path of ['/', '/my-drive', '/quota', '/starred', '/developer']) {
+    for (const path of ['/', '/my-drive', '/quota', '/starred', '/developer', '/my-drive?account=x&path=/a/b']) {
       await page.goto(path);
       await expect(page.locator('.app-main')).toBeVisible();
       expect(await horizontalOverflow(page), `${path} pushes the page sideways`).toBeLessThanOrEqual(1);
