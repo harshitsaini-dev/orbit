@@ -48,3 +48,11 @@ export function RenameIcon({ size = 16 }: { size?: number }) {
     </svg>
   );
 }
+
+export function OpenIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg {...base} width={size} height={size}>
+      <path d="M4.6 6.4a1.8 1.8 0 0 1 1.8-1.8h4l2 2.2h5.2a1.8 1.8 0 0 1 1.8 1.8v7a1.8 1.8 0 0 1-1.8 1.8H6.4a1.8 1.8 0 0 1-1.8-1.8z" />
+    </svg>
+  );
+}

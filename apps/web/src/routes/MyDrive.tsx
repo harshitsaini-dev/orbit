@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { OrbitFile, ProviderCapabilities, PublicAccount } from '@orbit/shared-types';
-import { DownloadIcon, RenameIcon, StarIcon } from '../components/ActionIcon.js';
+import { DownloadIcon, OpenIcon, RenameIcon, StarIcon } from '../components/ActionIcon.js';
 import { FileIcon } from '../components/FileIcon.js';
 import { FilePreview } from '../components/FilePreview.js';
 import { Checkbox } from '../components/Checkbox.js';
+import { ContextMenu, useContextMenu, type MenuItem } from '../components/ContextMenu.js';
+import { DropZone } from '../components/DropZone.js';
 import { FileGrid } from '../components/FileGrid.js';
 import {
   NewFolderIcon,
@@ -32,6 +34,7 @@ import { filesFromDataTransfer, type UploadItem } from '../lib/upload.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { api, ApiError } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
+import { previewKindFor } from '../lib/preview.js';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -122,7 +125,6 @@ export function MyDrive() {
   >(null);
 
   const [uploads, setUploads] = useState<UploadItem[]>([]);
-  const [dragging, setDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -322,6 +324,55 @@ export function MyDrive() {
     };
   }, [accountId, path, filters, searchActive]);
 
+  const menu = useContextMenu<OrbitFile>();
+
+  /**
+   * What the right-click menu offers for one file. Built here rather than in
+   * the menu so the list and the grid cannot drift apart, and so an action the
+   * provider cannot do is shown greyed rather than hidden - absence looks like
+   * a bug, a disabled row reads as a limit.
+   */
+  function menuItemsFor(file: OrbitFile): MenuItem[] {
+    return [
+      {
+        label: file.isFolder ? 'Open' : 'Preview',
+        icon: <OpenIcon />,
+        onSelect: () =>
+          file.isFolder ? navigate({ path: file.virtualPath }) : setPreviewing(file),
+        disabled: !file.isFolder && previewKindFor(file) === 'none',
+      },
+      {
+        label: 'Download',
+        icon: <DownloadIcon />,
+        onSelect: () => {
+          // A hidden anchor rather than location.assign, so the download does
+          // not count as a navigation and the page stays where it is.
+          const link = document.createElement('a');
+          link.href = contentUrl(file, true);
+          link.download = file.name;
+          link.click();
+        },
+        disabled: file.isFolder,
+      },
+      {
+        label: file.starred ? 'Remove star' : 'Add star',
+        icon: <StarIcon filled={file.starred} />,
+        onSelect: () => void toggleStar(file),
+      },
+      {
+        label: 'Rename',
+        icon: <RenameIcon />,
+        onSelect: () => setDialog({ kind: 'rename', file }),
+      },
+      {
+        label: 'Delete',
+        icon: <TrashIcon />,
+        danger: true,
+        onSelect: () => setDialog({ kind: 'delete', files: [file] }),
+      },
+    ];
+  }
+
   function contentUrl(file: OrbitFile, download: boolean): string {
     const query = new URLSearchParams({ accountId });
     if (download) {
@@ -414,7 +465,7 @@ export function MyDrive() {
     setUploads((current) => [...current, ...queued]);
   }
 
-  function fromInput(list: FileList | null): void {
+  function fromInput(list: FileList | File[] | null): void {
     if (!list) return;
     enqueue(
       Array.from(list).map((file) => ({
@@ -425,16 +476,19 @@ export function MyDrive() {
     );
   }
 
-  async function onDrop(event: React.DragEvent) {
-    event.preventDefault();
-    setDragging(false);
-
-    // Walking the entries is what makes a dropped *folder* work; dataTransfer
-    // .files alone silently yields nothing for one.
-    const entries = await filesFromDataTransfer(event.dataTransfer.items);
-    if (entries.length > 0) enqueue(entries);
-    else fromInput(event.dataTransfer.files);
-  }
+  const onDropped = useCallback(
+    async (files: File[], transfer: DataTransfer) => {
+      // Walking the entries is what makes a dropped *folder* work; dataTransfer
+      // .files alone silently yields nothing for one.
+      const entries = await filesFromDataTransfer(transfer.items);
+      if (entries.length > 0) enqueue(entries);
+      else fromInput(files);
+    },
+    // enqueue and fromInput are stable for a given folder, and re-creating this
+    // on every render would re-bind the window listeners each time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [accountId, path],
+  );
 
   function toggleSelected(remoteId: string): void {
     setSelected((current) => {
@@ -496,36 +550,14 @@ export function MyDrive() {
   return (
     <div
       style={{ display: 'grid', gap: '1rem', position: 'relative' }}
-      onDragOver={(event) => {
-        event.preventDefault();
-        setDragging(true);
-      }}
-      onDragLeave={(event) => {
-        // Only when the pointer actually leaves the region, not on every child.
-        if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragging(false);
-      }}
-      onDrop={(event) => void onDrop(event)}
     >
-      {dragging && (
-        <div
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            zIndex: 20,
-            borderRadius: 'var(--radius-lg)',
-            border: '2px dashed var(--accent)',
-            background: 'var(--accent-soft)',
-            display: 'grid',
-            placeItems: 'center',
-            fontWeight: 600,
-            color: 'var(--accent)',
-            pointerEvents: 'none',
-          }}
-        >
-          Drop to upload here
-        </div>
-      )}
+      <DropZone
+        label={path === '/' ? 'Upload to this drive' : `Upload to ${path}`}
+        onFiles={(files, transfer) => void onDropped(files, transfer)}
+        // Nowhere to put them until an account is chosen, and an overlay that
+        // promises an upload it cannot perform is worse than none.
+        disabled={!accountId}
+      />
 
       <section className="clay" style={{ padding: 'clamp(1rem, 3vw, 1.5rem)', display: 'grid', gap: '0.9rem' }}>
         {accounts && accounts.length > 1 && (
@@ -779,6 +811,7 @@ export function MyDrive() {
             onOpen={(file) => (file.isFolder ? navigate({ path: file.virtualPath }) : setPreviewing(file))}
             showLocation={searchActive}
             locationOf={locationOf}
+            onContextMenu={(event, file) => menu.open(event, file)}
           />
         )}
 
@@ -787,6 +820,7 @@ export function MyDrive() {
             {paged.map((file) => (
               <li
                 key={file.remoteId}
+                onContextMenu={(event) => menu.open(event, file)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -959,6 +993,15 @@ export function MyDrive() {
             forgetFiles(uploads.map((item) => item.id));
             void load();
           }}
+        />
+      )}
+
+      {menu.state && (
+        <ContextMenu
+          anchor={menu.state.anchor}
+          items={menuItemsFor(menu.state.target)}
+          onClose={menu.close}
+          label={`Actions for ${menu.state.target.name}`}
         />
       )}
 

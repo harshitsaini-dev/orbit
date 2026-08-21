@@ -23,6 +23,7 @@ export function FileGrid({
   onOpen,
   showLocation,
   locationOf,
+  onContextMenu,
 }: {
   files: OrbitFile[];
   accountIdFor: (file: OrbitFile) => string;
@@ -31,6 +32,7 @@ export function FileGrid({
   onOpen: (file: OrbitFile) => void;
   showLocation?: boolean;
   locationOf?: (file: OrbitFile) => string;
+  onContextMenu?: (event: React.MouseEvent, file: OrbitFile) => void;
 }) {
   return (
     <ul
@@ -45,7 +47,10 @@ export function FileGrid({
       }}
     >
       {files.map((file) => (
-        <li key={file.remoteId}>
+        <li
+          key={file.remoteId}
+          {...(onContextMenu ? { onContextMenu: (event) => onContextMenu(event, file) } : {})}
+        >
           <Tile
             file={file}
             accountId={accountIdFor(file)}
