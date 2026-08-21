@@ -73,6 +73,12 @@ export interface OrbitFile {
   starred: boolean;
   modifiedAt: string;
   checksum?: string;
+  /**
+   * Set when this entry points at another one (a Drive shortcut, and the same
+   * idea elsewhere). Content and navigation follow the target; rename, delete
+   * and star act on the pointer itself.
+   */
+  shortcutTargetId?: string;
 }
 
 export interface OrbitFilePage {

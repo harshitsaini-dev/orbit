@@ -2,7 +2,17 @@ import assert from 'node:assert/strict';
 import { afterEach, beforeEach, describe, it } from 'node:test';
 import type { AccountTokens } from '@orbit/shared-types';
 import { ProviderError } from '../base.js';
-import { GoogleDriveAdapter, escapeQuery, toOrbitFile } from './google-drive.js';
+import {
+  GOOGLE_DRIVE_SHORTCUT_MIME,
+  GoogleDriveAdapter,
+  escapeQuery,
+  toOrbitFile,
+  withFields,
+} from './google-drive.js';
+
+/** A metadata read, as opposed to the download that follows it. */
+const isMetaCall = (call: Call) =>
+  !call.url.searchParams.get('alt') && (call.url.searchParams.get('fields') ?? '').includes('mimeType');
 
 const TOKENS: AccountTokens = { accessToken: 'test-access-token', refreshToken: 'test-refresh' };
 
@@ -178,9 +188,7 @@ describe('listFolder', () => {
 describe('getFileStream', () => {
   it('streams a normal file with alt=media', async () => {
     respondWith((call) => {
-      if (call.url.searchParams.get('fields') === 'mimeType,size') {
-        return json({ mimeType: 'image/png', size: '10' });
-      }
+      if (isMetaCall(call)) return json({ mimeType: 'image/png', size: '10' });
       if (call.url.searchParams.get('alt') === 'media') {
         return new Response('bytes', { headers: { 'content-type': 'image/png', 'content-length': '5' } });
       }
@@ -194,7 +202,7 @@ describe('getFileStream', () => {
 
   it('exports a Google Doc instead of downloading it', async () => {
     respondWith((call) => {
-      if (call.url.searchParams.get('fields') === 'mimeType,size') {
+      if (isMetaCall(call) && !call.url.pathname.endsWith('/export')) {
         return json({ mimeType: 'application/vnd.google-apps.document' });
       }
       if (call.url.pathname.endsWith('/export')) {
@@ -215,7 +223,7 @@ describe('getFileStream', () => {
 
   it('passes a byte range through', async () => {
     respondWith((call) => {
-      if (call.url.searchParams.get('fields') === 'mimeType,size') return json({ mimeType: 'video/mp4' });
+      if (isMetaCall(call)) return json({ mimeType: 'video/mp4' });
       return new Response('partial', {
         status: 206,
         headers: { 'content-range': 'bytes 100-199/5000', 'content-type': 'video/mp4' },
@@ -377,6 +385,11 @@ describe('getQuota', () => {
 });
 
 describe('helpers', () => {
+  it('adds fields without repeating any already present', () => {
+    assert.equal(withFields('mimeType,size', 'mimeType', 'shortcutDetails'), 'mimeType,size,shortcutDetails');
+    assert.equal(withFields('size', 'mimeType'), 'size,mimeType');
+  });
+
   it('escapes quotes and backslashes in a Drive query', () => {
     assert.equal(escapeQuery("Bob's"), "Bob\\'s");
     assert.equal(escapeQuery('a\\b'), 'a\\\\b');
@@ -389,5 +402,99 @@ describe('helpers', () => {
     );
     assert.equal(file.sizeBytes, 0);
     assert.equal(file.isFolder, false);
+  });
+});
+
+describe('shortcuts', () => {
+  const FOLDER = 'application/vnd.google-apps.folder';
+
+  it('presents a shortcut to a folder as a folder', () => {
+    // Real Drive accounts are full of these. Without resolution they show up as
+    // unopenable zero-byte files.
+    const file = toOrbitFile(
+      {
+        id: 'sc-1',
+        name: 'BCA notes',
+        mimeType: GOOGLE_DRIVE_SHORTCUT_MIME,
+        shortcutDetails: { targetId: 'folder-9', targetMimeType: FOLDER },
+      },
+      '/BCA notes',
+    );
+
+    assert.equal(file.isFolder, true);
+    assert.equal(file.mimeType, FOLDER);
+    assert.equal(file.shortcutTargetId, 'folder-9');
+    // The id stays the shortcut's own, so rename and delete act on the pointer.
+    assert.equal(file.remoteId, 'sc-1');
+  });
+
+  it('presents a shortcut to a file with the target type', () => {
+    const file = toOrbitFile(
+      {
+        id: 'sc-2',
+        name: 'photo.jpg',
+        mimeType: GOOGLE_DRIVE_SHORTCUT_MIME,
+        shortcutDetails: { targetId: 'img-3', targetMimeType: 'image/jpeg' },
+      },
+      '/photo.jpg',
+    );
+
+    assert.equal(file.isFolder, false);
+    assert.equal(file.mimeType, 'image/jpeg');
+    assert.equal(file.shortcutTargetId, 'img-3');
+  });
+
+  it('leaves an ordinary file untouched', () => {
+    const file = toOrbitFile({ id: 'f', name: 'a.txt', mimeType: 'text/plain', size: '4' }, '/a.txt');
+    assert.equal(file.shortcutTargetId, undefined);
+    assert.equal(file.mimeType, 'text/plain');
+  });
+
+  it('walks a path through a shortcut into its target folder', async () => {
+    respondWith((call) => {
+      const q = call.url.searchParams.get('q') ?? '';
+      if (q.includes("name = 'BCA notes'")) {
+        return json({
+          files: [{ id: 'sc-1', mimeType: GOOGLE_DRIVE_SHORTCUT_MIME, shortcutDetails: { targetId: 'folder-9' } }],
+        });
+      }
+      return json({ files: [] });
+    });
+
+    await adapter.listFolder(TOKENS, '/BCA notes');
+
+    // The listing must query the target folder, not the shortcut.
+    assert.match(calls[1]!.url.searchParams.get('q')!, /'folder-9' in parents/);
+  });
+
+  it('accepts a shortcut when resolving a path segment', async () => {
+    respondWith(() => json({ files: [] }));
+    await adapter.listFolder(TOKENS, '/Somewhere').catch(() => undefined);
+
+    const q = calls[0]!.url.searchParams.get('q')!;
+    assert.match(q, /vnd\.google-apps\.shortcut/);
+    assert.match(q, /shortcutDetails\.targetMimeType/);
+  });
+
+  it('streams the target of a shortcut, not the shortcut', async () => {
+    respondWith((call) => {
+      if (call.url.pathname.endsWith('/sc-9') ) {
+        return json({ id: 'sc-9', mimeType: GOOGLE_DRIVE_SHORTCUT_MIME, shortcutDetails: { targetId: 'real-1' } });
+      }
+      if (call.url.pathname.endsWith('/real-1') && !call.url.searchParams.get('alt')) {
+        return json({ id: 'real-1', mimeType: 'image/png', size: '12' });
+      }
+      if (call.url.searchParams.get('alt') === 'media') {
+        return new Response('bytes', { headers: { 'content-type': 'image/png' } });
+      }
+      return undefined;
+    });
+
+    const result = await adapter.getFileStream(TOKENS, 'sc-9');
+
+    const download = calls.find((c) => c.url.searchParams.get('alt') === 'media');
+    assert.ok(download, 'the target must actually be downloaded');
+    assert.match(download.url.pathname, /real-1$/, 'downloaded the shortcut instead of its target');
+    assert.equal(result.contentType, 'image/png');
   });
 });

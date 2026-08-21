@@ -21,6 +21,7 @@ const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
 export const GOOGLE_DRIVE_FOLDER_MIME = 'application/vnd.google-apps.folder';
+export const GOOGLE_DRIVE_SHORTCUT_MIME = 'application/vnd.google-apps.shortcut';
 
 /** Drive resumable uploads require a multiple of 256 KiB for every chunk but the last. */
 const CHUNK_SIZE = 8 * 1024 * 1024;
@@ -38,6 +39,7 @@ interface DriveFile {
   trashed?: boolean;
   parents?: string[];
   md5Checksum?: string;
+  shortcutDetails?: { targetId?: string; targetMimeType?: string };
 }
 
 interface DriveList {
@@ -54,11 +56,13 @@ interface TokenResponse {
 /**
  * Google Drive.
  *
- * Two things about Drive shape the code below. It is a graph rather than a
+ * Three things about Drive shape the code below. It is a graph rather than a
  * tree - a file can sit in several parents - so Orbit resolves its virtual
- * paths by walking from the root a segment at a time. And Google's own document
+ * paths by walking from the root a segment at a time. Google's own document
  * formats are not stored as bytes at all; they report no size and cannot be
- * fetched with alt=media, so they are exported instead.
+ * fetched with alt=media, so they are exported instead. And a shortcut is a
+ * distinct kind of entry that must behave like whatever it points at, or a
+ * shortcut to a folder appears as an unopenable zero-byte file.
  */
 export class GoogleDriveAdapter extends BaseAdapter {
   readonly id: ProviderId = 'google_drive';
@@ -201,10 +205,7 @@ export class GoogleDriveAdapter extends BaseAdapter {
   }
 
   override async getFileMeta(tokens: AccountTokens, remoteId: string): Promise<OrbitFile> {
-    const file = await providerJson<DriveFile>(this.id, `${API}/files/${encodeURIComponent(remoteId)}`, {
-      headers: this.auth(tokens),
-      query: { fields: FILE_FIELDS, supportsAllDrives: true },
-    });
+    const file = await this.fetchFile(tokens, remoteId, FILE_FIELDS);
     return toOrbitFile(file, `/${file.name}`);
   }
 
@@ -213,10 +214,9 @@ export class GoogleDriveAdapter extends BaseAdapter {
     remoteId: string,
     range?: ByteRange,
   ): Promise<FileStreamResult> {
-    const meta = await providerJson<DriveFile>(this.id, `${API}/files/${encodeURIComponent(remoteId)}`, {
-      headers: this.auth(tokens),
-      query: { fields: 'mimeType,size', supportsAllDrives: true },
-    });
+    const meta = await this.fetchFile(tokens, remoteId, 'mimeType,size,shortcutDetails');
+    // Content lives on the target, never on the shortcut itself.
+    const contentId = meta.shortcutDetails?.targetId ?? remoteId;
 
     const headers = this.auth(tokens);
     if (range) {
@@ -226,11 +226,11 @@ export class GoogleDriveAdapter extends BaseAdapter {
     const exportMime = EXPORT_FORMATS[meta.mimeType];
     const response = exportMime
       ? // Google's own formats hold no bytes; they are converted on request.
-        await providerFetch(this.id, `${API}/files/${encodeURIComponent(remoteId)}/export`, {
+        await providerFetch(this.id, `${API}/files/${encodeURIComponent(contentId)}/export`, {
           headers,
           query: { mimeType: exportMime },
         })
-      : await providerFetch(this.id, `${API}/files/${encodeURIComponent(remoteId)}`, {
+      : await providerFetch(this.id, `${API}/files/${encodeURIComponent(contentId)}`, {
           headers,
           query: { alt: 'media', supportsAllDrives: true },
         });
@@ -442,6 +442,33 @@ export class GoogleDriveAdapter extends BaseAdapter {
 
   // --- internals ----------------------------------------------------------
 
+  /**
+   * Reads one file, following a shortcut to whatever it points at. Callers get
+   * the target's metadata but keep the id they asked about, so an operation on
+   * the pointer still acts on the pointer.
+   */
+  private async fetchFile(
+    tokens: AccountTokens,
+    remoteId: string,
+    fields: string,
+  ): Promise<DriveFile> {
+    const file = await providerJson<DriveFile>(this.id, `${API}/files/${encodeURIComponent(remoteId)}`, {
+      headers: this.auth(tokens),
+      // Resolving a shortcut needs these two whether or not the caller asked.
+      query: { fields: withFields(fields, 'mimeType', 'shortcutDetails'), supportsAllDrives: true },
+    });
+
+    const targetId = file.mimeType === GOOGLE_DRIVE_SHORTCUT_MIME ? file.shortcutDetails?.targetId : undefined;
+    if (!targetId) return file;
+
+    const target = await providerJson<DriveFile>(this.id, `${API}/files/${encodeURIComponent(targetId)}`, {
+      headers: this.auth(tokens),
+      query: { fields, supportsAllDrives: true },
+    });
+
+    return { ...target, id: file.id, name: file.name, shortcutDetails: { targetId, targetMimeType: target.mimeType } };
+  }
+
   private auth(tokens: AccountTokens): Record<string, string> {
     if (!tokens.accessToken) throw new ProviderError(this.id, 401, 'No access token');
     return { authorization: `Bearer ${tokens.accessToken}` };
@@ -463,10 +490,11 @@ export class GoogleDriveAdapter extends BaseAdapter {
           q: [
             `'${parentId}' in parents`,
             `name = '${escapeQuery(segment)}'`,
-            `mimeType = '${GOOGLE_DRIVE_FOLDER_MIME}'`,
+            // A shortcut to a folder is a folder as far as browsing is concerned.
+            `(mimeType = '${GOOGLE_DRIVE_FOLDER_MIME}' or (mimeType = '${GOOGLE_DRIVE_SHORTCUT_MIME}' and shortcutDetails.targetMimeType = '${GOOGLE_DRIVE_FOLDER_MIME}'))`,
             'trashed = false',
           ].join(' and '),
-          fields: 'files(id)',
+          fields: 'files(id,mimeType,shortcutDetails(targetId))',
           pageSize: 1,
           supportsAllDrives: true,
           includeItemsFromAllDrives: true,
@@ -475,7 +503,8 @@ export class GoogleDriveAdapter extends BaseAdapter {
 
       const match = page.files?.[0];
       if (!match) throw new ProviderError(this.id, 404, `No folder at ${path}`);
-      parentId = match.id;
+      // Walk through the shortcut, not into it.
+      parentId = match.shortcutDetails?.targetId ?? match.id;
     }
 
     return parentId;
@@ -495,18 +524,31 @@ const EXPORT_FORMATS: Record<string, string> = {
 };
 
 export function toOrbitFile(file: DriveFile, virtualPath: string): OrbitFile {
+  const shortcut = file.mimeType === GOOGLE_DRIVE_SHORTCUT_MIME ? file.shortcutDetails : undefined;
+  // A shortcut must behave like whatever it points at, or a shortcut to a
+  // folder shows up as an unopenable zero-byte file.
+  const effectiveMime = shortcut?.targetMimeType ?? file.mimeType;
+
   return {
     remoteId: file.id,
     name: file.name,
     virtualPath,
-    mimeType: file.mimeType,
+    mimeType: effectiveMime,
     // Google-native documents report no size at all.
     sizeBytes: Number(file.size ?? 0),
-    isFolder: file.mimeType === GOOGLE_DRIVE_FOLDER_MIME,
+    isFolder: effectiveMime === GOOGLE_DRIVE_FOLDER_MIME,
     starred: Boolean(file.starred),
     modifiedAt: file.modifiedTime ?? new Date(0).toISOString(),
     checksum: file.md5Checksum,
+    shortcutTargetId: shortcut?.targetId,
   };
+}
+
+/** Adds fields to a Drive field list without repeating any. */
+export function withFields(fields: string, ...extra: string[]): string {
+  const present = new Set(fields.split(',').map((field) => field.trim()).filter(Boolean));
+  for (const field of extra) present.add(field);
+  return [...present].join(',');
 }
 
 /** Drive's query language delimits with single quotes and escapes with a backslash. */
