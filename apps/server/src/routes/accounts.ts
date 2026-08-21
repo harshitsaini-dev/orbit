@@ -96,11 +96,15 @@ accountsRouter.get('/auth/callback/:provider', requireAuth, async (req, res, nex
     // to the same provider stay tellable apart, and seed an empty profile from
     // the same lookup.
     let nickname = adapter.displayName;
+    let remoteAccountId: string | undefined;
     if (adapter instanceof GoogleDriveAdapter) {
       const identity = await adapter
         .getAccountIdentity(tokens)
         .catch((): Awaited<ReturnType<GoogleDriveAdapter['getAccountIdentity']>> => ({}));
-      if (identity.email) nickname = identity.email;
+      if (identity.email) {
+        nickname = identity.email;
+        remoteAccountId = identity.email;
+      }
       await seedProfileFrom(req.user!.id, identity).catch(() => undefined);
     }
 
@@ -109,6 +113,7 @@ accountsRouter.get('/auth/callback/:provider', requireAuth, async (req, res, nex
       provider,
       catalogueKey: provider,
       nickname,
+      remoteAccountId,
       tokens,
     });
 

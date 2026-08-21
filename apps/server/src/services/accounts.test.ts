@@ -11,6 +11,7 @@ const { getAdapter, ProviderError, isGrantRevoked } = await import('@orbit/adapt
 const { decryptTokens } = await import('../lib/crypto.js');
 const { db } = await import('../lib/db.js');
 const { accounts } = await import('@orbit/db');
+const { eq } = await import('drizzle-orm');
 
 const drive = getAdapter('google_drive');
 const originalRefresh = drive.refreshToken.bind(drive);
@@ -176,5 +177,62 @@ describe('refreshExpiringAccounts', () => {
     await refreshExpiringAccounts();
 
     assert.equal(calls, 1, 'a needs_reauth account should be skipped on later sweeps');
+  });
+});
+
+describe('connecting the same account twice', () => {
+  beforeEach(useTestDatabase);
+
+  const base = {
+    provider: 'google_drive' as const,
+    catalogueKey: 'google_drive',
+    tokens: { accessToken: 'first', refreshToken: 'r1', expiresAt: Date.now() + 60_000 },
+  };
+
+  it('refreshes the existing connection instead of adding a duplicate', async () => {
+    const user = await getLocalUser();
+
+    const first = await createAccount({
+      ...base,
+      userId: user.id,
+      nickname: 'me@example.com',
+      remoteAccountId: 'me@example.com',
+    });
+
+    // The grant died and the owner authorised again.
+    await db().update(accounts).set({ status: 'needs_reauth' }).where(eq(accounts.id, first.id));
+
+    const again = await createAccount({
+      ...base,
+      userId: user.id,
+      nickname: 'me@example.com',
+      remoteAccountId: 'me@example.com',
+      tokens: { ...base.tokens, accessToken: 'second' },
+    });
+
+    assert.equal(again.id, first.id, 'the same connection should come back, not a new one');
+    assert.equal(again.status, 'ok', 'a fresh grant clears the previous failure');
+    assert.equal((await listAccounts(user.id)).length, 1);
+
+    const [row] = await db().select().from(accounts).where(eq(accounts.id, first.id));
+    assert.equal(decryptTokens(row!.encryptedTokens).accessToken, 'second');
+  });
+
+  it('keeps two different accounts of the same provider apart', async () => {
+    const user = await getLocalUser();
+    await createAccount({ ...base, userId: user.id, nickname: 'one@example.com', remoteAccountId: 'one@example.com' });
+    await createAccount({ ...base, userId: user.id, nickname: 'two@example.com', remoteAccountId: 'two@example.com' });
+
+    const all = await listAccounts(user.id);
+    assert.equal(all.length, 2);
+    assert.deepEqual(all.map((a) => a.nickname).sort(), ['one@example.com', 'two@example.com']);
+  });
+
+  it('never merges connections that carry no provider identity', async () => {
+    const user = await getLocalUser();
+    await createAccount({ ...base, userId: user.id, nickname: 'Google Drive' });
+    await createAccount({ ...base, userId: user.id, nickname: 'Google Drive' });
+
+    assert.equal((await listAccounts(user.id)).length, 2);
   });
 });

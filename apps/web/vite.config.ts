@@ -11,6 +11,10 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Without this the service worker only exists in a production build, so
+      // the browser never offers to install the app while developing - and the
+      // Install button would be untestable locally.
+      devOptions: { enabled: true, type: 'module' },
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'og-image.png'],
       manifest: {
         name: 'Orbit',

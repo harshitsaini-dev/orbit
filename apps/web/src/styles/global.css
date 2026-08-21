@@ -531,3 +531,416 @@ body {
   background: var(--accent-soft);
   color: var(--accent);
 }
+
+/* --- media player -------------------------------------------------------
+   The controls sit outside the frame rather than on top of it: native video
+   controls are drawn inside, so a portrait clip loses its bottom to them. */
+
+.media-shell {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 10px;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.media-shell--fullscreen {
+  background: #000;
+  padding: 12px;
+}
+
+.media-shell__stage {
+  position: relative;
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  place-items: center;
+}
+
+/* Fitted in both directions. Height alone leaves a tall clip running off the
+   bottom of the window, which is exactly what it did. */
+.media-shell__video {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  display: block;
+  background: #000;
+  cursor: pointer;
+}
+
+.media-shell__spinner {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
+.media-shell__spinner > span {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.25);
+  border-top-color: var(--accent);
+  animation: media-spin 0.85s linear infinite;
+}
+
+@keyframes media-spin {
+  to { transform: rotate(360deg); }
+}
+
+.media-shell__controls {
+  display: flex;
+  justify-content: center;
+  transition: opacity var(--dur-base) var(--ease-clay);
+}
+
+/* Out of the way while playing, back on any movement. */
+.media-shell__controls[data-hidden] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.media-shell__bar {
+  max-width: 100%;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.media-shell__bar::-webkit-scrollbar {
+  display: none;
+}
+
+.media-shell__scrub {
+  position: relative;
+  display: flex;
+  align-items: center;
+  /* Fixed rather than flexible: as a flex item it was being shrunk to almost
+     nothing while the volume slider took the space. */
+  flex: 0 0 clamp(120px, 30vw, 300px);
+  height: 20px;
+}
+
+.media-shell__buffered {
+  position: absolute;
+  left: 0;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text) 16%, transparent);
+  pointer-events: none;
+}
+
+/* Specific enough to beat the shared `input[type=range] { width: 100% }` rule
+   below, which was letting the volume slider expand across the whole bar. */
+.media-shell input[type='range'].media-shell__volume {
+  flex: 0 0 76px;
+  width: 76px;
+}
+
+/* One slider style for seek and volume, in both engines. */
+.media-shell input[type='range'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 20px;
+  background: transparent;
+  margin: 0;
+  position: relative;
+  z-index: 1;
+  cursor: pointer;
+}
+
+.media-shell input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0,
+    var(--accent) var(--played, 0%),
+    color-mix(in srgb, var(--text) 12%, transparent) var(--played, 0%)
+  );
+}
+
+.media-shell input[type='range']::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--accent) 0,
+    var(--accent) var(--played, 0%),
+    color-mix(in srgb, var(--text) 12%, transparent) var(--played, 0%)
+  );
+}
+
+.media-shell input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 26%, transparent);
+}
+
+.media-shell input[type='range']::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.media-shell input[type='range']:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 999px;
+}
+
+@keyframes thumb-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* --- landing page -------------------------------------------------------- */
+
+.landing {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: clamp(1rem, 3vw, 2rem) clamp(0.75rem, 4vw, 2rem) 3rem;
+  display: grid;
+  gap: clamp(1rem, 3vw, 1.75rem);
+}
+
+.landing__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.25rem 0.25rem 0.5rem;
+}
+
+.landing__hero {
+  padding: clamp(1.5rem, 4vw, 2.75rem);
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: clamp(1rem, 3vw, 2rem);
+  align-items: center;
+  overflow: hidden;
+}
+
+.landing__hero-copy {
+  display: grid;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.landing__eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.landing__hero-copy h1 {
+  font-size: clamp(1.9rem, 5vw, 3rem);
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+}
+
+.landing__hero-copy h1 em {
+  font-style: normal;
+  background: linear-gradient(100deg, var(--accent) 0%, #8b6cf5 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.landing__hero-copy p {
+  color: var(--text-muted);
+  max-width: 46ch;
+  margin: 0;
+}
+
+.landing__cta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 0.35rem;
+}
+
+.landing__note {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.landing__hero-art {
+  height: clamp(220px, 30vw, 330px);
+  min-width: 0;
+}
+
+.landing__features {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.landing__feature {
+  padding: clamp(1.1rem, 2.5vw, 1.5rem);
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.landing__feature h2 {
+  font-size: 1.02rem;
+}
+
+.landing__feature p {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin: 0;
+  line-height: 1.55;
+}
+
+.landing__steps,
+.landing__providers,
+.landing__closing {
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+.landing__steps h2,
+.landing__providers h2,
+.landing__closing h2 {
+  font-size: 1.15rem;
+}
+
+.landing__steps ol {
+  list-style: none;
+  padding: 0;
+  margin: 1.1rem 0 0;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.landing__steps li {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.landing__steps li > span:last-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.landing__steps li span span {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.landing__step-number {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.landing__providers h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.landing__provider-grid {
+  list-style: none;
+  padding: 0;
+  margin: 0.65rem 0 0;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(238px, 1fr));
+}
+
+.landing__provider-grid li {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  padding: 0.8rem 1rem;
+}
+
+.landing__provider-grid li > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.landing__provider-grid strong {
+  font-size: 14px;
+}
+
+.landing__provider-grid li span span {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.landing__provider-grid--muted li {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.landing__provider-grid--muted strong {
+  color: var(--text-muted);
+}
+
+.landing__closing {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+}
+
+.landing__closing p {
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 56ch;
+}
+
+.landing__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.25rem;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 780px) {
+  /* The art is decoration; on a phone the words and the button matter more. */
+  .landing__hero {
+    grid-template-columns: 1fr;
+  }
+
+  .landing__hero-art {
+    order: -1;
+    height: clamp(180px, 42vw, 240px);
+  }
+}

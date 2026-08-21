@@ -46,16 +46,43 @@ if not exist "orbit.db" (
   if errorlevel 1 goto :fail
 )
 
-REM --- launch ---------------------------------------------------------------
+if not exist "logs\" mkdir "logs"
+
+REM --- launch, hidden -------------------------------------------------------
+REM Started through PowerShell rather than `start`, which always opens a window.
+REM The API runs without watch mode: `tsx watch` wants an interactive console
+REM and exits within seconds once hidden with its output redirected, which
+REM looked exactly like the server crashing by itself. restart.bat is how a code
+REM change gets picked up.
+REM Output goes to logs\ instead: a background process with nowhere to write is
+REM one you cannot debug when it misbehaves.
 echo   Starting API      ^(http://localhost:8787^)
-start "Orbit API" cmd /k "npm run dev:server"
+powershell -NoProfile -WindowStyle Hidden -Command "Start-Process -FilePath 'cmd.exe' -ArgumentList '/c npm run start:server > logs\api.log 2>&1' -WindowStyle Hidden -WorkingDirectory '%CD%'"
 
 echo   Starting web app  ^(http://localhost:5173^)
-start "Orbit Web" cmd /k "npm run dev:web"
+powershell -NoProfile -WindowStyle Hidden -Command "Start-Process -FilePath 'cmd.exe' -ArgumentList '/c npm run dev:web > logs\web.log 2>&1' -WindowStyle Hidden -WorkingDirectory '%CD%'"
+
+REM --- wait until they actually answer --------------------------------------
+echo   Waiting for them to come up...
+set "READY=0"
+for /l %%i in (1,1,30) do (
+  if "!READY!"=="0" (
+    ping -n 2 127.0.0.1 >nul
+    call :is_port_busy 8787
+    set "API=!BUSY!"
+    call :is_port_busy 5173
+    if "!API!"=="1" if "!BUSY!"=="1" set "READY=1"
+  )
+)
 
 echo.
-echo   Two windows opened. Closing them, or running stop.bat, shuts Orbit down.
-echo   Open http://localhost:5173 once the web window says "ready".
+if "!READY!"=="1" (
+  echo   Running in the background. Open http://localhost:5173
+) else (
+  echo   [X] They did not come up in time. Check logs\api.log and logs\web.log.
+)
+echo   Logs: logs\api.log and logs\web.log
+echo   Run stop.bat to shut them down.
 echo.
 endlocal
 exit /b 0
@@ -70,7 +97,6 @@ exit /b 0
 echo   [X] Port !TAKEN! is already in use, so Orbit was not started.
 echo       Something is still running - use restart.bat, or stop.bat first.
 echo.
-pause
 endlocal
 exit /b 1
 
@@ -78,6 +104,5 @@ exit /b 1
 echo.
 echo   Startup failed. Nothing was started.
 echo.
-pause
 endlocal
 exit /b 1

@@ -67,6 +67,22 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 - Frontend: two-step login screen with resend cooldown, `AuthProvider`, protected routes, and
   a sign-out control.
 
+## Reconnecting an account
+
+An account is identified by `(user_id, provider, remote_account_id)`, where
+`remote_account_id` is the provider's own id for it - the address, for the OAuth
+providers. Authorising an account Orbit already holds updates that connection in
+place: new tokens, `status` back to `ok`, and its priority, weight and counters
+untouched. This is the ordinary path rather than an edge case, because a grant
+expiring is ordinary; without it every expiry would leave a dead entry behind and
+add a twin beside it.
+
+Several accounts of the same provider are fully supported - they differ by
+`remote_account_id` and are labelled by address in the UI. Connections for which
+the provider offers no stable identity store `NULL` there, and SQLite counts
+NULLs as distinct, so those never deduplicate: merging two connections that only
+*might* be the same is worse than keeping a duplicate.
+
 ## Verification (last run, 2026-08-21)
 
 | Check | Result |

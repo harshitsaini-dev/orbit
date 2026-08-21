@@ -11,9 +11,8 @@ set "STOPPED=0"
 call :kill_port 8787 API
 call :kill_port 5173 "web app"
 
-REM Close the console windows start.bat opened, if they are still around.
-taskkill /f /fi "WINDOWTITLE eq Orbit API*" >nul 2>&1
-taskkill /f /fi "WINDOWTITLE eq Orbit Web*" >nul 2>&1
+REM The servers run hidden now, so there are no windows to close - killing
+REM whatever holds each port, and its children, is the whole job.
 
 echo.
 if "!STOPPED!"=="0" (

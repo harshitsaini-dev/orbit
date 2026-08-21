@@ -44,3 +44,9 @@ orbit-e2e.db-wal
 orbit-e2e.db-shm
 orbit.db-wal
 orbit.db-shm
+
+# background server output from start.bat
+logs/
+
+# vite-plugin-pwa writes the development service worker here
+dev-dist/

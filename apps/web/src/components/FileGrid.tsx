@@ -3,6 +3,7 @@ import type { OrbitFile } from '@orbit/shared-types';
 import { Checkbox } from './Checkbox.js';
 import { FileIcon } from './FileIcon.js';
 import { formatBytes } from '../lib/format.js';
+import { fetchThumbnail } from '../lib/thumbnails.js';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -83,13 +84,12 @@ function Tile({
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) {
-          setNear(true);
-          observer.disconnect();
-        }
+        // Kept live rather than disconnected on first sight: a tile that
+        // scrolls back out should release its place in the fetch queue.
+        setNear(entries.some((entry) => entry.isIntersecting));
       },
       // A margin, so a tile is fetched just before it is scrolled into view.
-      { rootMargin: '300px' },
+      { rootMargin: '220px' },
     );
 
     observer.observe(element);
@@ -169,46 +169,59 @@ function Tile({
   );
 }
 
-/** Falls back to the type icon: a missing preview is normal, not an error. */
+/**
+ * Falls back to the type icon: a missing preview is normal, not an error.
+ *
+ * Fetched through the shared queue rather than by setting `<img src>` directly,
+ * so a fast scroll cannot start hundreds of requests at once and starve
+ * everything else on the connection.
+ */
 function Thumbnail({ file, accountId }: { file: OrbitFile; accountId: string }) {
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
-  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    setFailed(false);
-    setLoaded(false);
-  }, [file.remoteId]);
+    const controller = new AbortController();
+    let created: string | null = null;
 
-  if (failed) {
+    setFailed(false);
+    setBlobUrl(null);
+
+    const url = `${API_BASE}/api/files/${encodeURIComponent(file.remoteId)}/thumbnail?accountId=${encodeURIComponent(accountId)}&size=400`;
+
+    fetchThumbnail(url, controller.signal)
+      .then((objectUrl) => {
+        created = objectUrl;
+        setBlobUrl(objectUrl);
+      })
+      .catch((err: Error) => {
+        if (err.name !== 'AbortError') setFailed(true);
+      });
+
+    return () => {
+      controller.abort();
+      // Object URLs are held until revoked; a folder of photos would otherwise
+      // leak one per tile for as long as the tab is open.
+      if (created) URL.revokeObjectURL(created);
+    };
+  }, [accountId, file.remoteId]);
+
+  if (failed || !blobUrl) {
     return <FileIcon name={file.name} mimeType={file.mimeType} isFolder={false} size={44} />;
   }
 
-  const src = `${API_BASE}/api/files/${encodeURIComponent(file.remoteId)}/thumbnail?accountId=${encodeURIComponent(accountId)}&size=400`;
-
   return (
-    <>
-      {!loaded && <FileIcon name={file.name} mimeType={file.mimeType} isFolder={false} size={44} />}
-      {/*
-        Hidden with opacity rather than `display: none`, and without
-        `loading="lazy"`: a browser will not fetch a lazy image that is
-        display:none, so the icon placeholder would have stopped the thumbnail
-        loading at all. The IntersectionObserver above is the lazy gate.
-      */}
-      <img
-        src={src}
-        alt=""
-        decoding="async"
-        onLoad={() => setLoaded(true)}
-        onError={() => setFailed(true)}
-        style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
-          gridArea: '1 / 1',
-          opacity: loaded ? 1 : 0,
-          transition: 'opacity var(--dur-base) var(--ease-clay)',
-        }}
-      />
-    </>
+    <img
+      src={blobUrl}
+      alt=""
+      decoding="async"
+      style={{
+        width: '100%',
+        height: '100%',
+        objectFit: 'cover',
+        gridArea: '1 / 1',
+        animation: 'thumb-in var(--dur-base) var(--ease-clay)',
+      }}
+    />
   );
 }

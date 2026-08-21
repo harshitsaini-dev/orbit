@@ -60,9 +60,51 @@ export interface CreateAccountInput {
   catalogueKey: string;
   nickname: string;
   tokens: AccountTokens;
+  /**
+   * The provider's own id for this account, when it gives us one. Supplying it
+   * makes the connection idempotent: authorising the same account again
+   * refreshes the existing one instead of adding a duplicate.
+   */
+  remoteAccountId?: string | undefined;
 }
 
 export async function createAccount(input: CreateAccountInput): Promise<PublicAccount> {
+  // Connecting the same account twice is the normal case, not an edge case: a
+  // grant expires, the owner authorises again, and they expect the connection
+  // they already had - with its priority, its weight and its counters - to come
+  // back to life rather than to acquire a twin beside a dead entry.
+  if (input.remoteAccountId) {
+    const [existing] = await db()
+      .select()
+      .from(accounts)
+      .where(
+        and(
+          eq(accounts.userId, input.userId),
+          eq(accounts.provider, input.provider),
+          eq(accounts.remoteAccountId, input.remoteAccountId),
+        ),
+      )
+      .limit(1);
+
+    if (existing) {
+      const [updated] = await db()
+        .update(accounts)
+        .set({
+          encryptedTokens: encryptTokens(input.tokens),
+          nickname: input.nickname,
+          catalogueKey: input.catalogueKey,
+          // A fresh grant clears whatever went wrong with the previous one.
+          status: 'ok',
+          lastRefreshedAt: new Date().toISOString(),
+        })
+        .where(eq(accounts.id, existing.id))
+        .returning();
+
+      if (!updated) throw new Error('Failed to update account');
+      return toPublicAccount(updated);
+    }
+  }
+
   const [row] = await db()
     .insert(accounts)
     .values({
@@ -71,6 +113,7 @@ export async function createAccount(input: CreateAccountInput): Promise<PublicAc
       provider: input.provider,
       catalogueKey: input.catalogueKey,
       nickname: input.nickname,
+      remoteAccountId: input.remoteAccountId ?? null,
       encryptedTokens: encryptTokens(input.tokens),
       // New accounts go to the end of the manual priority order.
       priorityOrder: await nextPriority(input.userId),

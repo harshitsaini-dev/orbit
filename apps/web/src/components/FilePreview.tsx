@@ -3,6 +3,7 @@ import type { OrbitFile } from '@orbit/shared-types';
 import { DownloadIcon } from './ActionIcon.js';
 import { FileIcon } from './FileIcon.js';
 import { ImageViewer } from './ImageViewer.js';
+import { MediaPlayer } from './MediaPlayer.js';
 import { formatBytes } from '../lib/format.js';
 import { previewKindFor, TEXT_PREVIEW_LIMIT } from '../lib/preview.js';
 
@@ -189,29 +190,14 @@ function PreviewBody({
     return <ImageViewer src={src} alt={file.name} />;
   }
 
-  if (kind === 'video') {
-    // Range requests are honoured by the content route, so seeking works
-    // without pulling the whole file.
-    return <video src={src} controls playsInline style={MEDIA_STYLE} />;
-  }
-
-  if (kind === 'audio') {
-    return (
-      <div className="clay" style={{ padding: '1.5rem', display: 'grid', gap: '1rem', placeItems: 'center' }}>
-        <FileIcon name={file.name} mimeType={file.mimeType} isFolder={false} size={54} />
-        <audio src={src} controls style={{ width: 'min(420px, 80vw)' }} />
-      </div>
-    );
+  if (kind === 'video' || kind === 'audio') {
+    // Seeking works because the content route honours Range; without it the
+    // scrubber would stall while the whole file downloaded.
+    return <MediaPlayer src={src} kind={kind} name={file.name} mimeType={file.mimeType} />;
   }
 
   if (kind === 'pdf') {
-    return (
-      <iframe
-        src={src}
-        title={file.name}
-        style={{ width: '100%', height: '100%', minHeight: '60vh', border: 0, borderRadius: 'var(--radius-md)', background: '#fff' }}
-      />
-    );
+    return <PdfViewer src={src} name={file.name} />;
   }
 
   if (kind === 'text') {
@@ -219,6 +205,67 @@ function PreviewBody({
   }
 
   return <NoPreview file={file} contentUrl={contentUrl} />;
+}
+
+/**
+ * The document itself is rendered by the browser's own PDF viewer, which cannot
+ * be restyled — but it can be given the whole screen, which is the thing people
+ * actually want from a document preview.
+ */
+function PdfViewer({ src, name }: { src: string; name: string }) {
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+
+  useEffect(() => {
+    const onChange = () => setFullscreen(document.fullscreenElement === shellRef.current);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  return (
+    <div
+      ref={shellRef}
+      style={{
+        display: 'grid',
+        gridTemplateRows: '1fr auto',
+        gap: 10,
+        width: '100%',
+        height: '100%',
+        minHeight: 0,
+        background: fullscreen ? 'var(--surface)' : 'transparent',
+        padding: fullscreen ? 12 : 0,
+      }}
+    >
+      <iframe
+        src={src}
+        title={name}
+        style={{
+          width: '100%',
+          height: '100%',
+          minHeight: 0,
+          border: 0,
+          borderRadius: 'var(--radius-md)',
+          background: '#fff',
+        }}
+      />
+
+      <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <div className="scrim-bar">
+          <button
+            type="button"
+            className="clay-button"
+            style={{ padding: '0.35rem 0.9rem', fontSize: 13 }}
+            onClick={() => {
+              if (document.fullscreenElement) void document.exitFullscreen();
+              else void shellRef.current?.requestFullscreen().catch(() => undefined);
+            }}
+          >
+            {fullscreen ? 'Exit full screen' : 'Full screen'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function TextPreview({ src, name }: { src: string; name: string }) {

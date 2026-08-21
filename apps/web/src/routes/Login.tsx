@@ -2,7 +2,11 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { ApiError } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
+import { BrandMark } from '../components/BrandMark.js';
+import { InstallButton } from '../components/InstallButton.js';
 import { OrbitHero } from '../components/OrbitHero.js';
+import { ThemePicker } from '../components/ThemePicker.js';
+import { Link } from 'react-router-dom';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -78,10 +82,31 @@ export function Login() {
       style={{
         minHeight: '100dvh',
         display: 'grid',
-        placeItems: 'center',
-        padding: 'clamp(1rem, 5vw, 3rem)',
+        gridTemplateRows: 'auto 1fr',
+        padding: 'clamp(0.75rem, 4vw, 1.5rem)',
       }}
     >
+      <header
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '1rem',
+          flexWrap: 'wrap',
+          padding: '0.25rem 0.5rem 0.75rem',
+        }}
+      >
+        <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none', color: 'var(--text)' }}>
+          <BrandMark size={26} />
+          <strong style={{ fontSize: 19, letterSpacing: '-0.03em' }}>Orbit</strong>
+        </Link>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <ThemePicker compact />
+          <InstallButton style={{ padding: '0.38rem 0.85rem', fontSize: 13 }} />
+        </span>
+      </header>
+
+      <div style={{ display: 'grid', placeItems: 'center', padding: 'clamp(0.5rem, 3vw, 2rem)' }}>
       <div className="clay" style={{ width: '100%', maxWidth: 420, padding: 'clamp(1.5rem, 5vw, 2.5rem)' }}>
         <div style={{ height: 210, margin: '-1.25rem -1rem 0' }}>
           <OrbitHero />
@@ -187,6 +212,7 @@ export function Login() {
             </div>
           </form>
         )}
+      </div>
       </div>
     </div>
   );

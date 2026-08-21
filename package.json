@@ -14,6 +14,7 @@
   "scripts": {
     "dev": "npm run dev --workspace=@orbit/server & npm run dev --workspace=@orbit/web",
     "dev:server": "npm run dev --workspace=@orbit/server",
+    "start:server": "npm run start --workspace=@orbit/server",
     "dev:web": "npm run dev --workspace=@orbit/web",
     "build": "npm run build --workspaces --if-present",
     "typecheck": "tsc --build --verbose",

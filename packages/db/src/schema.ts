@@ -38,6 +38,15 @@ export const accounts = sqliteTable(
       enum: ['google_drive', 'onedrive', 'dropbox', 'mega', 'pcloud', 'gcs', 'azure_blob', 'bunny', 's3'],
     }).notNull(),
     nickname: text('nickname').notNull(),
+    /**
+     * The provider's own identifier for the connected account (an email for the
+     * OAuth providers). Reconnecting - which happens whenever a grant expires -
+     * has to update the existing connection rather than add a second identical
+     * one, and this is what makes the two tellable apart. Null where the
+     * provider gives us nothing stable; SQLite treats those as distinct, so
+     * such connections simply never deduplicate.
+     */
+    remoteAccountId: text('remote_account_id'),
     /** Which catalogue entry the user picked - several map onto the s3 adapter. */
     catalogueKey: text('catalogue_key'),
     /** AES-256-GCM ciphertext of the AccountTokens JSON. Never logged, never returned by the API. */
@@ -58,7 +67,10 @@ export const accounts = sqliteTable(
     lastRefreshedAt: text('last_refreshed_at'),
     connectedAt: text('connected_at').notNull().default(now),
   },
-  (t) => [index('accounts_user_idx').on(t.userId)],
+  (t) => [
+    index('accounts_user_idx').on(t.userId),
+    uniqueIndex('accounts_remote_uq').on(t.userId, t.provider, t.remoteAccountId),
+  ],
 );
 
 export const filesMirror = sqliteTable(

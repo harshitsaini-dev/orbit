@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { CatalogueEntry, UnavailableProvider } from '@orbit/shared-types';
 import { BrandMark } from '../components/BrandMark.js';
+import { InstallButton } from '../components/InstallButton.js';
 import { OrbitHero } from '../components/OrbitHero.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
-import { Link } from 'react-router-dom';
+import { ThemePicker } from '../components/ThemePicker.js';
 import { api } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
 
@@ -12,7 +14,6 @@ interface CatalogueResponse {
   unavailable: UnavailableProvider[];
 }
 
-/** Grouped the way the connect dialog will group them in Phase 2. */
 const GROUPS: Array<{ title: string; keys: string[] }> = [
   { title: 'Cloud drives', keys: ['google_drive', 'onedrive', 'dropbox', 'pcloud', 'mega'] },
   {
@@ -31,33 +32,39 @@ const GROUPS: Array<{ title: string; keys: string[] }> = [
   },
 ];
 
-function ProviderCard({ entry }: { entry: CatalogueEntry }) {
-  return (
-    <li
-      className="clay-sunken"
-      style={{ padding: '0.85rem 1.1rem', display: 'flex', gap: 12, alignItems: 'center' }}
-    >
-      <ProviderIcon provider={entry.key} size={26} />
-      <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
-        <span style={{ fontWeight: 600 }}>{entry.label}</span>
-        <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{entry.blurb}</span>
-      </span>
-    </li>
-  );
-}
+const FEATURES = [
+  {
+    title: 'One workspace, every account',
+    body: 'Browse Drive, Dropbox, OneDrive and your buckets side by side, including several accounts from the same provider. Recent, Starred and Shared read across all of them at once.',
+  },
+  {
+    title: 'Your files never move',
+    body: 'Orbit stores metadata and an encrypted token. The bytes stay in your own accounts and are streamed on demand, so nothing is copied anywhere new.',
+  },
+  {
+    title: 'Search that reaches everything',
+    body: 'Search runs at the provider over every file in the account, not over what happens to be loaded — with filters for type, date, size and starred, and results that say where each file lives.',
+  },
+  {
+    title: 'Preview without leaving',
+    body: 'Photos, video, audio, PDFs and text open in Orbit’s own viewer. Video seeks properly, images fit then zoom, and no provider URL ever reaches your browser.',
+  },
+  {
+    title: 'Upload anywhere',
+    body: 'Drag files or a whole folder in. Uploads are chunked and resumable, with live progress, and land in whichever account you choose.',
+  },
+  {
+    title: 'Share on your own domain',
+    body: 'A public link points at Orbit, never at the underlying drive, with a preview page and a QR code.',
+  },
+];
 
-const GROUP_HEADING: React.CSSProperties = {
-  fontSize: 13,
-  textTransform: 'uppercase',
-  letterSpacing: '0.08em',
-  color: 'var(--text-muted)',
-};
+const STEPS = [
+  { n: 1, title: 'Sign in with your email', body: 'A six-digit code, no password to remember or leak.' },
+  { n: 2, title: 'Connect your accounts', body: 'Authorise each provider once. Orbit only ever holds an encrypted token.' },
+  { n: 3, title: 'Work in one place', body: 'Browse, search, upload and share across all of them together.' },
+];
 
-/**
- * The public face of Orbit, shown to anyone not signed in. Signed-in users get
- * the dashboard at the same address instead - this page is about explaining
- * what Orbit is, which is not what someone with three connected drives needs.
- */
 export function Landing() {
   const { mode } = useAuth();
   const [catalogue, setCatalogue] = useState<CatalogueResponse | null>(null);
@@ -74,80 +81,107 @@ export function Landing() {
   }, []);
 
   const byKey = new Map((catalogue?.entries ?? []).map((entry) => [entry.key, entry]));
+  const providerCount = catalogue?.entries.length ?? 0;
+
+  // Local mode has no sign-in at all, so the call to action is the workspace.
+  const primary = mode === 'hosted' ? { to: '/login', label: 'Create your workspace' } : { to: '/quota', label: 'Connect an account' };
 
   return (
-    <div
-      style={{
-        display: 'grid',
-        gap: '1.5rem',
-        maxWidth: 1000,
-        margin: '0 auto',
-        padding: 'clamp(1rem, 4vw, 3rem) clamp(0.75rem, 4vw, 2rem)',
-      }}
-    >
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="landing">
+      <header className="landing__bar">
         <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
           <BrandMark size={28} />
           <strong style={{ fontSize: 20, letterSpacing: '-0.03em' }}>Orbit</strong>
         </span>
-        {mode === 'hosted' && (
-          <Link to="/login" className="clay-button" style={{ padding: '0.4rem 1.1rem', fontSize: 14, textDecoration: 'none' }}>
-            Sign in
-          </Link>
-        )}
+
+        <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <ThemePicker />
+          <InstallButton style={{ padding: '0.4rem 0.9rem', fontSize: 13 }} />
+          {mode === 'hosted' && (
+            <Link to="/login" className="clay-button" style={{ padding: '0.42rem 1.1rem', fontSize: 14, textDecoration: 'none' }}>
+              Sign in
+            </Link>
+          )}
+        </span>
       </header>
-      <section className="clay" style={{ padding: 'clamp(1.5rem, 4vw, 2.5rem)', overflow: 'hidden' }}>
-        <div style={{ height: 'clamp(220px, 30vw, 340px)', margin: '-1rem -1rem 0' }}>
+
+      <section className="clay landing__hero">
+        <div className="landing__hero-copy">
+          <span className="landing__eyebrow">Multi-cloud file manager</span>
+          <h1>
+            One workspace for <em>every cloud</em> you own.
+          </h1>
+          <p>
+            Orbit puts every cloud account you have behind a single interface — browse, search,
+            upload and share across all of them without switching tabs. Your files stay exactly
+            where they are.
+          </p>
+
+          <div className="landing__cta">
+            <Link to={primary.to} className="clay-button clay-button--accent" style={{ padding: '0.62rem 1.5rem', fontSize: 15, textDecoration: 'none' }}>
+              {primary.label}
+            </Link>
+            <InstallButton style={{ padding: '0.62rem 1.3rem', fontSize: 15 }} />
+          </div>
+
+          <p className="landing__note">
+            Free, open source, and self-hostable. {providerCount > 0 && `${providerCount} services supported.`}
+          </p>
+        </div>
+
+        <div className="landing__hero-art">
           <OrbitHero />
         </div>
-        <h1 style={{ fontSize: 'clamp(1.75rem, 5vw, 2.75rem)', marginTop: '1rem' }}>
-          One workspace for every cloud you own.
-        </h1>
-        <p style={{ color: 'var(--text-muted)', maxWidth: '52ch' }}>
-          Browse, upload and share across every connected account — without your files ever leaving
-          them.
-        </p>
-        {mode === 'hosted' ? (
-          <Link
-            to="/login"
-            className="clay-button clay-button--accent"
-            style={{ marginTop: '1rem', display: 'inline-block', textDecoration: 'none' }}
-          >
-            Sign in to get started
-          </Link>
-        ) : (
-          <Link
-            to="/quota"
-            className="clay-button clay-button--accent"
-            style={{ marginTop: '1rem', display: 'inline-block', textDecoration: 'none' }}
-          >
-            Connect an account
-          </Link>
-        )}
       </section>
 
-      <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
-        <h2 style={{ fontSize: '1.1rem' }}>Supported providers</h2>
+      <section className="landing__features">
+        {FEATURES.map((feature) => (
+          <article key={feature.title} className="clay landing__feature">
+            <h2>{feature.title}</h2>
+            <p>{feature.body}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className="clay landing__steps">
+        <h2>Getting started</h2>
+        <ol>
+          {STEPS.map((step) => (
+            <li key={step.n}>
+              <span className="landing__step-number" aria-hidden="true">
+                {step.n}
+              </span>
+              <span>
+                <strong>{step.title}</strong>
+                <span>{step.body}</span>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="clay landing__providers">
+        <h2>Supported providers</h2>
         {error && <p style={{ color: 'var(--danger)' }}>API unreachable: {error}</p>}
         {!catalogue && !error && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
 
         {catalogue &&
           GROUPS.map((group) => (
             <div key={group.title} style={{ marginTop: '1.25rem' }}>
-              <h3 style={GROUP_HEADING}>{group.title}</h3>
-              <ul
-                style={{
-                  listStyle: 'none',
-                  padding: 0,
-                  margin: '0.6rem 0 0',
-                  display: 'grid',
-                  gap: 8,
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
-                }}
-              >
+              <h3>{group.title}</h3>
+              <ul className="landing__provider-grid">
                 {group.keys.map((key) => {
                   const entry = byKey.get(key);
-                  return entry ? <ProviderCard key={key} entry={entry} /> : null;
+                  if (!entry) return null;
+                  return (
+                    <li key={key} className="clay-sunken">
+                      <ProviderIcon provider={entry.key} size={26} />
+                      <span>
+                        <strong>{entry.label}</strong>
+                        <span>{entry.blurb}</span>
+                      </span>
+                    </li>
+                  );
                 })}
               </ul>
             </div>
@@ -155,27 +189,46 @@ export function Landing() {
 
         {catalogue && catalogue.unavailable.length > 0 && (
           <div style={{ marginTop: '1.75rem' }}>
-            <h3 style={GROUP_HEADING}>Not supported</h3>
-            <ul style={{ listStyle: 'none', padding: 0, margin: '0.6rem 0 0', display: 'grid', gap: 8 }}>
+            <h3>Not supported</h3>
+            <ul className="landing__provider-grid landing__provider-grid--muted">
               {catalogue.unavailable.map((entry) => (
-                <li
-                  key={entry.key}
-                  style={{
-                    padding: '0.85rem 1.1rem',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px dashed var(--border)',
-                    display: 'grid',
-                    gap: 2,
-                  }}
-                >
-                  <span style={{ fontWeight: 600, color: 'var(--text-muted)' }}>{entry.label}</span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{entry.reason}</span>
+                <li key={entry.key}>
+                  <span>
+                    <strong>{entry.label}</strong>
+                    <span>{entry.reason}</span>
+                  </span>
                 </li>
               ))}
             </ul>
           </div>
         )}
       </section>
+
+      <section className="clay landing__closing">
+        <h2>Ready when you are</h2>
+        <p>
+          Connect the first account in about a minute. Nothing is copied, nothing is charged, and
+          you can disconnect at any time.
+        </p>
+        <div className="landing__cta">
+          <Link to={primary.to} className="clay-button clay-button--accent" style={{ padding: '0.62rem 1.5rem', fontSize: 15, textDecoration: 'none' }}>
+            {primary.label}
+          </Link>
+          {mode === 'hosted' && (
+            <Link to="/login" className="clay-button" style={{ padding: '0.62rem 1.3rem', fontSize: 15, textDecoration: 'none' }}>
+              I already have a workspace
+            </Link>
+          )}
+        </div>
+      </section>
+
+      <footer className="landing__footer">
+        <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <BrandMark size={20} />
+          Orbit
+        </span>
+        <span>Your files stay in your own accounts.</span>
+      </footer>
     </div>
   );
 }
