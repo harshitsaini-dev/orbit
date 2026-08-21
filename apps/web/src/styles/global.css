@@ -1653,3 +1653,133 @@ body {
   color: var(--text-muted);
   font-size: 13.5px;
 }
+
+/* --- upload indicator and list ------------------------------------------- */
+
+.upload-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0.38rem 0.75rem;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.upload-chip[data-failed] {
+  color: var(--danger);
+}
+
+.upload-chip__text {
+  font-variant-numeric: tabular-nums;
+}
+
+.upload-pop {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 120;
+  width: min(360px, calc(100vw - 2rem));
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.upload-pop header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+}
+
+.upload-pop header .clay-button {
+  padding: 0.28rem 0.75rem;
+  font-size: 12px;
+}
+
+.upload-pop ul,
+.upload-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.upload-pop ul {
+  max-height: 300px;
+  overflow: auto;
+}
+
+.upload-pop footer {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.upload-pop footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.upload-row {
+  display: grid;
+  gap: 4px;
+  padding: 0.5rem 0.55rem;
+  border-radius: var(--radius-sm);
+}
+
+.upload-row:hover {
+  background: var(--accent-soft);
+}
+
+.upload-row__top {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.upload-row__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+}
+
+.upload-row__size {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.upload-row__track {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  overflow: hidden;
+}
+
+.upload-row__track > div {
+  height: 100%;
+  background: var(--accent);
+  transition: width var(--dur-fast) linear;
+}
+
+.upload-row__state {
+  font-size: 12px;
+  color: var(--text-muted);
+  /* A failure explains itself in full: these reasons are usually actionable,
+     and a truncated one sends the user looking for the rest. */
+  overflow-wrap: anywhere;
+}
+
+.upload-row__state[data-state='error'] {
+  color: var(--danger);
+}
+
+.upload-row__state[data-state='done'] {
+  color: var(--success, var(--text-muted));
+}

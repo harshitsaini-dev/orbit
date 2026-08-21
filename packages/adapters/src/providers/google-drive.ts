@@ -199,10 +199,45 @@ export class GoogleDriveAdapter extends BaseAdapter {
       },
     });
 
+    const files = page.files ?? [];
+
+    // Drive answers a listing of a folder the caller cannot see with an empty
+    // list rather than an error, so a shortcut whose target was deleted or
+    // un-shared looks exactly like an empty folder - and the first sign of
+    // trouble is an upload into it failing for no visible reason. An empty
+    // result is rare and cheap to check, so it is checked.
+    if (files.length === 0 && !pageToken) await this.assertReachable(tokens, folderId, parent);
+
     return {
-      files: (page.files ?? []).map((file) => toOrbitFile(file, joinPath(parent, file.name))),
+      files: files.map((file) => toOrbitFile(file, joinPath(parent, file.name))),
       nextPageToken: page.nextPageToken,
     };
+  }
+
+  /** Confirms a folder exists and is readable, for when a listing came back empty. */
+  private async assertReachable(
+    tokens: AccountTokens,
+    folderId: string,
+    path: string,
+  ): Promise<void> {
+    if (folderId === 'root') return;
+
+    try {
+      await providerJson<DriveFile>(this.id, `${API}/files/${folderId}`, {
+        headers: this.auth(tokens),
+        query: { fields: 'id', supportsAllDrives: true },
+      });
+    } catch (err) {
+      if (err instanceof ProviderError && (err.status === 404 || err.status === 403)) {
+        throw new ProviderError(
+          this.id,
+          404,
+          `folder ${folderId} behind ${path} is unreachable`,
+          `${path} points at something this account can no longer open. The original may have been deleted, or it may no longer be shared with you.`,
+        );
+      }
+      throw err;
+    }
   }
 
   /**

@@ -10,10 +10,12 @@ import {
   DriveIcon,
   PersonIcon,
   QuotaIcon,
+  UploadFileIcon,
   SharedIcon,
   StarOutlineIcon,
 } from './components/Icons.js';
 import { StatusScreen } from './components/StatusScreen.js';
+import { UploadIndicator } from './components/UploadIndicator.js';
 import { useAuth } from './lib/auth.js';
 import { useOnline } from './lib/online.js';
 import { useTheme } from './lib/theme.js';
@@ -24,6 +26,7 @@ import { Login } from './routes/Login.js';
 import { MyDrive } from './routes/MyDrive.js';
 import { Placeholder } from './routes/Placeholder.js';
 import { Quota } from './routes/Quota.js';
+import { Uploads } from './routes/Uploads.js';
 import { WorkspaceViewPage } from './routes/WorkspaceView.js';
 
 const NAV = [
@@ -33,6 +36,7 @@ const NAV = [
   { to: '/starred', label: 'Starred', Icon: StarOutlineIcon },
   { to: '/shared-with-me', label: 'Shared with me', Icon: SharedIcon },
   { to: '/quota', label: 'Quota', Icon: QuotaIcon },
+  { to: '/uploads', label: 'Uploads', Icon: UploadFileIcon },
   { to: '/developer', label: 'Developer', Icon: CodeIcon },
   { to: '/account', label: 'Account', Icon: PersonIcon },
 ];
@@ -94,6 +98,7 @@ function Workspace() {
           <strong style={{ fontSize: 20, letterSpacing: '-0.03em' }}>Orbit</strong>
         </Link>
         <div className="app-header__actions">
+          <UploadIndicator />
           <AccountMenu />
         </div>
       </header>
@@ -116,6 +121,7 @@ function Workspace() {
             <Route path="/starred" element={<WorkspaceViewPage view="starred" />} />
             <Route path="/shared-with-me" element={<WorkspaceViewPage view="shared" />} />
             <Route path="/quota" element={<Quota />} />
+            <Route path="/uploads" element={<Uploads />} />
             <Route path="/account" element={<Account />} />
             <Route path="/developer" element={<Placeholder title="Developer" phase="Phase 11" />} />
             <Route path="/developer/docs" element={<Placeholder title="API docs" phase="Phase 11" />} />

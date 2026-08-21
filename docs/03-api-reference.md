@@ -122,6 +122,9 @@ Re-reads usage from the provider and caches it. `409 needs_reauth` when the gran
 Disconnects. `204`. Files in the provider account are untouched.
 
 ### `GET /api/files?accountId=&path=&pageToken=`
+Note the asymmetry: the request takes `pageToken`, the response returns the next one as
+`nextCursor`. Passing it back as `cursor` is silently ignored and re-fetches the first page.
+
 Lists one folder from one account.
 `{ accountId, provider, path, files, nextCursor, capabilities }`. The capabilities travel with
 the listing so the UI can hide actions the provider cannot perform.

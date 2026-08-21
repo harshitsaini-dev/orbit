@@ -22,7 +22,6 @@ import { Pagination } from '../components/Pagination.js';
 import { Select } from '../components/Select.js';
 import { FileGridSkeleton, FileListSkeleton } from '../components/Skeleton.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
-import { UploadPanel, forgetFiles, registerFile } from '../components/UploadPanel.js';
 import {
   EMPTY_FILTERS,
   SIZE_BANDS,
@@ -30,11 +29,12 @@ import {
   hasCriteria,
   type SearchFilters,
 } from '../components/SearchBar.js';
-import { filesFromDataTransfer, type UploadItem } from '../lib/upload.js';
+import { filesFromDataTransfer } from '../lib/upload.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { api, ApiError } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
 import { previewKindFor } from '../lib/preview.js';
+import { useUploads } from '../lib/uploads.js';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -124,7 +124,8 @@ export function MyDrive() {
     | null
   >(null);
 
-  const [uploads, setUploads] = useState<UploadItem[]>([]);
+  const uploads = useUploads();
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -159,6 +160,7 @@ export function MyDrive() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
   const load = useCallback(async () => {
     if (!accountId) return;
 
@@ -187,6 +189,10 @@ export function MyDrive() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // The queue lives above the router now, so the open folder has to be told a
+  // batch landed rather than finding out because it owned the uploader.
+  useEffect(() => uploads.onFinished(() => void load()), [uploads, load]);
 
   /**
    * A folder is not its first page. The first page renders immediately and the
@@ -445,24 +451,14 @@ export function MyDrive() {
     }
   }
 
-  /** Queues files; the panel picks them up and uploads them one at a time. */
+  /** Hands files to the app-level queue, which reports from the header. */
   function enqueue(entries: Array<{ file: File; relativePath: string }>): void {
-    if (entries.length === 0) return;
-
-    const queued: UploadItem[] = entries.map(({ file, relativePath }) => {
-      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-      registerFile(id, file);
-      return {
-        id,
-        relativePath,
-        name: file.name,
-        sizeBytes: file.size,
-        uploadedBytes: 0,
-        state: 'queued',
-      };
+    if (entries.length === 0 || !accountId) return;
+    uploads.enqueue(entries, {
+      accountId,
+      path,
+      label: accounts?.find((account) => account.id === accountId)?.nickname ?? 'this account',
     });
-
-    setUploads((current) => [...current, ...queued]);
   }
 
   function fromInput(list: FileList | File[] | null): void {
@@ -982,19 +978,6 @@ export function MyDrive() {
           </p>
         )}
       </section>
-
-      {uploads.length > 0 && (
-        <UploadPanel
-          accountId={accountId}
-          path={path}
-          items={uploads}
-          setItems={setUploads}
-          onComplete={() => {
-            forgetFiles(uploads.map((item) => item.id));
-            void load();
-          }}
-        />
-      )}
 
       {menu.state && (
         <ContextMenu

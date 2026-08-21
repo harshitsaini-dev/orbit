@@ -27,13 +27,26 @@ export class NotImplementedError extends Error {
 
 /** Raised when a provider call fails; keeps token material out of the message. */
 export class ProviderError extends Error {
+  /**
+   * A sentence written here, safe to show to the user.
+   *
+   * Absent for a failure quoted from the provider: those name internal file ids
+   * and mean nothing to the person reading them, so the API translates the
+   * status instead. Present when the adapter understood the failure well enough
+   * to explain it - and then the explanation is worth far more than a generic
+   * one, so it is passed through.
+   */
+  readonly userMessage: string | undefined;
+
   constructor(
     readonly provider: ProviderId,
     readonly status: number,
     message: string,
+    userMessage?: string,
   ) {
     super(`${provider} [${status}]: ${message}`);
     this.name = 'ProviderError';
+    this.userMessage = userMessage;
   }
 }
 

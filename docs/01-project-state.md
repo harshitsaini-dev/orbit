@@ -343,6 +343,18 @@ while the form is still open.
 on the s3 adapter, so the adapter id alone cannot tell an R2 bucket from a
 Backblaze one, and the UI needs to name and badge them differently.
 
+## Uploads
+
+The queue lives above the router, so an upload survives navigating away from
+the folder that started it - it used to be state inside My Drive, and going to
+look at Quota mid-upload unmounted the uploader and killed the transfer
+silently. Progress shows in the header as a ring, with a popover for the detail
+and `/uploads` for the full list.
+
+It does not survive a page reload. The queue holds handles to files on disk and
+a handle cannot be restored from storage, so the list says what it covers
+rather than claiming a history it does not have.
+
 ## Blocked on the owner
 
 Step-by-step instructions for all of these are in **`docs/05-owner-setup.md`**.

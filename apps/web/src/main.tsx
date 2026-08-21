@@ -5,6 +5,7 @@ import { App } from './App.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { AuthProvider } from './lib/auth.js';
 import { ThemeProvider } from './lib/theme.js';
+import { UploadsProvider } from './lib/uploads.js';
 import './styles/global.css';
 
 const container = document.getElementById('root');
@@ -17,9 +18,13 @@ createRoot(container).render(
         <AuthProvider>
           {/* Inside the router and the theme, so the fallback screen is styled
               like the rest of Orbit and its links actually navigate. */}
-          <ErrorBoundary>
-            <App />
-          </ErrorBoundary>
+          {/* Above the router: an upload has to survive navigating away from
+              the folder that started it. */}
+          <UploadsProvider>
+            <ErrorBoundary>
+              <App />
+            </ErrorBoundary>
+          </UploadsProvider>
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>

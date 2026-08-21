@@ -1,3 +1,4 @@
+import { ProviderError } from '@orbit/adapters';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
@@ -11,6 +12,38 @@ import { filesRouter } from './routes/files.js';
 import { profileRouter } from './routes/profile.js';
 import { uploadsRouter } from './routes/uploads.js';
 import { healthRouter } from './routes/health.js';
+
+/**
+ * Turns a provider's HTTP status into something the user can act on.
+ *
+ * The provider's own message is deliberately not passed through: it names
+ * internal file ids ("File not found: 1w1s7dydd..."), which mean nothing to the
+ * person reading them and are not ours to publish. The status is what carries
+ * the meaning, and the full message is already in the server log.
+ *
+ * Google in particular answers 404 rather than 403 for a file the caller may
+ * not see, so "not found" and "no permission" cannot be told apart from here -
+ * and the wording has to cover both without guessing which it was.
+ */
+function describeProviderFailure(status: number): [number, string, string] {
+  if (status === 401 || status === 403) {
+    return [403, 'provider_denied', 'That account does not have permission to do this.'];
+  }
+  if (status === 404) {
+    return [
+      404,
+      'provider_not_found',
+      'The provider could not find that. It may have been moved or deleted, or this account may no longer have access to it.',
+    ];
+  }
+  if (status === 429) {
+    return [429, 'provider_busy', 'The provider is rate limiting Orbit. Try again in a moment.'];
+  }
+  if (status === 507) {
+    return [507, 'provider_full', 'That account is out of space.'];
+  }
+  return [502, 'provider_unavailable', 'The provider did not respond. Nothing was changed.'];
+}
 
 export function createApp(): Express {
   const app = express();
@@ -99,6 +132,20 @@ export function createApp(): Express {
       console.error('  caused by:', cause.name, cause.message);
       cause = (cause as { cause?: unknown }).cause;
     }
+    // A provider that told us exactly what was wrong should not be reported as
+    // "something went wrong": a refused upload is usually a permission or a
+    // missing folder, and the user can act on that but not on a 500. The
+    // provider's own wording is not passed through - it names internal file ids
+    // - so the status is translated into a sentence and the detail stays in the
+    // log above.
+    if (err instanceof ProviderError) {
+      const [status, code, message] = describeProviderFailure(err.status);
+      // An adapter that understood the failure explains it better than a status
+      // ever could, so its own wording wins where it wrote one.
+      res.status(status).json({ error: { code, message: err.userMessage ?? message } });
+      return;
+    }
+
     res.status(500).json({ error: { code: 'internal_error', message: 'Something went wrong' } });
   });
 
