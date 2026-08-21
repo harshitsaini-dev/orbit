@@ -30,6 +30,12 @@ export interface PublicUser {
 export interface PublicAccount {
   id: string;
   provider: string;
+  /**
+   * Which catalogue entry this connection was made from. Five entries run on
+   * the s3 adapter, so `provider` alone cannot tell an R2 bucket from a
+   * Backblaze one - and the UI has to name and badge them differently.
+   */
+  catalogueKey: string | null;
   nickname: string;
   usedBytes: number;
   quotaBytes: number;

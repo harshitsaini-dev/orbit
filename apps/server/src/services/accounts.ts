@@ -23,6 +23,7 @@ export function toPublicAccount(row: AccountRow): PublicAccount {
   return {
     id: row.id,
     provider: row.provider,
+    catalogueKey: row.catalogueKey,
     nickname: row.nickname,
     usedBytes: row.usedBytes,
     quotaBytes: row.quotaBytes,

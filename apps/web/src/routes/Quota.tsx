@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { CatalogueEntry, PublicAccount } from '@orbit/shared-types';
+import { ConnectDialog } from '../components/ConnectDialog.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { ConfirmDialog } from '../components/NameDialog.js';
 import { AccountCardsSkeleton } from '../components/Skeleton.js';
@@ -21,6 +22,7 @@ export function Quota() {
   const [loadError, setLoadError] = useState<Error | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<PublicAccount | null>(null);
+  const [connecting, setConnecting] = useState<CatalogueEntry | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -138,7 +140,7 @@ export function Quota() {
               <li key={account.id} className="clay-sunken" style={{ padding: '1rem 1.15rem', display: 'grid', gap: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
-                    <ProviderIcon provider={account.provider} size={30} />
+                    <ProviderIcon provider={account.catalogueKey ?? account.provider} size={30} />
                     <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
                       <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {account.nickname}
@@ -189,33 +191,60 @@ export function Quota() {
             gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
           }}
         >
-          {connectable.map((entry) => (
-            <li key={entry.key}>
-              {/* A full navigation, not fetch: the OAuth flow has to leave the app. */}
-              <a
-                href={`${API_BASE}/auth/connect/${entry.provider}`}
-                className="clay-button"
-                style={{
-                  display: 'flex',
-                  gap: 12,
-                  alignItems: 'center',
-                  textDecoration: 'none',
-                  textAlign: 'left',
-                  width: '100%',
-                }}
-              >
+          {connectable.map((entry) => {
+            const face = (
+              <>
                 <ProviderIcon provider={entry.key} size={28} />
                 <span style={{ display: 'grid', gap: 3, minWidth: 0 }}>
                   <span>{entry.label}</span>
                   <span style={{ color: 'var(--text-muted)', fontSize: 12, fontWeight: 400 }}>{entry.blurb}</span>
                 </span>
-              </a>
-            </li>
-          ))}
+              </>
+            );
+
+            const shared = {
+              className: 'clay-button',
+              style: {
+                display: 'flex',
+                gap: 12,
+                alignItems: 'center',
+                textDecoration: 'none',
+                textAlign: 'left' as const,
+                width: '100%',
+              },
+            };
+
+            return (
+              <li key={entry.key}>
+                {/* A store with fields to fill in stays in the app; an OAuth
+                    provider has to leave it, which needs a real navigation. */}
+                {entry.fields?.length ? (
+                  <button type="button" {...shared} onClick={() => setConnecting(entry)}>
+                    {face}
+                  </button>
+                ) : (
+                  <a {...shared} href={`${API_BASE}/auth/connect/${entry.provider}`}>
+                    {face}
+                  </a>
+                )}
+              </li>
+            );
+          })}
         </ul>
         <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: '1rem' }}>
-          More providers arrive in Phase 3. See Home for the full list.
+          More providers arrive as their adapters land. See Home for the full list.
         </p>
+
+        {connecting && (
+          <ConnectDialog
+            entry={connecting}
+            onClose={() => setConnecting(null)}
+            onConnected={() => {
+              setConnecting(null);
+              void load();
+            }}
+          />
+        )}
       </section>
 
       {disconnecting && (

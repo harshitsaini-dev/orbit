@@ -88,8 +88,32 @@ account's email address, and redirects to `{APP_URL}/quota?connect=connected`. A
 cancelled consent, missing or mismatched state — redirects with `?connect=failed&reason=…` and
 creates nothing.
 
+### `POST /api/accounts/connect`
+Connects a store that authenticates with keys rather than a redirect, so the answer is JSON
+rather than a redirect back into the app.
+
+```json
+{ "catalogueKey": "cloudflare_r2", "values": { "accountId": "…", "accessKeyId": "…", "secretAccessKey": "…", "bucket": "photos" } }
+```
+
+`values` supplies whatever that catalogue entry's `fields` ask for. The endpoint is assembled
+server-side from the entry's `endpointTemplate`, so a caller sends an account id or a region and
+never a URL. `201 { account: PublicAccount }` on success.
+
+The keys are proved against the bucket before anything is stored — a key that cannot list is a
+connection that would fail on first use. A refusal from the store is `400 connect_failed`, not a
+500: a mistyped key is the caller's to fix and nothing broke here. `400 invalid_request` names the
+required fields left empty, or says the provider uses OAuth. `404 not_found` for a catalogue entry
+with no adapter behind it yet.
+
+Re-sending the same bucket at the same endpoint refreshes the existing connection rather than
+adding a second one.
+
 ### `GET /api/accounts`
 `{ accounts: PublicAccount[] }`. Never includes token material of any kind.
+
+Each account carries `catalogueKey` alongside `provider`. Five catalogue entries run on the `s3`
+adapter, so the adapter id alone cannot tell an R2 bucket from a Backblaze one.
 
 ### `POST /api/accounts/:id/refresh-quota`
 Re-reads usage from the provider and caches it. `409 needs_reauth` when the grant has expired.
@@ -192,7 +216,8 @@ bounded at 60 pages and its result cached for 30 minutes; `?refresh=1` forces a 
 `501 breakdown_unsupported` for a provider that cannot enumerate flat.
 
 ### `GET /api/connectable`
-The catalogue entries that can actually be connected today, as opposed to the full catalogue.
+Only the catalogue entries with a working adapter behind them, so the connect UI never offers a
+dead end. The full intended list is `GET /api/catalogue`.
 
 ### `WS /ws`
 Channel pub/sub. Client frames: `{"type":"subscribe","channel":"..."}`, `unsubscribe`, `ping`.

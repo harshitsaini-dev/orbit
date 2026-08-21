@@ -16,7 +16,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 0 | Foundation (monorepo, CI, docs, infra accounts) | 🟢 Code done · infra accounts pending |
 | 1 | Auth (email OTP, sessions, local-mode bypass) | 🟢 Done |
 | 2 | First adapter — Google Drive | 🟢 Done |
-| 3 | Remaining adapters (OneDrive, Dropbox, MEGA, pCloud, S3) | ⚪ Not started |
+| 3 | Remaining adapters (OneDrive, Dropbox, MEGA, pCloud, S3) | 🟡 S3-compatible done · OneDrive, Dropbox, GCS, Azure, Bunny, MEGA pending |
 | 4 | Unified workspace views | 🟢 Done |
 | 5 | Upload system + WebSocket progress + allocation | 🟡 Upload and progress done · allocation strategies pending |
 | 6 | Sync engine | ⚪ Not started |
@@ -280,8 +280,52 @@ provider's own usage figure once the trash allowance is included.
 ## Next up — Phase 3 (remaining adapters)
 
 1. OneDrive and Dropbox, which are the closest in shape to Drive.
-2. The generic S3 adapter, which unlocks five catalogue entries at once.
-3. GCS, Azure Blob, Bunny, MEGA.
+2. GCS, Azure Blob, Bunny, MEGA.
+
+The S3-compatible adapter is done, which makes Amazon S3, Cloudflare R2,
+Supabase Storage, DigitalOcean Spaces, Backblaze B2 and any other S3 API
+connectable.
+
+### What the S3 adapter does and does not do
+
+An object store has no folders, no rename, no search and nothing starred, so
+those are either synthesised or declined rather than faked:
+
+- **Folders** come from the delimiter the list API already offers. A folder is a
+  common prefix; creating one writes the zero-byte marker object every S3 client
+  uses, and the marker is hidden from listings so it does not appear as an empty
+  file beside its own folder.
+- **Rename** is a copy followed by a delete, and for a folder that is every key
+  beneath it. The deletes only run once every copy has succeeded, so a refusal
+  partway through cannot leave a folder half under each name. A copy can fail
+  inside a 200 response - S3 sends the status before the copy finishes - so the
+  body is checked rather than the status.
+- **Search** narrows by key prefix at the store and matches names while paging.
+  The `search` capability marks whether a search is possible at all, not whether
+  the provider has an endpoint for it; false would leave every bucket silently
+  unsearchable.
+- **Starred** is declined: a starred-only search over a bucket matches nothing,
+  which is the truth, rather than everything.
+- **Quota** reports bytes used and no allowance, since a bucket has none. The
+  count walks up to 50 pages; past that it is a floor rather than a total.
+- **Signing** is SigV4 written against `node:crypto`, verified against Amazon's
+  own `get-vanilla` vector. The AWS SDK is tens of megabytes for one algorithm
+  and assumes endpoint conventions that R2, Backblaze and Supabase do not share.
+- **Addressing** is path-style or virtual-hosted per catalogue entry. The wrong
+  one produces a signature error that never mentions addressing.
+
+## Connecting an S3-compatible bucket
+
+`POST /api/accounts/connect` takes a catalogue key and the values its fields
+ask for. The endpoint is assembled server-side from the entry's template, so a
+user pastes an account id or a region rather than a URL they could mistype. The
+keys are checked against the bucket before anything is stored: a key that cannot
+list is a connection that would fail on first use, and it is better to say so
+while the form is still open.
+
+`catalogueKey` is stored on the account and returned with it. Five entries run
+on the s3 adapter, so the adapter id alone cannot tell an R2 bucket from a
+Backblaze one, and the UI needs to name and badge them differently.
 
 ## Blocked on the owner
 

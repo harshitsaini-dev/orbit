@@ -1,6 +1,7 @@
 import { GoogleDriveAdapter, getAdapter } from '@orbit/adapters';
 import { catalogueEntry } from '@orbit/shared-types';
 import { Router } from 'express';
+import { z } from 'zod';
 import { env } from '../lib/env.js';
 import {
   beginAuthorisation,
@@ -19,6 +20,21 @@ import { forgetBreakdown, getBreakdown } from '../services/breakdown.js';
 import { seedProfileFrom } from '../services/users.js';
 
 export const accountsRouter: Router = Router();
+
+/**
+ * The catalogue entries backed by a working adapter. The catalogue lists what
+ * Orbit intends to support; this is what it can support right now, and the
+ * connect UI shows only these so nothing offers a dead end.
+ */
+const CONNECTABLE = [
+  'google_drive',
+  'aws_s3',
+  'cloudflare_r2',
+  'supabase_storage',
+  'digitalocean_spaces',
+  'backblaze_b2',
+  's3_other',
+];
 
 /** Sends the browser back to the app with a result it can show. */
 function backToApp(outcome: 'connected' | 'failed', detail?: string): string {
@@ -203,11 +219,108 @@ accountsRouter.get('/api/accounts/:id/breakdown', requireAuth, async (req, res, 
   }
 });
 
+// --- credentials connect --------------------------------------------------
+
+const connectSchema = z.object({
+  catalogueKey: z.string().min(1),
+  /** Whatever the entry's fields asked for. Validated against them below. */
+  values: z.record(z.string(), z.string()),
+});
+
+/**
+ * Fills an endpoint template from the values the form collected.
+ *
+ * The catalogue holds the shape - `https://{accountId}.r2.cloudflarestorage.com`
+ * - so that a user pastes an account id rather than assembling a URL, and so
+ * that a typo in the host is not something they can make.
+ */
+export function resolveEndpoint(template: string, values: Record<string, string>): string {
+  return template.replace(/\{(\w+)\}/g, (whole, name: string) => values[name] ?? whole);
+}
+
+/**
+ * Connects a store that authenticates with keys rather than a redirect.
+ *
+ * Unlike OAuth this is a plain request, so the outcome is JSON rather than a
+ * redirect back into the app.
+ */
+accountsRouter.post('/api/accounts/connect', requireAuth, async (req, res, next) => {
+  const parsed = connectSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: { code: 'invalid_request', message: 'Malformed connection' } });
+    return;
+  }
+
+  const entry = catalogueEntry(parsed.data.catalogueKey);
+  if (!entry || !CONNECTABLE.includes(entry.key)) {
+    res.status(404).json({ error: { code: 'not_found', message: 'No such provider' } });
+    return;
+  }
+  if (isOAuthProvider(entry.provider)) {
+    res.status(400).json({ error: { code: 'invalid_request', message: 'This provider uses OAuth' } });
+    return;
+  }
+
+  const values = parsed.data.values;
+  const missing = (entry.fields ?? [])
+    .filter((field) => !field.optional && !values[field.name]?.trim())
+    .map((field) => field.label);
+  if (missing.length > 0) {
+    res.status(400).json({
+      error: { code: 'invalid_request', message: `Missing: ${missing.join(', ')}` },
+    });
+    return;
+  }
+
+  try {
+    const adapter = getAdapter(entry.provider);
+    const region = values['region']?.trim() || entry.defaultRegion;
+
+    const tokens = await adapter.connect({
+      kind: 'credentials',
+      values: {
+        accessKeyId: values['accessKeyId'],
+        secretAccessKey: values['secretAccessKey'],
+        bucket: values['bucket'],
+        endpoint: entry.endpointTemplate
+          ? resolveEndpoint(entry.endpointTemplate, { ...values, ...(region ? { region } : {}) })
+          : values['endpoint'],
+        ...(region ? { region } : {}),
+        ...(entry.forcePathStyle === undefined ? {} : { forcePathStyle: entry.forcePathStyle }),
+      },
+    });
+
+    const account = await createAccount({
+      userId: req.user!.id,
+      provider: entry.provider,
+      catalogueKey: entry.key,
+      // Two buckets on the same service have to be tellable apart, and the
+      // bucket name is the only thing about them that differs.
+      nickname: values['bucket'] ?? entry.label,
+      // The same bucket at the same endpoint is the same connection, so
+      // re-entering its keys refreshes it rather than adding a twin.
+      remoteAccountId: `${tokens.endpoint}/${tokens.bucket}`,
+      tokens,
+    });
+
+    await refreshQuota(req.user!.id, account.id).catch(() => undefined);
+
+    res.status(201).json({ account });
+  } catch (err) {
+    // A refused key is the user's to fix, not a fault to report as a 500.
+    if (err instanceof Error && err.name === 'ProviderError') {
+      res.status(400).json({
+        error: { code: 'connect_failed', message: 'Could not reach that bucket with those keys' },
+      });
+      return;
+    }
+    next(err);
+  }
+});
+
 /** Which catalogue entries can actually be connected today. */
 accountsRouter.get('/api/connectable', requireAuth, (_req, res) => {
   res.json({
-    entries: ['google_drive']
-      .map((key) => catalogueEntry(key))
-      .filter((entry) => entry !== undefined),
+    entries: CONNECTABLE.map((key) => catalogueEntry(key)).filter((entry) => entry !== undefined),
   });
 });

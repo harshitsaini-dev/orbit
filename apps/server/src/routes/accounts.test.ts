@@ -178,3 +178,149 @@ describe('GET /api/files', () => {
     assert.equal(res.status, 404);
   });
 });
+
+describe('POST /api/accounts/connect', () => {
+  const realFetch = globalThis.fetch;
+  let outbound: URL[] = [];
+
+  /** Stands in for the bucket: answers the listing the adapter probes with. */
+  function stubStore(status = 200) {
+    outbound = [];
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input instanceof URL ? input : new URL(String(input));
+      if (url.host.startsWith('127.0.0.1') || url.host.startsWith('localhost')) {
+        return realFetch(input, init);
+      }
+      outbound.push(url);
+      return new Response(
+        status === 200
+          ? '<ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>'
+          : '<Error><Code>AccessDenied</Code><Message>no</Message></Error>',
+        { status },
+      );
+    }) as typeof fetch;
+  }
+
+  function restore() {
+    globalThis.fetch = realFetch;
+  }
+
+  const values = {
+    accountId: 'acct123',
+    accessKeyId: 'AKIA',
+    secretAccessKey: 'shh',
+    bucket: 'photos',
+  };
+
+  it('builds the endpoint from the catalogue template', async () => {
+    stubStore();
+    try {
+      const res = await fetch(`${baseUrl}/api/accounts/connect`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ catalogueKey: 'cloudflare_r2', values }),
+      });
+
+      assert.equal(res.status, 201);
+      const body = (await res.json()) as { account: { nickname: string; catalogueKey: string } };
+      assert.equal(body.account.nickname, 'photos');
+      // The catalogue key is kept, not the adapter id: R2 and Backblaze both run
+      // on the s3 adapter but must not show up as the same thing.
+      assert.equal(body.account.catalogueKey, 'cloudflare_r2');
+
+      // R2 needs path-style addressing, so the bucket belongs in the path.
+      assert.equal(outbound[0]!.host, 'acct123.r2.cloudflarestorage.com');
+      assert.equal(outbound[0]!.pathname, '/photos');
+    } finally {
+      restore();
+    }
+  });
+
+  it('stores the keys encrypted, never in the response', async () => {
+    stubStore();
+    try {
+      const res = await fetch(`${baseUrl}/api/accounts/connect`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ catalogueKey: 'cloudflare_r2', values }),
+      });
+
+      const text = JSON.stringify(await res.json());
+      assert.ok(!text.includes('shh'), 'the secret must not travel back to the browser');
+
+      const [row] = await db().select().from(accounts);
+      assert.ok(!row!.encryptedTokens.includes('shh'));
+      assert.equal(decryptTokens(row!.encryptedTokens).secretAccessKey, 'shh');
+    } finally {
+      restore();
+    }
+  });
+
+  it('rejects keys the store refuses, as the user error it is', async () => {
+    stubStore(403);
+    try {
+      const res = await fetch(`${baseUrl}/api/accounts/connect`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ catalogueKey: 'cloudflare_r2', values }),
+      });
+
+      // Not a 500: a mistyped key is the user's to fix, and nothing broke here.
+      assert.equal(res.status, 400);
+      assert.equal((await db().select().from(accounts)).length, 0);
+    } finally {
+      restore();
+    }
+  });
+
+  it('names the fields that were left empty', async () => {
+    const res = await fetch(`${baseUrl}/api/accounts/connect`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ catalogueKey: 'cloudflare_r2', values: { accessKeyId: 'AKIA' } }),
+    });
+
+    assert.equal(res.status, 400);
+    const body = (await res.json()) as { error: { message: string } };
+    assert.match(body.error.message, /Cloudflare account ID/);
+    assert.match(body.error.message, /Bucket name/);
+  });
+
+  it('refuses a provider that connects by OAuth', async () => {
+    const res = await fetch(`${baseUrl}/api/accounts/connect`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ catalogueKey: 'google_drive', values }),
+    });
+
+    assert.equal(res.status, 400);
+  });
+
+  it('refuses a catalogue entry with no adapter behind it', async () => {
+    // Listed on the landing page as intended, but connecting would dead-end.
+    const res = await fetch(`${baseUrl}/api/accounts/connect`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ catalogueKey: 'azure_blob', values }),
+    });
+
+    assert.equal(res.status, 404);
+  });
+
+  it('re-entering the same bucket refreshes the connection instead of duplicating it', async () => {
+    stubStore();
+    try {
+      for (let i = 0; i < 2; i += 1) {
+        await fetch(`${baseUrl}/api/accounts/connect`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ catalogueKey: 'cloudflare_r2', values }),
+        });
+      }
+
+      assert.equal((await db().select().from(accounts)).length, 1);
+    } finally {
+      restore();
+    }
+  });
+});

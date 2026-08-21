@@ -547,7 +547,7 @@ export function MyDrive() {
                   boxShadow: account.id === accountId ? 'var(--shadow-clay-inset)' : 'var(--shadow-clay)',
                 }}
               >
-                <ProviderIcon provider={account.provider} size={18} />
+                <ProviderIcon provider={account.catalogueKey ?? account.provider} size={18} />
                 {account.nickname}
               </button>
             ))}

@@ -182,7 +182,7 @@ export function Dashboard() {
                     }}
                   >
                     <span style={{ display: 'flex', gap: 10, alignItems: 'center', minWidth: 0 }}>
-                      <ProviderIcon provider={account.provider} size={24} />
+                      <ProviderIcon provider={account.catalogueKey ?? account.provider} size={24} />
                       <span
                         style={{
                           fontWeight: 600,

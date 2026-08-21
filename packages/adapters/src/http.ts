@@ -2,7 +2,7 @@ import type { ProviderId } from '@orbit/shared-types';
 import { ProviderError } from './base.js';
 
 export interface RequestOptions {
-  method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE' | 'HEAD';
   headers?: Record<string, string>;
   body?: BodyInit;
   /** Parsed and appended; undefined values are dropped. */
