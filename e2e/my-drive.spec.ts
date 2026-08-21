@@ -35,6 +35,19 @@ test.describe('my drive', () => {
     await expect(page.getByTestId('file-list')).toHaveCount(0);
   });
 
+  test('a file name never links straight out to the provider', async ({ page }) => {
+    // The whole point of the proxy is that the provider's URL never reaches the
+    // browser, so nothing on this page may be an outbound link to one.
+    await page.goto('/my-drive');
+
+    for (const link of await page.locator('a[href]').all()) {
+      const href = (await link.getAttribute('href')) ?? '';
+      expect(href, `${href} points at a provider`).not.toMatch(
+        /googleapis|googleusercontent|dropboxusercontent|sharepoint|blob\.core\.windows\.net/,
+      );
+    }
+  });
+
   test('keeps the account and path in the URL, so a folder can be linked to', async ({ page }) => {
     await page.goto('/my-drive?account=does-not-exist&path=/Photos/2026');
 

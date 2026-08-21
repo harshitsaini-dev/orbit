@@ -17,10 +17,16 @@ export async function lastCode(page: Page, email: string): Promise<string> {
   await expect
     .poll(
       async () => {
-        const res = await page.request.get(url);
-        if (res.status() !== 200) return res.status();
-        code = ((await res.json()) as { code: string }).code;
-        return 200;
+        try {
+          const res = await page.request.get(url);
+          if (res.status() !== 200) return res.status();
+          code = ((await res.json()) as { code: string }).code;
+          return 200;
+        } catch {
+          // A connection reset under parallel load is worth another try, not a
+          // failed test - the poll below is what decides when to give up.
+          return 0;
+        }
       },
       { message: 'waiting for a code to reach the dev outbox', timeout: 10_000 },
     )

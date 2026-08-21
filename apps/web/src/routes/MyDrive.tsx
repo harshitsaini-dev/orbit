@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import type { OrbitFile, ProviderCapabilities, PublicAccount } from '@orbit/shared-types';
 import { DownloadIcon, RenameIcon, StarIcon } from '../components/ActionIcon.js';
 import { FileIcon } from '../components/FileIcon.js';
+import { FilePreview } from '../components/FilePreview.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { api, ApiError } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
@@ -50,6 +51,7 @@ export function MyDrive() {
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [previewing, setPreviewing] = useState<OrbitFile | null>(null);
 
   const accountId = params.get('account') ?? '';
   const path = params.get('path') ?? '/';
@@ -60,6 +62,7 @@ export function MyDrive() {
     if (next.path !== undefined) updated.set('path', next.path);
     setParams(updated, { replace: false });
     setSelected(new Set());
+    setPreviewing(null);
   }
 
   useEffect(() => {
@@ -376,22 +379,26 @@ export function MyDrive() {
                     {file.name}
                   </button>
                 ) : (
-                  <a
-                    href={contentUrl(file, false)}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => setPreviewing(file)}
                     style={{
                       flex: 1,
                       minWidth: 0,
+                      textAlign: 'left',
+                      background: 'none',
+                      border: 0,
+                      font: 'inherit',
                       color: 'inherit',
-                      textDecoration: 'none',
+                      cursor: 'pointer',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap',
+                      padding: 0,
                     }}
                   >
                     {file.name}
-                  </a>
+                  </button>
                 )}
 
                 {!file.isFolder && (
@@ -477,6 +484,16 @@ export function MyDrive() {
           </p>
         )}
       </section>
+
+      {previewing && (
+        <FilePreview
+          file={previewing}
+          siblings={listing?.files ?? []}
+          contentUrl={contentUrl}
+          onSelect={setPreviewing}
+          onClose={() => setPreviewing(null)}
+        />
+      )}
     </div>
   );
 }
