@@ -5,6 +5,7 @@ import { ACCENTS, useTheme } from './lib/theme.js';
 import { Home } from './routes/Home.js';
 import { Login } from './routes/Login.js';
 import { Placeholder } from './routes/Placeholder.js';
+import { Quota } from './routes/Quota.js';
 
 const NAV = [
   { to: '/', label: 'Home' },
@@ -159,7 +160,7 @@ function Workspace() {
             <Route path="/recent" element={<Placeholder title="Recent" phase="Phase 4" />} />
             <Route path="/starred" element={<Placeholder title="Starred" phase="Phase 4" />} />
             <Route path="/shared-with-me" element={<Placeholder title="Shared with me" phase="Phase 4" />} />
-            <Route path="/quota" element={<Placeholder title="Quota" phase="Phase 4" />} />
+            <Route path="/quota" element={<Quota />} />
             <Route path="/developer" element={<Placeholder title="Developer" phase="Phase 11" />} />
             <Route path="/developer/docs" element={<Placeholder title="API docs" phase="Phase 11" />} />
             <Route

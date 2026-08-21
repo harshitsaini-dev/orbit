@@ -2,7 +2,10 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "src",
+    // Adapters speak HTTP: they need fetch, Response, BodyInit and web streams.
+    "lib": ["ES2022", "DOM"],
+    "types": ["node"]
   },
   "include": ["src"]
 }

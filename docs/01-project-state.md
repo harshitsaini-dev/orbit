@@ -15,7 +15,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 |---|---|---|
 | 0 | Foundation (monorepo, CI, docs, infra accounts) | 🟢 Code done · infra accounts pending |
 | 1 | Auth (email OTP, sessions, local-mode bypass) | 🟢 Done |
-| 2 | First adapter — Google Drive | ⚪ Next |
+| 2 | First adapter — Google Drive | 🟡 Adapter, OAuth and browsing done · file operations in the UI pending |
 | 3 | Remaining adapters (OneDrive, Dropbox, MEGA, pCloud, S3) | ⚪ Not started |
 | 4 | Unified workspace views | ⚪ Not started |
 | 5 | Upload system + WebSocket progress + allocation | ⚪ Not started |
@@ -72,7 +72,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | Check | Result |
 |---|---|
 | `npm run typecheck --workspaces` | clean |
-| `npm test --workspaces` | 80 pass, 0 fail (31 server, 49 adapters) |
+| `npm test --workspaces` | 120 pass, 0 fail (45 server, 75 adapters) |
 | `npm run build --workspaces` | clean |
 | `npx playwright test` (headed) | 21 pass, 0 fail across desktop, tablet and mobile |
 
@@ -83,14 +83,28 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
   permissions, webhooks, a Developer tab for token and application management, and an API docs
   tab generated from the same Zod schemas the routes validate with.
 
-## Next up — Phase 2 (Google Drive adapter)
+### Phase 2 — Google Drive (in progress)
+- Full `GoogleDriveAdapter`: OAuth exchange and refresh, folder listing with path resolution,
+  shared-with-me, metadata, range-aware streaming, folder creation, rename, star, bulk remove,
+  resumable upload, quota, and delta changes. 26 tests against mocked Drive responses.
+- Drive is a graph, not a tree, so virtual paths are resolved by walking from the root a segment
+  at a time. Google-native documents hold no bytes and are exported rather than downloaded.
+  Deletion trashes rather than destroying — a delete through an aggregator is too easy to trigger
+  by accident.
+- OAuth connect flow with PKCE and a state cookie; `state` is validated before any token is
+  exchanged, and a forged callback creates nothing.
+- `useAccount()` is the single path to a provider: it refreshes an expiring token, persists it,
+  and marks the account `needs_reauth` if the grant is gone.
+- Accounts UI on `/quota`: connect, list with quota bars, refresh, disconnect.
+- A shared `providerFetch` helper with retry-and-backoff on the retryable statuses, and error
+  messages that quote the provider but never the request headers that held the token.
 
-1. Register the Google OAuth app; redirect URI `/auth/callback/google_drive`.
-2. Implement `connect` / `refreshToken` and the account-connection routes, storing tokens
-   AES-256-GCM encrypted.
-3. Implement `listFolder`, `getFileMeta`, `getFileStream` (range-aware), `createFolder`,
-   `rename`, `remove`, `star`, `getQuota`.
-4. Adapter-level tests against mocked Drive responses, plus an E2E pass over the connect flow.
+## Next up — finishing Phase 2
+
+1. File browser UI on `/my-drive` reading `GET /api/files`.
+2. Routes for create-folder, rename, star and delete, wired to the adapter methods that already
+   exist and are tested.
+3. Download and preview through `getFileStream`, with range support.
 
 ## Blocked on the owner
 

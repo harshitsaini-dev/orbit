@@ -3,6 +3,9 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
+    // The server proxies provider bytes and compiles the adapter sources, so it
+    // needs the web fetch and stream types alongside Node's.
+    "lib": ["ES2022", "DOM"],
     "types": ["node"]
   },
   "include": ["src"]

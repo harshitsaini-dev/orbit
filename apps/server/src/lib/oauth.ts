@@ -1,0 +1,133 @@
+import { createHash, randomBytes } from 'node:crypto';
+import type { ProviderId } from '@orbit/shared-types';
+import type { CookieOptions, Request, Response } from 'express';
+import { env } from './env.js';
+
+export interface OAuthProviderConfig {
+  authorizeUrl: string;
+  scopes: string[];
+  /** Extra parameters the provider needs on the authorise URL. */
+  extraParams?: Record<string, string>;
+  clientIdEnv: string;
+  clientSecretEnv: string;
+}
+
+export const OAUTH_PROVIDERS: Partial<Record<ProviderId, OAuthProviderConfig>> = {
+  google_drive: {
+    authorizeUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+    scopes: [
+      'https://www.googleapis.com/auth/drive',
+      'https://www.googleapis.com/auth/userinfo.email',
+    ],
+    extraParams: {
+      // Without offline access Google issues no refresh token, so the
+      // connection would die in an hour with no way to renew it. prompt=consent
+      // forces a fresh one even if the user has authorised before - otherwise a
+      // reconnect silently returns an access token only.
+      access_type: 'offline',
+      prompt: 'consent',
+      include_granted_scopes: 'true',
+    },
+    clientIdEnv: 'GOOGLE_CLIENT_ID',
+    clientSecretEnv: 'GOOGLE_CLIENT_SECRET',
+  },
+};
+
+export function isOAuthProvider(provider: string): provider is ProviderId {
+  return provider in OAUTH_PROVIDERS;
+}
+
+export function redirectUriFor(provider: ProviderId): string {
+  return `${env.API_URL}/auth/callback/${provider}`;
+}
+
+const STATE_COOKIE = 'orbit_oauth';
+const STATE_TTL_MS = 10 * 60 * 1000;
+
+export interface PendingAuthorisation {
+  state: string;
+  codeVerifier: string;
+  provider: ProviderId;
+  /** Where to send the browser once the account is connected. */
+  returnTo: string;
+}
+
+function stateCookieOptions(): CookieOptions {
+  return {
+    httpOnly: true,
+    secure: env.NODE_ENV === 'production',
+    // Google redirects the browser back to us as a top-level GET, which a
+    // strict cookie would not be sent on. lax is the correct level here.
+    sameSite: 'lax',
+    path: '/auth',
+    maxAge: STATE_TTL_MS,
+  };
+}
+
+/** PKCE: a random verifier, and the SHA-256 challenge derived from it. */
+export function createPkcePair(): { verifier: string; challenge: string } {
+  const verifier = randomBytes(48).toString('base64url');
+  const challenge = createHash('sha256').update(verifier).digest('base64url');
+  return { verifier, challenge };
+}
+
+export function beginAuthorisation(
+  res: Response,
+  provider: ProviderId,
+  returnTo: string,
+): { url: string } {
+  const config = OAUTH_PROVIDERS[provider];
+  if (!config) throw new Error(`${provider} does not use OAuth`);
+
+  const clientId = process.env[config.clientIdEnv];
+  if (!clientId) throw new Error(`${config.clientIdEnv} is not set`);
+
+  const state = randomBytes(24).toString('base64url');
+  const { verifier, challenge } = createPkcePair();
+
+  const pending: PendingAuthorisation = { state, codeVerifier: verifier, provider, returnTo };
+  res.cookie(STATE_COOKIE, JSON.stringify(pending), stateCookieOptions());
+
+  const url = new URL(config.authorizeUrl);
+  url.searchParams.set('client_id', clientId);
+  url.searchParams.set('redirect_uri', redirectUriFor(provider));
+  url.searchParams.set('response_type', 'code');
+  url.searchParams.set('scope', config.scopes.join(' '));
+  url.searchParams.set('state', state);
+  url.searchParams.set('code_challenge', challenge);
+  url.searchParams.set('code_challenge_method', 'S256');
+  for (const [key, value] of Object.entries(config.extraParams ?? {})) {
+    url.searchParams.set(key, value);
+  }
+
+  return { url: url.toString() };
+}
+
+/**
+ * Reads back what beginAuthorisation stored. Returns null on anything
+ * unexpected - a missing cookie, a mismatched state, or the wrong provider -
+ * all of which mean this callback did not come from a flow we started.
+ */
+export function consumeAuthorisation(
+  req: Request,
+  res: Response,
+  provider: ProviderId,
+  state: string | undefined,
+): PendingAuthorisation | null {
+  const raw = req.cookies?.[STATE_COOKIE] as string | undefined;
+  res.clearCookie(STATE_COOKIE, { ...stateCookieOptions(), maxAge: undefined });
+
+  if (!raw || !state) return null;
+
+  let pending: PendingAuthorisation;
+  try {
+    pending = JSON.parse(raw) as PendingAuthorisation;
+  } catch {
+    return null;
+  }
+
+  if (pending.provider !== provider) return null;
+  if (pending.state !== state) return null;
+
+  return pending;
+}

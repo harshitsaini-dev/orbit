@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { env } from './lib/env.js';
 import { attachUser } from './middleware/auth.js';
+import { accountsRouter } from './routes/accounts.js';
 import { authRouter } from './routes/auth.js';
 import { healthRouter } from './routes/health.js';
 
@@ -41,6 +42,7 @@ export function createApp(): Express {
 
   app.use(attachUser);
   app.use(authRouter);
+  app.use(accountsRouter);
 
   app.use((_req, res) => {
     res.status(404).json({ error: { code: 'not_found', message: 'Route not found' } });

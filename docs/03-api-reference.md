@@ -76,6 +76,33 @@ Everything "Connect an account" offers, plus what it cannot. Longer than
 
 `fields` describes what to ask the user for. It never carries values.
 
+### `GET /auth/connect/:provider`
+Starts the OAuth flow. Sets a short-lived `httpOnly` state cookie holding the PKCE verifier and
+a random state, then `302`s to the provider. Google is sent `access_type=offline` and
+`prompt=consent` — without both it issues no refresh token and the connection dies in an hour.
+
+### `GET /auth/callback/:provider`
+Where the provider returns the browser. Validates `state` against the cookie before exchanging
+anything, then stores the account with its tokens AES-256-GCM encrypted, labels it with the
+account's email address, and redirects to `{APP_URL}/quota?connect=connected`. Any failure —
+cancelled consent, missing or mismatched state — redirects with `?connect=failed&reason=…` and
+creates nothing.
+
+### `GET /api/accounts`
+`{ accounts: PublicAccount[] }`. Never includes token material of any kind.
+
+### `POST /api/accounts/:id/refresh-quota`
+Re-reads usage from the provider and caches it. `409 needs_reauth` when the grant has expired.
+
+### `DELETE /api/accounts/:id`
+Disconnects. `204`. Files in the provider account are untouched.
+
+### `GET /api/files?accountId=&path=&pageToken=`
+Lists one folder from one account. `{ accountId, provider, path, files, nextCursor }`.
+
+### `GET /api/connectable`
+The catalogue entries that can actually be connected today, as opposed to the full catalogue.
+
 ### `WS /ws`
 Channel pub/sub. Client frames: `{"type":"subscribe","channel":"..."}`, `unsubscribe`, `ping`.
 Server frames: `upload:progress`, `upload:complete`, `upload:error`, `sync:status`.
@@ -84,9 +111,7 @@ Server frames: `upload:progress`, `upload:complete`, `upload:error`, `sync:statu
 
 | Route | Phase |
 |---|---|
-| `GET /auth/connect/:provider`, `GET /auth/callback/:provider` | 2 |
-| `GET /api/accounts`, `POST /api/accounts`, `DELETE /api/accounts/:id` | 2 |
-| `GET /api/files`, `POST /api/files/folder`, `PATCH /api/files/:id`, `DELETE /api/files` | 2 |
+| `POST /api/files/folder`, `PATCH /api/files/:id`, `DELETE /api/files` | 2 |
 | `GET /api/files/:id/content` (range-aware stream) | 2 |
 | `GET /api/views/{recent,starred,shared-with-me}` | 4 |
 | `POST /api/uploads/init`, `PUT /api/uploads/:id/chunk` | 5 |

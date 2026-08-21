@@ -63,6 +63,9 @@ export default defineConfig({
         DATABASE_URL: E2E_DB_URL,
         // Many sign-ins from one IP; the limiter has its own unit test.
         AUTH_RATE_LIMIT: '10000',
+        API_RATE_LIMIT: '10000',
+        GOOGLE_CLIENT_ID: 'e2e-client-id',
+        GOOGLE_CLIENT_SECRET: 'e2e-client-secret',
       },
     },
     {
