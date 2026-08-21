@@ -1,0 +1,140 @@
+/**
+ * The Google One style storage breakdown: how much of a drive is photos, video,
+ * documents, and so on.
+ *
+ * Classification is by mime type first and file extension second. Extensions
+ * matter because object stores hand back `application/octet-stream` for almost
+ * everything, and because Drive reports its own `vnd.google-apps.*` types that
+ * mean nothing to anyone else.
+ */
+
+export const FILE_CATEGORIES = ['image', 'video', 'audio', 'document', 'archive', 'code', 'other'] as const;
+export type FileCategory = (typeof FILE_CATEGORIES)[number];
+
+export const CATEGORY_LABELS: Record<FileCategory, string> = {
+  image: 'Photos & images',
+  video: 'Videos',
+  audio: 'Audio',
+  document: 'Documents',
+  archive: 'Archives',
+  code: 'Code',
+  other: 'Other',
+};
+
+/** Stable colours, so the same category reads the same in every chart and legend. */
+export const CATEGORY_COLOURS: Record<FileCategory, string> = {
+  image: '#6c8cff',
+  video: '#d95c8a',
+  audio: '#8b6cf5',
+  document: '#2fa87a',
+  archive: '#e08a2e',
+  code: '#37a6c4',
+  other: '#8a93a8',
+};
+
+const EXTENSIONS: Record<string, FileCategory> = {};
+
+function register(category: FileCategory, extensions: string[]): void {
+  for (const extension of extensions) EXTENSIONS[extension] = category;
+}
+
+register('image', ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'tif', 'tiff', 'svg', 'heic', 'heif', 'avif', 'ico', 'raw', 'cr2', 'nef', 'arw', 'dng', 'psd', 'ai', 'eps']);
+register('video', ['mp4', 'mkv', 'mov', 'avi', 'wmv', 'flv', 'webm', 'm4v', 'mpg', 'mpeg', '3gp', 'ts', 'm2ts', 'ogv']);
+register('audio', ['mp3', 'wav', 'flac', 'aac', 'ogg', 'oga', 'm4a', 'wma', 'opus', 'aiff', 'mid', 'midi']);
+register('document', ['pdf', 'doc', 'docx', 'odt', 'rtf', 'txt', 'md', 'xls', 'xlsx', 'ods', 'csv', 'tsv', 'ppt', 'pptx', 'odp', 'epub', 'mobi', 'pages', 'numbers', 'key']);
+register('archive', ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'iso', 'dmg', 'tgz', 'zst', 'cab']);
+register('code', ['js', 'mjs', 'cjs', 'ts', 'tsx', 'jsx', 'json', 'html', 'htm', 'css', 'scss', 'py', 'rb', 'go', 'rs', 'java', 'kt', 'c', 'h', 'cpp', 'hpp', 'cs', 'php', 'sh', 'bash', 'ps1', 'sql', 'yml', 'yaml', 'toml', 'xml', 'ipynb']);
+
+/** Google's own document types, which carry no meaningful mime prefix. */
+const GOOGLE_APPS: Record<string, FileCategory> = {
+  'application/vnd.google-apps.document': 'document',
+  'application/vnd.google-apps.spreadsheet': 'document',
+  'application/vnd.google-apps.presentation': 'document',
+  'application/vnd.google-apps.form': 'document',
+  'application/vnd.google-apps.drawing': 'image',
+  'application/vnd.google-apps.script': 'code',
+  'application/vnd.google-apps.jam': 'document',
+};
+
+const MIME_EXACT: Record<string, FileCategory> = {
+  'application/pdf': 'document',
+  'application/rtf': 'document',
+  'application/msword': 'document',
+  'application/json': 'code',
+  'application/xml': 'code',
+  'text/csv': 'document',
+  'text/markdown': 'document',
+  'text/plain': 'document',
+  'application/zip': 'archive',
+  'application/x-tar': 'archive',
+  'application/gzip': 'archive',
+  'application/x-7z-compressed': 'archive',
+  'application/vnd.rar': 'archive',
+};
+
+export function extensionOf(name: string): string {
+  const dot = name.lastIndexOf('.');
+  if (dot <= 0 || dot === name.length - 1) return '';
+  return name.slice(dot + 1).toLowerCase();
+}
+
+/**
+ * Classifies one file. `mimeType` is trusted when it is specific; the extension
+ * decides when it is not, which is most of the time outside Drive.
+ */
+export function categorise(mimeType: string | undefined, name = ''): FileCategory {
+  const mime = (mimeType ?? '').toLowerCase();
+
+  if (mime in GOOGLE_APPS) return GOOGLE_APPS[mime]!;
+  if (mime in MIME_EXACT) return MIME_EXACT[mime]!;
+
+  if (mime.startsWith('image/')) return 'image';
+  if (mime.startsWith('video/')) return 'video';
+  if (mime.startsWith('audio/')) return 'audio';
+
+  // Everything below falls through to the extension, because a generic mime
+  // type tells us nothing: object stores label almost every object
+  // application/octet-stream.
+  const byExtension = EXTENSIONS[extensionOf(name)];
+  if (byExtension) return byExtension;
+
+  if (mime.startsWith('text/')) return 'document';
+
+  return 'other';
+}
+
+export interface CategoryTotal {
+  category: FileCategory;
+  fileCount: number;
+  sizeBytes: number;
+}
+
+export interface StorageBreakdown {
+  accountId: string;
+  totals: CategoryTotal[];
+  fileCount: number;
+  sizeBytes: number;
+  /** True when the scan hit its page limit and stopped early. */
+  partial: boolean;
+  scannedAt: string;
+}
+
+/** Sums a set of files into per-category totals, largest first. */
+export function summarise(
+  files: Array<{ mimeType?: string; name?: string; sizeBytes?: number; isFolder?: boolean }>,
+): CategoryTotal[] {
+  const byCategory = new Map<FileCategory, CategoryTotal>();
+
+  for (const file of files) {
+    // Folders are containers, not content; counting them would double-count.
+    if (file.isFolder) continue;
+
+    const category = categorise(file.mimeType, file.name ?? '');
+    const total = byCategory.get(category) ?? { category, fileCount: 0, sizeBytes: 0 };
+    total.fileCount += 1;
+    total.sizeBytes += file.sizeBytes ?? 0;
+    byCategory.set(category, total);
+  }
+
+  return [...byCategory.values()].sort((a, b) => b.sizeBytes - a.sizeBytes || b.fileCount - a.fileCount);
+}

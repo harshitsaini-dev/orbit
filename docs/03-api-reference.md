@@ -100,6 +100,20 @@ Disconnects. `204`. Files in the provider account are untouched.
 ### `GET /api/files?accountId=&path=&pageToken=`
 Lists one folder from one account. `{ accountId, provider, path, files, nextCursor }`.
 
+### `GET /api/accounts/:id/breakdown`
+What is using the space, by category — the Google One style panel. There is no aggregate
+endpoint on any provider, so this enumerates the account flat via `listAllFiles`. The scan is
+bounded at 60 pages and its result cached for 30 minutes; `?refresh=1` forces a new one.
+
+```json
+{ "breakdown": { "accountId": "…", "fileCount": 842, "sizeBytes": 12750000000,
+  "partial": false, "scannedAt": "2026-08-21T10:12:00.000Z",
+  "totals": [{ "category": "archive", "fileCount": 21, "sizeBytes": 9600000000 }] } }
+```
+
+`partial: true` means the scan stopped at its page limit, so the figures are a lower bound.
+`501 breakdown_unsupported` for a provider that cannot enumerate flat.
+
 ### `GET /api/connectable`
 The catalogue entries that can actually be connected today, as opposed to the full catalogue.
 

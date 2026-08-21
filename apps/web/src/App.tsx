@@ -102,58 +102,25 @@ function RequireSuperadmin({ children }: { children: ReactNode }) {
 
 function Workspace() {
   return (
-    <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
-      <header
-        style={{
-          minHeight: 'var(--topbar-h)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '1rem',
-          padding: '0.75rem clamp(1rem, 4vw, 2.5rem)',
-          flexWrap: 'wrap',
-        }}
-      >
+    <div className="app-shell">
+      <header className="app-header">
         <strong style={{ fontSize: 20, letterSpacing: '-0.03em' }}>Orbit</strong>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+        <div className="app-header__actions">
           <AccountMenu />
           <ThemeSwitch />
         </div>
       </header>
 
-      <div
-        style={{
-          display: 'flex',
-          flex: 1,
-          gap: '1.5rem',
-          padding: '0 clamp(1rem, 4vw, 2.5rem) 2rem',
-          flexWrap: 'wrap',
-        }}
-      >
-        <nav
-          className="clay"
-          style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 200, alignSelf: 'flex-start' }}
-        >
+      <div className="app-body">
+        <nav className="clay app-nav" aria-label="Workspace">
           {NAV.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === '/'}
-              style={({ isActive }) => ({
-                padding: '0.6rem 1rem',
-                borderRadius: 'var(--radius-sm)',
-                textDecoration: 'none',
-                color: isActive ? 'var(--accent)' : 'var(--text-muted)',
-                background: isActive ? 'var(--accent-soft)' : 'transparent',
-                fontWeight: isActive ? 600 : 500,
-              })}
-            >
+            <NavLink key={item.to} to={item.to} end={item.to === '/'} className="app-nav__link">
               {item.label}
             </NavLink>
           ))}
         </nav>
 
-        <main style={{ flex: 1, minWidth: 280 }}>
+        <main className="app-main">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/my-drive" element={<Placeholder title="My Drive" phase="Phase 4" />} />

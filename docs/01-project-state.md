@@ -72,9 +72,9 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | Check | Result |
 |---|---|
 | `npm run typecheck --workspaces` | clean |
-| `npm test --workspaces` | 120 pass, 0 fail (45 server, 75 adapters) |
+| `npm test --workspaces` | 161 pass, 0 fail |
 | `npm run build --workspaces` | clean |
-| `npx playwright test` (headed) | 21 pass, 0 fail across desktop, tablet and mobile |
+| `npx playwright test` (headed) | 51 pass, 0 fail across desktop, tablet and mobile |
 
 ## Designed but not built
 
@@ -98,6 +98,30 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 - Accounts UI on `/quota`: connect, list with quota bars, refresh, disconnect.
 - A shared `providerFetch` helper with retry-and-backoff on the retryable statuses, and error
   messages that quote the provider but never the request headers that held the token.
+
+### Verified against a real Drive
+- Connected a live Google account end to end. Listing, quota and the storage breakdown all work
+  against real data.
+- Two defects only a real account revealed: `.env` was never being read (see ADR 0008), and
+  **shortcuts** — nine in the root alone — appeared as unopenable zero-byte files.
+- The breakdown of that account: 842 files, 11.9 GB, scanned in about three seconds.
+
+### Storage breakdown and provider marks
+- Google One style category breakdown: photos, video, audio, documents, archives, code, other.
+  Classified by mime type first and extension second, because object stores label nearly
+  everything `application/octet-stream`.
+- Added `listAllFiles` to the adapter contract, gated by a `flatEnumeration` capability. The
+  sync engine needs the same flat pass in Phase 6 for providers without a delta feed.
+- The scan is bounded and reports `partial` rather than presenting an undercount as the total.
+- Provider marks are **original glyphs**, not vendor logos — see `docs/07-provider-icons.md`.
+
+### Mobile
+- The app shell moved from inline styles to CSS classes, since inline styles cannot carry media
+  queries. Below 768px the sidebar becomes a horizontal strip that scrolls on its own; below
+  480px the header stacks.
+- A dedicated mobile suite asserts what only breaks on a phone: no horizontal page scroll on any
+  view, every nav item reachable, tap targets at least 36px, and long email addresses staying
+  inside their card.
 
 ## Next up — finishing Phase 2
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CatalogueEntry, UnavailableProvider } from '@orbit/shared-types';
 import { OrbitHero } from '../components/OrbitHero.js';
+import { ProviderIcon } from '../components/ProviderIcon.js';
 import { api } from '../lib/api.js';
 
 interface CatalogueResponse {
@@ -29,9 +30,15 @@ const GROUPS: Array<{ title: string; keys: string[] }> = [
 
 function ProviderCard({ entry }: { entry: CatalogueEntry }) {
   return (
-    <li className="clay-sunken" style={{ padding: '0.85rem 1.1rem', display: 'grid', gap: 2 }}>
-      <span style={{ fontWeight: 600 }}>{entry.label}</span>
-      <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{entry.blurb}</span>
+    <li
+      className="clay-sunken"
+      style={{ padding: '0.85rem 1.1rem', display: 'flex', gap: 12, alignItems: 'center' }}
+    >
+      <ProviderIcon provider={entry.key} size={26} />
+      <span style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+        <span style={{ fontWeight: 600 }}>{entry.label}</span>
+        <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>{entry.blurb}</span>
+      </span>
     </li>
   );
 }

@@ -1,17 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { CatalogueEntry, PublicAccount } from '@orbit/shared-types';
+import { ProviderIcon } from '../components/ProviderIcon.js';
+import { StorageBreakdownPanel } from '../components/StorageBreakdown.js';
 import { api, ApiError } from '../lib/api.js';
+import { formatBytes } from '../lib/format.js';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
-
-function formatBytes(bytes: number): string {
-  if (bytes <= 0) return '0 B';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  const value = bytes / 1024 ** exponent;
-  return `${value.toFixed(value >= 10 || exponent === 0 ? 0 : 1)} ${units[exponent]}`;
-}
 
 function QuotaBar({ account }: { account: PublicAccount }) {
   // A bucket reports bytes stored but no allowance, so there is nothing to fill.
@@ -163,12 +158,17 @@ export function Quota() {
             {accounts.map((account) => (
               <li key={account.id} className="clay-sunken" style={{ padding: '1rem 1.15rem', display: 'grid', gap: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'grid', gap: 2 }}>
-                    <strong>{account.nickname}</strong>
-                    <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                      {account.provider.replace(/_/g, ' ')}
-                      {account.status === 'needs_reauth' && ' · needs reconnecting'}
-                    </span>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>
+                    <ProviderIcon provider={account.provider} size={30} />
+                    <div style={{ display: 'grid', gap: 2, minWidth: 0 }}>
+                      <strong style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {account.nickname}
+                      </strong>
+                      <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+                        {account.provider.replace(/_/g, ' ')}
+                        {account.status === 'needs_reauth' && ' · needs reconnecting'}
+                      </span>
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button
@@ -192,6 +192,7 @@ export function Quota() {
                   </div>
                 </div>
                 <QuotaBar account={account} />
+                <StorageBreakdownPanel accountId={account.id} />
               </li>
             ))}
           </ul>
@@ -216,10 +217,20 @@ export function Quota() {
               <a
                 href={`${API_BASE}/auth/connect/${entry.provider}`}
                 className="clay-button"
-                style={{ display: 'grid', gap: 3, textDecoration: 'none', textAlign: 'left', width: '100%' }}
+                style={{
+                  display: 'flex',
+                  gap: 12,
+                  alignItems: 'center',
+                  textDecoration: 'none',
+                  textAlign: 'left',
+                  width: '100%',
+                }}
               >
-                <span>{entry.label}</span>
-                <span style={{ color: 'var(--text-muted)', fontSize: 12, fontWeight: 400 }}>{entry.blurb}</span>
+                <ProviderIcon provider={entry.key} size={28} />
+                <span style={{ display: 'grid', gap: 3, minWidth: 0 }}>
+                  <span>{entry.label}</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 12, fontWeight: 400 }}>{entry.blurb}</span>
+                </span>
               </a>
             </li>
           ))}

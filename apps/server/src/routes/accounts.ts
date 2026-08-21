@@ -17,6 +17,7 @@ import {
   refreshQuota,
   useAccount,
 } from '../services/accounts.js';
+import { forgetBreakdown, getBreakdown } from '../services/breakdown.js';
 
 export const accountsRouter: Router = Router();
 
@@ -148,6 +149,7 @@ accountsRouter.post('/api/accounts/:id/refresh-quota', requireAuth, async (req, 
 
 accountsRouter.delete('/api/accounts/:id', requireAuth, async (req, res, next) => {
   try {
+    forgetBreakdown(req.user!.id, req.params.id!);
     const removed = await deleteAccount(req.user!.id, req.params.id!);
     if (!removed) {
       res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
@@ -155,6 +157,40 @@ accountsRouter.delete('/api/accounts/:id', requireAuth, async (req, res, next) =
     }
     res.status(204).end();
   } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * What is actually using the space, by category. The scan is bounded and its
+ * result cached for half an hour; `?refresh=1` forces a new one.
+ */
+accountsRouter.get('/api/accounts/:id/breakdown', requireAuth, async (req, res, next) => {
+  try {
+    const force = req.query.refresh === '1';
+    const breakdown = await getBreakdown(req.user!.id, req.params.id!, { force });
+
+    if (!breakdown) {
+      res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
+      return;
+    }
+    res.json({ breakdown });
+  } catch (err) {
+    if (err instanceof Error && err.message === 'breakdown_unsupported') {
+      res.status(501).json({
+        error: {
+          code: 'breakdown_unsupported',
+          message: 'This provider cannot enumerate its files in one pass',
+        },
+      });
+      return;
+    }
+    if (err instanceof Error && err.message === 'needs_reauth') {
+      res.status(409).json({
+        error: { code: 'needs_reauth', message: 'This account needs to be reconnected' },
+      });
+      return;
+    }
     next(err);
   }
 });

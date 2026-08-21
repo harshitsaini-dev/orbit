@@ -15,6 +15,8 @@ on demand from the provider they already live in.
   the same provider, all normalised through one adapter layer.
 - **Unified workspace** — Home, My Drive, Recent, Starred, Shared with me, and Quota views over
   a provider-agnostic virtual path.
+- **Storage breakdown** — what is actually using the space, by photos, video, audio, documents,
+  archives, code and other.
 - **File management** — browse, create folders, rename, delete (including bulk), download,
   preview, star.
 - **Uploads** — drag-and-drop, folder upload, chunked/resumable transfers, live progress over
@@ -74,6 +76,7 @@ npm run test:e2e:ci  # Playwright, headless
 | `docs/04-deployment.md` | Deployment runbook |
 | `docs/05-owner-setup.md` | Step-by-step account, API key, and DNS setup |
 | `docs/06-developer-platform.md` | Design for the public API, OAuth apps, and API docs tab |
+| `docs/07-provider-icons.md` | Where the provider marks come from, and how to swap in official ones |
 | `docs/decisions/` | Architecture decision records |
 | `docs/daily-log/` | Dated development log |
 

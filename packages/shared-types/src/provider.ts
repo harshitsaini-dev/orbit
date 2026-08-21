@@ -141,6 +141,13 @@ export interface ProviderCapabilities {
   nativeFolders: boolean;
   /** Whether the provider reports a total allowance, or only bytes used. */
   reportsQuota: boolean;
+  /**
+   * Whether every file can be enumerated in one flat, paginated pass. Needed
+   * for the storage breakdown, and by the sync engine for providers with no
+   * delta feed. Walking the folder tree instead would cost one request per
+   * folder.
+   */
+  flatEnumeration: boolean;
 }
 
 export interface ProviderAdapter {
@@ -154,6 +161,8 @@ export interface ProviderAdapter {
   refreshToken(tokens: AccountTokens): Promise<AccountTokens>;
 
   listFolder(tokens: AccountTokens, path: string, pageToken?: string): Promise<OrbitFilePage>;
+  /** Every file in the account, flat and paginated. Gated by `flatEnumeration`. */
+  listAllFiles(tokens: AccountTokens, pageToken?: string): Promise<OrbitFilePage>;
   getFileMeta(tokens: AccountTokens, remoteId: string): Promise<OrbitFile>;
   getFileStream(tokens: AccountTokens, remoteId: string, range?: ByteRange): Promise<FileStreamResult>;
 

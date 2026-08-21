@@ -61,6 +61,9 @@ export abstract class BaseAdapter implements ProviderAdapter {
   listFolder(_tokens: AccountTokens, _path: string, _pageToken?: string): Promise<OrbitFilePage> {
     return this.unsupported('listFolder');
   }
+  listAllFiles(_tokens: AccountTokens, _pageToken?: string): Promise<OrbitFilePage> {
+    return this.unsupported('listAllFiles');
+  }
   getFileMeta(_tokens: AccountTokens, _remoteId: string): Promise<OrbitFile> {
     return this.unsupported('getFileMeta');
   }

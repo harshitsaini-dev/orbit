@@ -17,6 +17,7 @@ export class OneDriveAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: true,
+    flatEnumeration: true,
     reportsQuota: true,
   };
 }

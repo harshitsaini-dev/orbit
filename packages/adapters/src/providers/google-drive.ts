@@ -75,6 +75,7 @@ export class GoogleDriveAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: true,
+    flatEnumeration: true,
     reportsQuota: true,
   };
 
@@ -180,6 +181,33 @@ export class GoogleDriveAdapter extends BaseAdapter {
 
     return {
       files: (page.files ?? []).map((file) => toOrbitFile(file, joinPath(parent, file.name))),
+      nextPageToken: page.nextPageToken,
+    };
+  }
+
+  /**
+   * Every file in the account, flat. One query rather than one per folder,
+   * which is the difference between a handful of requests and thousands on a
+   * drive of any size. Folders are excluded: they hold no bytes and would
+   * double-count against their contents.
+   */
+  override async listAllFiles(tokens: AccountTokens, pageToken?: string): Promise<OrbitFilePage> {
+    const page = await providerJson<DriveList>(this.id, `${API}/files`, {
+      headers: this.auth(tokens),
+      query: {
+        q: `trashed = false and mimeType != '${GOOGLE_DRIVE_FOLDER_MIME}'`,
+        // Only what the breakdown actually needs; asking for less makes each
+        // page markedly cheaper on an account with a hundred thousand files.
+        fields: 'nextPageToken,files(id,name,mimeType,size,modifiedTime,shortcutDetails(targetMimeType))',
+        pageSize: 1000,
+        pageToken,
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      },
+    });
+
+    return {
+      files: (page.files ?? []).map((file) => toOrbitFile(file, `/${file.name}`)),
       nextPageToken: page.nextPageToken,
     };
   }
