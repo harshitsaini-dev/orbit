@@ -146,13 +146,27 @@ export class GoogleDriveAdapter extends BaseAdapter {
     };
   }
 
+  /** Who the account belongs to. Labels the connection, and seeds an empty profile. */
+  async getAccountIdentity(
+    tokens: AccountTokens,
+  ): Promise<{ email?: string; displayName?: string; photoUrl?: string }> {
+    const about = await providerJson<{
+      user?: { emailAddress?: string; displayName?: string; photoLink?: string };
+    }>(this.id, `${API}/about`, {
+      headers: this.auth(tokens),
+      query: { fields: 'user(emailAddress,displayName,photoLink)' },
+    });
+
+    return {
+      email: about.user?.emailAddress,
+      displayName: about.user?.displayName,
+      photoUrl: about.user?.photoLink,
+    };
+  }
+
   /** The address the account is labelled with in the UI. */
   async getAccountEmail(tokens: AccountTokens): Promise<string | undefined> {
-    const about = await providerJson<{ user?: { emailAddress?: string } }>(this.id, `${API}/about`, {
-      headers: this.auth(tokens),
-      query: { fields: 'user(emailAddress)' },
-    });
-    return about.user?.emailAddress;
+    return (await this.getAccountIdentity(tokens)).email;
   }
 
   // --- reading ------------------------------------------------------------

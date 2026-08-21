@@ -27,6 +27,10 @@
   --accent-contrast: #ffffff;
   --accent-soft: rgba(108, 140, 255, 0.14);
 
+  /* scrollbars */
+  --scrollbar-thumb: rgba(28, 32, 48, 0.24);
+  --scrollbar-thumb-hover: rgba(28, 32, 48, 0.42);
+
   /* status */
   --success: #2fa87a;
   --warning: #d99327;
@@ -63,6 +67,8 @@
   --text-muted: #98a1b8;
   --border: rgba(238, 241, 246, 0.1);
   --accent-soft: rgba(108, 140, 255, 0.22);
+  --scrollbar-thumb: rgba(238, 241, 246, 0.18);
+  --scrollbar-thumb-hover: rgba(238, 241, 246, 0.34);
 
   --shadow-clay-light: -8px -8px 16px rgba(255, 255, 255, 0.04);
   --shadow-clay-dark: 8px 8px 16px rgba(0, 0, 0, 0.55);
@@ -82,6 +88,8 @@
     --text-muted: #98a1b8;
     --border: rgba(238, 241, 246, 0.1);
     --accent-soft: rgba(108, 140, 255, 0.22);
+    --scrollbar-thumb: rgba(238, 241, 246, 0.18);
+    --scrollbar-thumb-hover: rgba(238, 241, 246, 0.34);
 
     --shadow-clay-light: -8px -8px 16px rgba(255, 255, 255, 0.04);
     --shadow-clay-dark: 8px 8px 16px rgba(0, 0, 0, 0.55);

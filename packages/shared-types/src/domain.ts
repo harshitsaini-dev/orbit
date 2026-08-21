@@ -18,6 +18,7 @@ export interface PublicUser {
   id: string;
   email: string;
   displayName: string | null;
+  avatar: string | null;
   role: SystemRole;
   theme: ThemeMode;
   accent: string;
@@ -36,6 +37,8 @@ export interface PublicAccount {
   weight: number;
   status: 'ok' | 'needs_reauth' | 'error';
   lastSyncedAt: string | null;
+  /** When the access token was last renewed. Null until the first refresh. */
+  lastRefreshedAt: string | null;
   connectedAt: string;
 }
 

@@ -34,6 +34,7 @@ export function toPublicUser(row: typeof users.$inferSelect): PublicUser {
     id: row.id,
     email: row.email,
     displayName: row.displayName,
+    avatar: row.avatar,
     role: row.role,
     theme: row.theme,
     accent: row.accent,

@@ -17,6 +17,8 @@ interface AuthContextValue {
   requestCode: (email: string) => Promise<void>;
   verifyCode: (email: string, code: string) => Promise<void>;
   logout: () => Promise<void>;
+  /** Re-reads the profile after it changes, so the header updates with it. */
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -64,14 +66,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(signedIn);
   }, []);
 
+  const refresh = useCallback(async () => {
+    try {
+      const me = await api<{ user: PublicUser }>('/auth/me');
+      setUser(me.user);
+    } catch {
+      // Leaves the last known profile in place rather than logging the user out
+      // over a failed re-read.
+    }
+  }, []);
+
   const logout = useCallback(async () => {
     await api('/auth/logout', { method: 'POST' });
     setUser(null);
   }, []);
 
   const value = useMemo(
-    () => ({ user, mode, loading, requestCode, verifyCode, logout }),
-    [user, mode, loading, requestCode, verifyCode, logout],
+    () => ({ user, mode, loading, requestCode, verifyCode, logout, refresh }),
+    [user, mode, loading, requestCode, verifyCode, logout, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

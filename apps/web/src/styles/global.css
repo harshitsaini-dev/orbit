@@ -210,3 +210,39 @@ body {
     display: none;
   }
 }
+
+/* --- scrollbars ---------------------------------------------------------
+   The default scrollbar is drawn by the OS and ignores the theme entirely,
+   which reads as a bright strip down the side of a dark page. These follow the
+   tokens instead, in both engines. */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--radius-pill);
+  /* Transparent border, so the thumb reads as inset rather than edge-to-edge. */
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}

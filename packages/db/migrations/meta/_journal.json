@@ -15,6 +15,20 @@
       "when": 1787301836372,
       "tag": "0001_sticky_dagger",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1787309316766,
+      "tag": "0002_black_mentor",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1787309337191,
+      "tag": "0003_late_randall_flagg",
+      "breakpoints": true
     }
   ]
 }

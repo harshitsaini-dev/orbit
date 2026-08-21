@@ -9,6 +9,8 @@ export const users = sqliteTable(
     id: text('id').primaryKey(),
     email: text('email').notNull(),
     displayName: text('display_name'),
+    /** Small square PNG/JPEG as a data URL. App data, not a user file. */
+    avatar: text('avatar'),
     role: text('role', { enum: ['user', 'superadmin'] }).notNull().default('user'),
     theme: text('theme', { enum: ['light', 'dark', 'system'] }).notNull().default('system'),
     accent: text('accent').notNull().default('#6c8cff'),
@@ -53,6 +55,7 @@ export const accounts = sqliteTable(
     status: text('status', { enum: ['ok', 'needs_reauth', 'error'] }).notNull().default('ok'),
     deltaCursor: text('delta_cursor'),
     lastSyncedAt: text('last_synced_at'),
+    lastRefreshedAt: text('last_refreshed_at'),
     connectedAt: text('connected_at').notNull().default(now),
   },
   (t) => [index('accounts_user_idx').on(t.userId)],

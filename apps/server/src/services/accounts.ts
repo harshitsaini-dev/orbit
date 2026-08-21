@@ -1,4 +1,4 @@
-import { getAdapter } from '@orbit/adapters';
+import { getAdapter, isGrantRevoked } from '@orbit/adapters';
 import { accounts } from '@orbit/db';
 import type { AccountTokens, ProviderAdapter, ProviderId, PublicAccount } from '@orbit/shared-types';
 import { and, eq } from 'drizzle-orm';
@@ -10,6 +10,13 @@ type AccountRow = typeof accounts.$inferSelect;
 
 /** Refresh this far before actual expiry, so a long request cannot straddle it. */
 const REFRESH_MARGIN_MS = 5 * 60 * 1000;
+
+/**
+ * The scheduled sweep works to a wider margin than a request does. Refreshing
+ * an hour early means a sweep can fail several times over before anything the
+ * user does is affected.
+ */
+const PROACTIVE_REFRESH_MS = 60 * 60 * 1000;
 
 /** The API shape. Deliberately cannot carry `encryptedTokens`. */
 export function toPublicAccount(row: AccountRow): PublicAccount {
@@ -23,6 +30,7 @@ export function toPublicAccount(row: AccountRow): PublicAccount {
     weight: row.weight,
     status: row.status,
     lastSyncedAt: row.lastSyncedAt,
+    lastRefreshedAt: row.lastRefreshedAt,
     connectedAt: row.connectedAt,
   };
 }
@@ -111,17 +119,70 @@ export async function useAccount(
       tokens = await adapter.refreshToken(tokens);
       await db()
         .update(accounts)
-        .set({ encryptedTokens: encryptTokens(tokens), status: 'ok' })
+        .set({ encryptedTokens: encryptTokens(tokens), status: 'ok', lastRefreshedAt: new Date().toISOString() })
         .where(eq(accounts.id, row.id));
-    } catch {
-      // A refresh that fails means the grant was revoked or expired. Mark it so
-      // the UI can prompt a reconnect instead of failing every later request.
+    } catch (err) {
+      // Only an explicit refusal means the grant is gone. A timeout, a reset
+      // connection or a 5xx is the provider having a bad moment, and marking
+      // the account dead for that would make the user reconnect an account
+      // that never actually stopped working.
+      if (!isGrantRevoked(err)) {
+        await db().update(accounts).set({ status: 'error' }).where(eq(accounts.id, row.id));
+        throw new Error('provider_unavailable');
+      }
+
       await db().update(accounts).set({ status: 'needs_reauth' }).where(eq(accounts.id, row.id));
       throw new Error('needs_reauth');
     }
   }
 
   return { row, adapter, tokens };
+}
+
+/**
+ * Refreshes every account whose token is close to expiry. Run on a schedule so
+ * a connection stays warm whether or not the user opened the app, and so a
+ * genuinely dead grant is discovered and surfaced before they need it rather
+ * than at the moment they do.
+ */
+export async function refreshExpiringAccounts(now = new Date()): Promise<{
+  refreshed: number;
+  revoked: number;
+  failed: number;
+}> {
+  const rows = await db().select().from(accounts);
+  const result = { refreshed: 0, revoked: 0, failed: 0 };
+
+  for (const row of rows) {
+    if (row.status === 'needs_reauth') continue;
+
+    const tokens = decryptTokens(row.encryptedTokens);
+    if (!tokens.refreshToken || tokens.expiresAt === undefined) continue;
+    // Refreshed well ahead of expiry, so one failed sweep is not fatal.
+    if (tokens.expiresAt - now.getTime() > PROACTIVE_REFRESH_MS) continue;
+
+    try {
+      const refreshed = await getAdapter(row.provider).refreshToken(tokens);
+      await db()
+        .update(accounts)
+        .set({
+          encryptedTokens: encryptTokens(refreshed),
+          status: 'ok',
+          lastRefreshedAt: now.toISOString(),
+        })
+        .where(eq(accounts.id, row.id));
+      result.refreshed += 1;
+    } catch (err) {
+      if (isGrantRevoked(err)) {
+        await db().update(accounts).set({ status: 'needs_reauth' }).where(eq(accounts.id, row.id));
+        result.revoked += 1;
+      } else {
+        result.failed += 1;
+      }
+    }
+  }
+
+  return result;
 }
 
 /** Refreshes the cached quota figures. Cheap enough to call on the accounts view. */

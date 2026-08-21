@@ -10,7 +10,6 @@ const API_URL = `http://localhost:${API_PORT}`;
 
 export default defineConfig({
   testDir: './e2e',
-  globalSetup: './e2e/global-setup.ts',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -45,7 +44,10 @@ export default defineConfig({
 
   webServer: [
     {
-      command: 'npm run dev:server',
+      // The database is rebuilt here, not in globalSetup: Playwright starts the
+      // web servers first, so a globalSetup rebuild deleted the file out from
+      // under the server's open connection.
+      command: 'node scripts/prepare-e2e-db.mjs && npm run dev:server',
       url: `${API_URL}/health`,
       reuseExistingServer: false,
       timeout: 60_000,

@@ -16,6 +16,7 @@ import {
   refreshQuota,
 } from '../services/accounts.js';
 import { forgetBreakdown, getBreakdown } from '../services/breakdown.js';
+import { seedProfileFrom } from '../services/users.js';
 
 export const accountsRouter: Router = Router();
 
@@ -92,11 +93,15 @@ accountsRouter.get('/auth/callback/:provider', requireAuth, async (req, res, nex
     });
 
     // Label the account with the address it belongs to, so several connections
-    // to the same provider stay tellable apart.
+    // to the same provider stay tellable apart, and seed an empty profile from
+    // the same lookup.
     let nickname = adapter.displayName;
     if (adapter instanceof GoogleDriveAdapter) {
-      const email = await adapter.getAccountEmail(tokens).catch(() => undefined);
-      if (email) nickname = email;
+      const identity = await adapter
+        .getAccountIdentity(tokens)
+        .catch((): Awaited<ReturnType<GoogleDriveAdapter['getAccountIdentity']>> => ({}));
+      if (identity.email) nickname = identity.email;
+      await seedProfileFrom(req.user!.id, identity).catch(() => undefined);
     }
 
     const account = await createAccount({

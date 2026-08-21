@@ -87,6 +87,17 @@ assessment that is not free. Two ways out, neither of which needs verification:
 Start in Testing with the full `drive` scope. Revisit this before opening Orbit up to anyone
 beyond the test-user list.
 
+**If you are being asked to reconnect every week, this is why.** Orbit refreshes tokens on a
+schedule and will not drop a connection over a network blip, but nothing on this side can extend
+a refresh token that Google itself expired after seven days.
+
+The fix worth trying: **OAuth consent screen → Publishing status → Publish app**. Moving out of
+Testing removes the seven-day expiry. The app stays unverified until you go through Google's
+review, so users still see the "Google hasn't verified this app" screen and there is a cap on how
+many accounts may grant access — but the weekly reconnect goes away. If Google refuses to publish
+without verification for the restricted `drive` scope, you are stuck in Testing until verified,
+and reconnecting weekly is the cost.
+
 ---
 
 ## 2. Resend — sending the sign-in codes

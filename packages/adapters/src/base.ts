@@ -35,6 +35,22 @@ export class ProviderError extends Error {
   }
 }
 
+/**
+ * Whether a failed refresh means the grant is genuinely gone, as opposed to the
+ * network having a bad moment.
+ *
+ * This distinction is what stops a transient blip from forcing the user to
+ * reconnect an account that is still perfectly valid. Only an explicit refusal
+ * from the provider counts: `invalid_grant` (revoked, expired, or the user
+ * changed their password), or a 400/401 on the token endpoint. A timeout, a
+ * reset connection, or a 5xx is the provider having trouble, not a dead grant.
+ */
+export function isGrantRevoked(err: unknown): boolean {
+  if (!(err instanceof ProviderError)) return false;
+  if (/invalid_grant|invalid_token|token has been (expired|revoked)/i.test(err.message)) return true;
+  return err.status === 400 || err.status === 401;
+}
+
 /** Re-exported so adapters import their capability shape from one place. */
 export type AdapterCapabilities = ProviderCapabilities;
 

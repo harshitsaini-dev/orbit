@@ -8,6 +8,7 @@ import { attachUser } from './middleware/auth.js';
 import { accountsRouter } from './routes/accounts.js';
 import { authRouter } from './routes/auth.js';
 import { filesRouter } from './routes/files.js';
+import { profileRouter } from './routes/profile.js';
 import { healthRouter } from './routes/health.js';
 
 export function createApp(): Express {
@@ -45,6 +46,7 @@ export function createApp(): Express {
   app.use(authRouter);
   app.use(accountsRouter);
   app.use(filesRouter);
+  app.use(profileRouter);
 
   app.use((_req, res) => {
     res.status(404).json({ error: { code: 'not_found', message: 'Route not found' } });

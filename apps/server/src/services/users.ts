@@ -44,6 +44,58 @@ export async function findOrCreateByEmail(email: string): Promise<PublicUser> {
   return toPublicUser(created);
 }
 
+/**
+ * Fills in a name and picture from a newly connected provider, but only where
+ * the profile has none — a provider must never overwrite something the user set
+ * themselves.
+ *
+ * The picture is fetched here and stored as a data URL rather than kept as the
+ * provider's link. A remote URL in the page would tell the provider every time
+ * the user loads Orbit, and would break the moment the account is disconnected.
+ */
+export async function seedProfileFrom(
+  userId: string,
+  identity: { displayName?: string; photoUrl?: string },
+): Promise<void> {
+  const [row] = await db().select().from(users).where(eq(users.id, userId)).limit(1);
+  if (!row) return;
+
+  const update: { displayName?: string; avatar?: string } = {};
+
+  if (!row.displayName && identity.displayName) {
+    update.displayName = identity.displayName.slice(0, 80);
+  }
+
+  if (!row.avatar && identity.photoUrl) {
+    const avatar = await fetchAvatar(identity.photoUrl);
+    if (avatar) update.avatar = avatar;
+  }
+
+  if (Object.keys(update).length > 0) {
+    await db().update(users).set(update).where(eq(users.id, userId));
+  }
+}
+
+const AVATAR_MAX_BYTES = 256 * 1024;
+
+async function fetchAvatar(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!response.ok) return null;
+
+    const type = (response.headers.get('content-type') ?? '').split(';')[0]?.trim() ?? '';
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(type)) return null;
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    if (buffer.byteLength > AVATAR_MAX_BYTES) return null;
+
+    return `data:${type};base64,${buffer.toString('base64')}`;
+  } catch {
+    // A missing picture is not a reason to fail the connection.
+    return null;
+  }
+}
+
 /** Local mode runs as a single implicit user; no OTP, no cookie. */
 export async function getLocalUser(): Promise<PublicUser> {
   return findOrCreateByEmail(LOCAL_USER_EMAIL);

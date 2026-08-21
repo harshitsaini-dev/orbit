@@ -72,12 +72,12 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | Check | Result |
 |---|---|
 | `npm run typecheck --workspaces` | clean |
-| `npm test --workspaces` | 182 pass, 0 fail |
+| `npm test --workspaces` | 216 pass, 0 fail |
 
 Verified against the live account: 842 files, 11.9 GB scanned, categories summing exactly to the
 provider's own usage figure once the trash allowance is included.
 | `npm run build --workspaces` | clean |
-| `npx playwright test` (headed) | 63 pass, 0 fail across desktop, tablet and mobile |
+| `npx playwright test` (headed) | 78 pass, 0 fail across desktop, tablet and mobile |
 
 ## Designed but not built
 
@@ -154,6 +154,29 @@ provider's own usage figure once the trash allowance is included.
 - `Range: bytes=0-99` answered `206` with `content-range: bytes 0-99/3222799` and exactly 100
   bytes.
 - No response header mentions the provider's domain.
+
+### Keeping connections alive
+- A failed refresh used to mark an account `needs_reauth` whatever the cause, so a timeout or a
+  provider 5xx cost the user their connection. Only an explicit refusal — `invalid_grant`, or a
+  400/401 from the token endpoint — now counts as a dead grant; anything else is recorded as a
+  transient error and recovers on its own.
+- The scheduled pass sweeps every account and renews any token within an hour of expiry, so a
+  connection stays warm whether or not the app was opened, and a genuinely dead grant surfaces
+  before the user runs into it. One pass runs at boot as well.
+- **Remaining cause of repeated reconnects, which no code here can fix:** Google expires refresh
+  tokens after seven days while an app's publishing status is *Testing*. See
+  `docs/05-owner-setup.md` §1.
+
+### Profile
+- Display name, picture, theme and accent, managed from `/account` and stored on the account, so
+  they follow the user to another device.
+- The picture is resized and cropped to a 192px square in the browser before upload, so any
+  phone photo works instead of being rejected by the size cap.
+- A provider's name and picture seed an empty profile at connect time, but never overwrite
+  something the user set. The picture is fetched server-side and stored as a data URL rather than
+  linked: a remote URL would report every page load back to the provider and would break the
+  moment the account was disconnected.
+- Scrollbars follow the theme tokens in both engines, rather than being drawn by the OS.
 
 ## Next up — Phase 3 (remaining adapters)
 
