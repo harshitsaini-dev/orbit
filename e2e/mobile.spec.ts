@@ -45,11 +45,11 @@ test.describe('small-screen layout', () => {
 
     // On a phone the nav is a horizontal strip that scrolls on its own; the
     // last item is only reachable if that scrolling actually works.
-    const last = nav.getByRole('link', { name: 'Developer' });
+    const last = nav.getByRole('link', { name: 'Account', exact: true });
     await last.scrollIntoViewIfNeeded();
     await expect(last).toBeVisible();
     await last.click();
-    await expect(page).toHaveURL(/\/developer$/);
+    await expect(page).toHaveURL(/\/account$/);
 
     // And the strip itself must not have widened the page.
     expect(await horizontalOverflow(page), `${testInfo.project.name} nav overflows`).toBeLessThanOrEqual(1);
@@ -75,8 +75,9 @@ test.describe('small-screen layout', () => {
   });
 
   test('the hero canvas never exceeds the viewport width', async ({ page }) => {
-    await signIn(page);
-    await page.goto('/');
+    // The hero moved to the public pages when the root became a dashboard for
+    // signed-in users, so this checks it where it actually renders.
+    await page.goto('/login');
 
     const canvas = page.locator('canvas').first();
     await expect(canvas).toBeVisible();

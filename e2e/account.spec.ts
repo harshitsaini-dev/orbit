@@ -45,9 +45,12 @@ test.describe('account profile', () => {
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   });
 
-  test('the avatar in the header links to the account page', async ({ page }) => {
+  test('the account menu reaches the settings page', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('link', { name: 'Your account' }).click();
+
+    await page.getByRole('button', { name: 'Account menu' }).click();
+    await page.getByRole('menu', { name: 'Account' }).getByRole('menuitem', { name: 'Account settings' }).click();
+
     await expect(page).toHaveURL(/\/account$/);
   });
 });

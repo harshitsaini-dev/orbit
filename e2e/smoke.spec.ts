@@ -1,24 +1,18 @@
 import { expect, test } from '@playwright/test';
-import { signIn } from './helpers.js';
+import { openAccountMenu, signIn } from './helpers.js';
 
 test.describe('shell', () => {
   test.beforeEach(async ({ page }) => {
     await signIn(page);
   });
 
-  test('renders the landing page and reaches the API', async ({ page }) => {
+  test('shows the dashboard at the root once signed in', async ({ page }) => {
     await page.goto('/');
 
-    await expect(page.getByRole('heading', { name: /one workspace for every cloud/i })).toBeVisible();
-
-    // The catalogue comes from GET /api/catalogue - proves web -> api wiring.
-    await expect(page.getByRole('listitem').filter({ hasText: 'Google Drive' })).toBeVisible();
-    await expect(page.getByRole('listitem').filter({ hasText: 'Cloudflare R2' })).toBeVisible();
-    await expect(page.getByRole('listitem').filter({ hasText: 'Azure Blob' })).toBeVisible();
-
-    // Services Orbit cannot support are shown with a reason rather than hidden.
-    await expect(page.getByRole('listitem').filter({ hasText: 'iCloud Drive' })).toBeVisible();
-    await expect(page.getByRole('listitem').filter({ hasText: 'Proton Drive' })).toBeVisible();
+    // The root is the one address that differs by who is asking: a signed-in
+    // user gets their own storage, not the pitch.
+    await expect(page.getByRole('heading', { name: /^good (morning|afternoon|evening|night)/i })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Browse files' })).toBeVisible();
   });
 
   test('navigates between workspace views', async ({ page }) => {
@@ -28,7 +22,8 @@ test.describe('shell', () => {
   });
 
   test('theme choice persists across a reload', async ({ page }) => {
-    await page.getByRole('button', { name: 'dark', exact: true }).click();
+    const menu = await openAccountMenu(page);
+    await menu.getByRole('menuitemradio', { name: 'dark' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
 
     await page.reload();

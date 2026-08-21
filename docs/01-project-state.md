@@ -18,7 +18,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 2 | First adapter — Google Drive | 🟢 Done |
 | 3 | Remaining adapters (OneDrive, Dropbox, MEGA, pCloud, S3) | ⚪ Not started |
 | 4 | Unified workspace views | ⚪ Not started |
-| 5 | Upload system + WebSocket progress + allocation | ⚪ Not started |
+| 5 | Upload system + WebSocket progress + allocation | 🟡 Upload and progress done · allocation strategies pending |
 | 6 | Sync engine | ⚪ Not started |
 | 7 | Sharing + QR | ⚪ Not started |
 | 8 | RBAC + superadmin | ⚪ Not started |
@@ -72,12 +72,12 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | Check | Result |
 |---|---|
 | `npm run typecheck --workspaces` | clean |
-| `npm test --workspaces` | 216 pass, 0 fail |
+| `npm test --workspaces` | 227 pass, 0 fail |
 
 Verified against the live account: 842 files, 11.9 GB scanned, categories summing exactly to the
 provider's own usage figure once the trash allowance is included.
 | `npm run build --workspaces` | clean |
-| `npx playwright test` (headed) | 78 pass, 0 fail across desktop, tablet and mobile |
+| `npx playwright test` (headed) | 90 pass, 0 fail across desktop, tablet and mobile |
 
 ## Designed but not built
 
@@ -177,6 +177,33 @@ provider's own usage figure once the trash allowance is included.
   linked: a remote URL would report every page load back to the provider and would break the
   moment the account was disconnected.
 - Scrollbars follow the theme tokens in both engines, rather than being drawn by the OS.
+
+### Landing, dashboard, and the account menu
+- The root is now the one address that differs by who is asking: a visitor gets the pitch, a
+  signed-in user gets their own storage.
+- Appearance moved out of the header, where eight loose controls made the top of every page
+  about settings, and into a menu behind the avatar.
+- Signing out lands on the landing page rather than the sign-in form.
+
+### Uploads
+- Upload files, upload a folder, or drag either onto the page. A dropped folder is walked
+  through the FileSystem entry API — `dataTransfer.files` alone yields nothing for a directory,
+  so without it dropping a folder silently uploaded nothing.
+- Files go up one at a time. A browser will open six connections happily, but providers
+  rate-limit per account, and six uploads each crawling is worse than one finishing.
+- Chunks are sent as raw bytes: the JSON body parser is skipped for that one route, which would
+  otherwise both fail on the body and buffer it twice.
+- Missing folders in a dropped tree are created shortest-path-first, so a parent always exists
+  before its children.
+- **Verified against the live account:** a 12,900-byte file uploaded, read back through Orbit
+  byte-identical, then moved to Drive's trash.
+
+### Search, filter, and dialogs
+- Search, category filter and sort over the loaded folder. Searching a whole account needs the
+  metadata mirror, so the field says "in this folder" rather than implying more than it does.
+- `window.prompt` and `window.confirm` are gone. Both are drawn by the browser, ignore the theme
+  entirely, and on some platforms are suppressed outright — a feature built on them can silently
+  stop working.
 
 ## Next up — Phase 3 (remaining adapters)
 

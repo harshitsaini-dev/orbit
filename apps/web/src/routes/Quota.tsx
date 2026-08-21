@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { CatalogueEntry, PublicAccount } from '@orbit/shared-types';
 import { ProviderIcon } from '../components/ProviderIcon.js';
+import { ConfirmDialog } from '../components/NameDialog.js';
 import { StorageBar } from '../components/StorageBar.js';
 import { api, ApiError } from '../lib/api.js';
 
@@ -13,6 +14,7 @@ export function Quota() {
   const [connectable, setConnectable] = useState<CatalogueEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [disconnecting, setDisconnecting] = useState<PublicAccount | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -41,12 +43,10 @@ export function Quota() {
   }
 
   async function disconnect(account: PublicAccount) {
-    if (!window.confirm(`Disconnect ${account.nickname}? Files in the account are not touched.`)) {
-      return;
-    }
     setBusyId(account.id);
     try {
       await api(`/api/accounts/${account.id}`, { method: 'DELETE' });
+      setDisconnecting(null);
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not disconnect');
@@ -144,7 +144,7 @@ export function Quota() {
                       className="clay-button"
                       style={{ padding: '0.35rem 0.9rem', fontSize: 13, color: 'var(--danger)' }}
                       disabled={busyId === account.id}
-                      onClick={() => void disconnect(account)}
+                      onClick={() => setDisconnecting(account)}
                     >
                       Disconnect
                     </button>
@@ -197,6 +197,18 @@ export function Quota() {
           More providers arrive in Phase 3. See Home for the full list.
         </p>
       </section>
+
+      {disconnecting && (
+        <ConfirmDialog
+          title={`Disconnect ${disconnecting.nickname}?`}
+          description="Orbit forgets its stored token. Nothing in the account itself is touched, and it can be reconnected at any time."
+          confirmLabel="Disconnect"
+          destructive
+          busy={busyId === disconnecting.id}
+          onConfirm={() => void disconnect(disconnecting)}
+          onClose={() => setDisconnecting(null)}
+        />
+      )}
     </div>
   );
 }

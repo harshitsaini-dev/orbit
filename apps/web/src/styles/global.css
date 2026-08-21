@@ -246,3 +246,15 @@ body {
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* A whole card that is a link needs to say so on hover. */
+.account-card {
+  transition:
+    transform var(--dur-fast) var(--ease-clay),
+    box-shadow var(--dur-base) var(--ease-clay);
+}
+
+.account-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-clay-inset), var(--glow-accent);
+}

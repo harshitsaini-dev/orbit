@@ -49,3 +49,9 @@ export async function signIn(page: Page, email = uniqueEmail('user')): Promise<s
 
   return email;
 }
+
+/** Appearance controls live behind the avatar now, so a test has to open it. */
+export async function openAccountMenu(page: Page) {
+  await page.getByRole('button', { name: /account menu|Your account/i }).first().click();
+  return page.getByRole('menu', { name: 'Account' });
+}

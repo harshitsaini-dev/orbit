@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { lastCode, uniqueEmail } from './helpers.js';
+import { lastCode, openAccountMenu, uniqueEmail } from './helpers.js';
 
 test.describe('email OTP sign-in', () => {
   test('signs in with a valid code and stays signed in across a reload', async ({ page }) => {
@@ -55,10 +55,14 @@ test.describe('email OTP sign-in', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page.getByTestId('current-user')).toHaveText(email);
 
-    await page.getByRole('button', { name: 'Sign out' }).click();
-    await expect(page).toHaveURL(/\/login$/);
+    const menu = await openAccountMenu(page);
+    await menu.getByRole('menuitem', { name: 'Sign out' }).click();
 
-    // The protected route must not be reachable again without signing in.
+    // Signing out lands on the public landing page, not the sign-in form.
+    await expect(page.getByRole('heading', { name: /one workspace for every cloud/i })).toBeVisible();
+    await expect(page.getByTestId('current-user')).toHaveCount(0);
+
+    // And the protected routes are closed again.
     await page.goto('/my-drive');
     await expect(page).toHaveURL(/\/login$/);
   });

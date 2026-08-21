@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import type { OrbitFile, ProviderCapabilities, PublicAccount } from '@orbit/shared-types';
+import type { FileCategory, OrbitFile, ProviderCapabilities, PublicAccount } from '@orbit/shared-types';
+import { CATEGORY_LABELS, categorise } from '@orbit/shared-types';
 import { DownloadIcon, RenameIcon, StarIcon } from '../components/ActionIcon.js';
 import { FileIcon } from '../components/FileIcon.js';
 import { FilePreview } from '../components/FilePreview.js';
+import { ConfirmDialog, NameDialog } from '../components/NameDialog.js';
+import { UploadPanel, forgetFiles, registerFile } from '../components/UploadPanel.js';
+import { filesFromDataTransfer, type UploadItem } from '../lib/upload.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { api, ApiError } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
@@ -52,6 +56,24 @@ export function MyDrive() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [previewing, setPreviewing] = useState<OrbitFile | null>(null);
+
+  // Dialogs replace window.prompt and window.confirm, which the browser draws
+  // itself, ignore the theme, and on some platforms suppress outright.
+  const [dialog, setDialog] = useState<
+    | { kind: 'new-folder' }
+    | { kind: 'rename'; file: OrbitFile }
+    | { kind: 'delete'; files: OrbitFile[] }
+    | null
+  >(null);
+
+  const [uploads, setUploads] = useState<UploadItem[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState<FileCategory | 'all' | 'folder'>('all');
+  const [sort, setSort] = useState<'name' | 'size' | 'modified'>('name');
 
   const accountId = params.get('account') ?? '';
   const path = params.get('path') ?? '/';
@@ -116,13 +138,11 @@ export function MyDrive() {
     return `${API_BASE}/api/files/${encodeURIComponent(file.remoteId)}/content?${query.toString()}`;
   }
 
-  async function createFolder() {
-    const name = window.prompt('New folder name');
-    if (!name?.trim()) return;
-
+  async function createFolder(name: string) {
     setBusyId('new-folder');
     try {
-      await api('/api/files/folder', { method: 'POST', body: { accountId, path, name: name.trim() } });
+      await api('/api/files/folder', { method: 'POST', body: { accountId, path, name } });
+      setDialog(null);
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not create the folder');
@@ -131,16 +151,14 @@ export function MyDrive() {
     }
   }
 
-  async function rename(file: OrbitFile) {
-    const name = window.prompt('New name', file.name);
-    if (!name?.trim() || name === file.name) return;
-
+  async function rename(file: OrbitFile, name: string) {
     setBusyId(file.remoteId);
     try {
       await api(`/api/files/${encodeURIComponent(file.remoteId)}`, {
         method: 'PATCH',
-        body: { accountId, name: name.trim() },
+        body: { accountId, name },
       });
+      setDialog(null);
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not rename');
@@ -165,9 +183,6 @@ export function MyDrive() {
   }
 
   async function remove(files: OrbitFile[]) {
-    const what = files.length === 1 ? `"${files[0]!.name}"` : `${files.length} items`;
-    if (!window.confirm(`Move ${what} to the provider's trash?`)) return;
-
     setBusyId('delete');
     try {
       const result = await api<{ succeeded: string[]; failed: Array<{ remoteId: string; reason: string }> }>(
@@ -177,12 +192,55 @@ export function MyDrive() {
       if (result.failed.length > 0) {
         setError(`${result.failed.length} of ${files.length} could not be deleted.`);
       }
+      setDialog(null);
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not delete');
     } finally {
       setBusyId(null);
     }
+  }
+
+  /** Queues files; the panel picks them up and uploads them one at a time. */
+  function enqueue(entries: Array<{ file: File; relativePath: string }>): void {
+    if (entries.length === 0) return;
+
+    const queued: UploadItem[] = entries.map(({ file, relativePath }) => {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      registerFile(id, file);
+      return {
+        id,
+        relativePath,
+        name: file.name,
+        sizeBytes: file.size,
+        uploadedBytes: 0,
+        state: 'queued',
+      };
+    });
+
+    setUploads((current) => [...current, ...queued]);
+  }
+
+  function fromInput(list: FileList | null): void {
+    if (!list) return;
+    enqueue(
+      Array.from(list).map((file) => ({
+        file,
+        // A folder picker sets webkitRelativePath; a file picker does not.
+        relativePath: (file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name,
+      })),
+    );
+  }
+
+  async function onDrop(event: React.DragEvent) {
+    event.preventDefault();
+    setDragging(false);
+
+    // Walking the entries is what makes a dropped *folder* work; dataTransfer
+    // .files alone silently yields nothing for one.
+    const entries = await filesFromDataTransfer(event.dataTransfer.items);
+    if (entries.length > 0) enqueue(entries);
+    else fromInput(event.dataTransfer.files);
   }
 
   function toggleSelected(remoteId: string): void {
@@ -193,6 +251,43 @@ export function MyDrive() {
       return next;
     });
   }
+
+  /**
+   * Search, filter and sort all act on the folder that is loaded. Searching
+   * across every account needs the metadata mirror, which arrives in Phase 6 -
+   * so the field says "in this folder" rather than implying more than it does.
+   */
+  const visible = useMemo(() => {
+    let files = listing?.files ?? [];
+
+    const needle = query.trim().toLowerCase();
+    if (needle) files = files.filter((file) => file.name.toLowerCase().includes(needle));
+
+    if (category === 'folder') files = files.filter((file) => file.isFolder);
+    else if (category !== 'all') {
+      files = files.filter((file) => !file.isFolder && categorise(file.mimeType, file.name) === category);
+    }
+
+    return [...files].sort((a, b) => {
+      // Folders stay above files whatever the sort, the way a file manager does.
+      if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
+      if (sort === 'size') return b.sizeBytes - a.sizeBytes;
+      if (sort === 'modified') return Date.parse(b.modifiedAt) - Date.parse(a.modifiedAt);
+      return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+    });
+  }, [listing, query, category, sort]);
+
+  /** Only offer a filter that would actually match something here. */
+  const availableCategories = useMemo(() => {
+    const present = new Set<FileCategory>();
+    for (const file of listing?.files ?? []) {
+      if (!file.isFolder) present.add(categorise(file.mimeType, file.name));
+    }
+    return [...present].sort();
+  }, [listing]);
+
+  const hasFolders = (listing?.files ?? []).some((file) => file.isFolder);
+  const filtering = query.trim() !== '' || category !== 'all';
 
   const selectedFiles = (listing?.files ?? []).filter((file) => selected.has(file.remoteId));
 
@@ -208,7 +303,39 @@ export function MyDrive() {
   }
 
   return (
-    <div style={{ display: 'grid', gap: '1rem' }}>
+    <div
+      style={{ display: 'grid', gap: '1rem', position: 'relative' }}
+      onDragOver={(event) => {
+        event.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={(event) => {
+        // Only when the pointer actually leaves the region, not on every child.
+        if (!event.currentTarget.contains(event.relatedTarget as Node)) setDragging(false);
+      }}
+      onDrop={(event) => void onDrop(event)}
+    >
+      {dragging && (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 20,
+            borderRadius: 'var(--radius-lg)',
+            border: '2px dashed var(--accent)',
+            background: 'var(--accent-soft)',
+            display: 'grid',
+            placeItems: 'center',
+            fontWeight: 600,
+            color: 'var(--accent)',
+            pointerEvents: 'none',
+          }}
+        >
+          Drop to upload here
+        </div>
+      )}
+
       <section className="clay" style={{ padding: 'clamp(1rem, 3vw, 1.5rem)', display: 'grid', gap: '0.9rem' }}>
         {accounts && accounts.length > 1 && (
           <div className="scroll-x" style={{ display: 'flex', gap: 8, paddingBottom: 4 }}>
@@ -287,13 +414,54 @@ export function MyDrive() {
           )}
           <button
             type="button"
+            className="clay-button clay-button--accent"
+            style={{ padding: '0.4rem 1rem', fontSize: 13 }}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Upload files
+          </button>
+          <button
+            type="button"
+            className="clay-button"
+            style={{ padding: '0.4rem 1rem', fontSize: 13 }}
+            onClick={() => folderInputRef.current?.click()}
+          >
+            Upload folder
+          </button>
+          <button
+            type="button"
             className="clay-button"
             style={{ padding: '0.4rem 1rem', fontSize: 13 }}
             disabled={busyId !== null}
-            onClick={() => void createFolder()}
+            onClick={() => setDialog({ kind: 'new-folder' })}
           >
             New folder
           </button>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            aria-label="Upload files"
+            style={{ display: 'none' }}
+            onChange={(event) => {
+              fromInput(event.target.files);
+              event.target.value = '';
+            }}
+          />
+          <input
+            ref={folderInputRef}
+            type="file"
+            multiple
+            // Not a standard attribute, so React needs it spelled this way.
+            {...{ webkitdirectory: '', directory: '' }}
+            aria-label="Upload folder"
+            style={{ display: 'none' }}
+            onChange={(event) => {
+              fromInput(event.target.files);
+              event.target.value = '';
+            }}
+          />
           <button
             type="button"
             className="clay-button"
@@ -310,12 +478,80 @@ export function MyDrive() {
               className="clay-button"
               style={{ padding: '0.4rem 1rem', fontSize: 13, color: 'var(--danger)' }}
               disabled={busyId !== null}
-              onClick={() => void remove(selectedFiles)}
+              onClick={() => setDialog({ kind: 'delete', files: selectedFiles })}
             >
               Delete {selectedFiles.length}
             </button>
           )}
         </div>
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search in this folder"
+            aria-label="Search in this folder"
+            className="clay-sunken"
+            style={{
+              flex: '1 1 200px',
+              minWidth: 0,
+              border: 0,
+              padding: '0.55rem 0.9rem',
+              font: 'inherit',
+              fontSize: 14,
+              color: 'var(--text)',
+              borderRadius: 'var(--radius-pill)',
+            }}
+          />
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
+            <span style={{ color: 'var(--text-muted)' }}>Sort</span>
+            <select
+              value={sort}
+              onChange={(event) => setSort(event.target.value as typeof sort)}
+              aria-label="Sort by"
+              className="clay-sunken"
+              style={{
+                border: 0,
+                padding: '0.45rem 0.7rem',
+                font: 'inherit',
+                fontSize: 13,
+                color: 'var(--text)',
+                borderRadius: 'var(--radius-sm)',
+              }}
+            >
+              <option value="name">Name</option>
+              <option value="size">Size</option>
+              <option value="modified">Modified</option>
+            </select>
+          </label>
+        </div>
+
+        {(availableCategories.length > 1 || hasFolders) && (
+          <div className="scroll-x" style={{ display: 'flex', gap: 6, paddingBottom: 2 }}>
+            {(['all', ...(hasFolders ? (['folder'] as const) : []), ...availableCategories] as const).map(
+              (option) => (
+                <button
+                  key={option}
+                  type="button"
+                  className="clay-button"
+                  aria-pressed={category === option}
+                  onClick={() => setCategory(option)}
+                  style={{
+                    padding: '0.3rem 0.85rem',
+                    fontSize: 12,
+                    whiteSpace: 'nowrap',
+                    boxShadow: category === option ? 'var(--shadow-clay-inset)' : 'var(--shadow-clay)',
+                    color: category === option ? 'var(--accent)' : undefined,
+                  }}
+                >
+                  {option === 'all' ? 'All' : option === 'folder' ? 'Folders' : CATEGORY_LABELS[option]}
+                </button>
+              ),
+            )}
+          </div>
+        )}
 
         {error && (
           <p role="alert" style={{ color: 'var(--danger)', margin: 0, fontSize: 14 }}>
@@ -327,13 +563,30 @@ export function MyDrive() {
       <section className="clay" style={{ padding: 'clamp(0.75rem, 2vw, 1.25rem)' }}>
         {loading && !listing && <p style={{ color: 'var(--text-muted)' }}>Loading…</p>}
 
-        {listing?.files.length === 0 && (
+        {listing && listing.files.length === 0 && (
           <p style={{ color: 'var(--text-muted)', padding: '1rem' }}>This folder is empty.</p>
         )}
 
-        {listing && listing.files.length > 0 && (
+        {listing && listing.files.length > 0 && visible.length === 0 && (
+          <div style={{ padding: '1rem', display: 'grid', gap: 8, justifyItems: 'start' }}>
+            <p style={{ color: 'var(--text-muted)', margin: 0 }}>Nothing here matches that.</p>
+            <button
+              type="button"
+              className="clay-button"
+              style={{ padding: '0.35rem 0.9rem', fontSize: 13 }}
+              onClick={() => {
+                setQuery('');
+                setCategory('all');
+              }}
+            >
+              Clear filters
+            </button>
+          </div>
+        )}
+
+        {visible.length > 0 && (
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 4 }} data-testid="file-list">
-            {listing.files.map((file) => (
+            {visible.map((file) => (
               <li
                 key={file.remoteId}
                 style={{
@@ -466,7 +719,7 @@ export function MyDrive() {
                     title="Rename"
                     aria-label={`Rename ${file.name}`}
                     disabled={busyId !== null}
-                    onClick={() => void rename(file)}
+                    onClick={() => setDialog({ kind: 'rename', file })}
                     style={{ padding: '0.35rem', display: 'grid', placeItems: 'center', color: 'var(--text-muted)' }}
                   >
                     <RenameIcon />
@@ -479,16 +732,68 @@ export function MyDrive() {
 
         {listing?.nextCursor && (
           <p style={{ color: 'var(--text-muted)', fontSize: 13, padding: '0.75rem' }}>
-            Showing the first {listing.files.length} items. Paging arrives with the sync engine in
-            Phase 6.
+            {filtering
+              ? `Filtering the first ${listing.files.length} loaded items. Searching a whole account arrives with the sync engine in Phase 6.`
+              : `Showing the first ${listing.files.length} items. Paging arrives with the sync engine in Phase 6.`}
           </p>
         )}
       </section>
 
+      {uploads.length > 0 && (
+        <UploadPanel
+          accountId={accountId}
+          path={path}
+          items={uploads}
+          setItems={setUploads}
+          onComplete={() => {
+            forgetFiles(uploads.map((item) => item.id));
+            void load();
+          }}
+        />
+      )}
+
+      {dialog?.kind === 'new-folder' && (
+        <NameDialog
+          title="New folder"
+          description={path === '/' ? 'Created in the root of this drive.' : `Created in ${path}.`}
+          confirmLabel="Create"
+          busy={busyId === 'new-folder'}
+          onSubmit={(name) => void createFolder(name)}
+          onClose={() => setDialog(null)}
+        />
+      )}
+
+      {dialog?.kind === 'rename' && (
+        <NameDialog
+          title="Rename"
+          initialValue={dialog.file.name}
+          confirmLabel="Rename"
+          busy={busyId === dialog.file.remoteId}
+          onSubmit={(name) => void rename(dialog.file, name)}
+          onClose={() => setDialog(null)}
+        />
+      )}
+
+      {dialog?.kind === 'delete' && (
+        <ConfirmDialog
+          title={
+            dialog.files.length === 1
+              ? `Delete ${dialog.files[0]!.name}?`
+              : `Delete ${dialog.files.length} items?`
+          }
+          description="They move to the provider's own trash, where they can still be recovered."
+          confirmLabel="Move to trash"
+          destructive
+          busy={busyId === 'delete'}
+          onConfirm={() => void remove(dialog.files)}
+          onClose={() => setDialog(null)}
+        />
+      )}
+
       {previewing && (
         <FilePreview
           file={previewing}
-          siblings={listing?.files ?? []}
+          siblings={visible}
           contentUrl={contentUrl}
           onSelect={setPreviewing}
           onClose={() => setPreviewing(null)}

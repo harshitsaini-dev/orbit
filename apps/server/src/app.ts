@@ -9,6 +9,7 @@ import { accountsRouter } from './routes/accounts.js';
 import { authRouter } from './routes/auth.js';
 import { filesRouter } from './routes/files.js';
 import { profileRouter } from './routes/profile.js';
+import { uploadsRouter } from './routes/uploads.js';
 import { healthRouter } from './routes/health.js';
 
 export function createApp(): Express {
@@ -17,7 +18,13 @@ export function createApp(): Express {
   app.set('trust proxy', 1);
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(cors({ origin: env.APP_URL, credentials: true }));
-  app.use(express.json({ limit: '1mb' }));
+  // Skips the upload chunk route: that body is raw file bytes, and a JSON
+  // parser would both fail on it and buffer it twice.
+  app.use((req, res, next) =>
+    /^\/api\/uploads\/[^/]+\/chunk$/.test(req.path)
+      ? next()
+      : express.json({ limit: '1mb' })(req, res, next),
+  );
   app.use(cookieParser());
 
   // Auth routes are the enumeration/brute-force surface; limit them harder than the rest.
@@ -47,6 +54,7 @@ export function createApp(): Express {
   app.use(accountsRouter);
   app.use(filesRouter);
   app.use(profileRouter);
+  app.use(uploadsRouter);
 
   app.use((_req, res) => {
     res.status(404).json({ error: { code: 'not_found', message: 'Route not found' } });

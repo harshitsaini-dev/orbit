@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import type { CatalogueEntry, UnavailableProvider } from '@orbit/shared-types';
 import { OrbitHero } from '../components/OrbitHero.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
+import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
+import { useAuth } from '../lib/auth.js';
 
 interface CatalogueResponse {
   entries: CatalogueEntry[];
@@ -50,7 +52,13 @@ const GROUP_HEADING: React.CSSProperties = {
   color: 'var(--text-muted)',
 };
 
-export function Home() {
+/**
+ * The public face of Orbit, shown to anyone not signed in. Signed-in users get
+ * the dashboard at the same address instead - this page is about explaining
+ * what Orbit is, which is not what someone with three connected drives needs.
+ */
+export function Landing() {
+  const { mode } = useAuth();
   const [catalogue, setCatalogue] = useState<CatalogueResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -67,7 +75,23 @@ export function Home() {
   const byKey = new Map((catalogue?.entries ?? []).map((entry) => [entry.key, entry]));
 
   return (
-    <div style={{ display: 'grid', gap: '1.5rem' }}>
+    <div
+      style={{
+        display: 'grid',
+        gap: '1.5rem',
+        maxWidth: 1000,
+        margin: '0 auto',
+        padding: 'clamp(1rem, 4vw, 3rem) clamp(0.75rem, 4vw, 2rem)',
+      }}
+    >
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <strong style={{ fontSize: 20, letterSpacing: '-0.03em' }}>Orbit</strong>
+        {mode === 'hosted' && (
+          <Link to="/login" className="clay-button" style={{ padding: '0.4rem 1.1rem', fontSize: 14, textDecoration: 'none' }}>
+            Sign in
+          </Link>
+        )}
+      </header>
       <section className="clay" style={{ padding: 'clamp(1.5rem, 4vw, 2.5rem)', overflow: 'hidden' }}>
         <div style={{ height: 'clamp(220px, 30vw, 340px)', margin: '-1rem -1rem 0' }}>
           <OrbitHero />
@@ -79,9 +103,23 @@ export function Home() {
           Browse, upload and share across every connected account — without your files ever leaving
           them.
         </p>
-        <button type="button" className="clay-button clay-button--accent" style={{ marginTop: '1rem' }}>
-          Connect an account
-        </button>
+        {mode === 'hosted' ? (
+          <Link
+            to="/login"
+            className="clay-button clay-button--accent"
+            style={{ marginTop: '1rem', display: 'inline-block', textDecoration: 'none' }}
+          >
+            Sign in to get started
+          </Link>
+        ) : (
+          <Link
+            to="/quota"
+            className="clay-button clay-button--accent"
+            style={{ marginTop: '1rem', display: 'inline-block', textDecoration: 'none' }}
+          >
+            Connect an account
+          </Link>
+        )}
       </section>
 
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
