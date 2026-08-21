@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import type { PublicAccount } from '@orbit/shared-types';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { AccountCardsSkeleton, Skeleton } from '../components/Skeleton.js';
-import { api } from '../lib/api.js';
+import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
+import { ApiError, api } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
 import { formatBytes } from '../lib/format.js';
 
@@ -18,17 +19,31 @@ function greeting(hour = new Date().getHours()): string {
 export function Dashboard() {
   const { user } = useAuth();
   const [accounts, setAccounts] = useState<PublicAccount[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
+    setError(null);
     api<{ accounts: PublicAccount[] }>('/api/accounts', { signal: controller.signal })
       .then(({ accounts: rows }) => setAccounts(rows))
       .catch((err: Error) => {
-        if (err.name !== 'AbortError') setError('Could not load your accounts');
+        if (err.name !== 'AbortError') setError(err);
       });
     return () => controller.abort();
-  }, []);
+  }, [attempt]);
+
+  // The dashboard is the account list; without it there is nothing to show, so
+  // a failed load gets the screen that explains it rather than a red line under
+  // an empty page.
+  if (error && accounts === null) {
+    return (
+      <StatusScreen
+        kind={error instanceof ApiError ? statusKindFor(error.status) : 'server-error'}
+        onRetry={() => setAttempt((n) => n + 1)}
+      />
+    );
+  }
 
   const totalUsed = (accounts ?? []).reduce((sum, account) => sum + account.usedBytes, 0);
   // Only accounts that report an allowance can contribute to a total.
@@ -62,7 +77,6 @@ export function Dashboard() {
                 }.`}
         </p>
 
-        {error && <p role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
 
         {accounts !== null && accounts.length > 0 && totalQuota > 0 && (
           <div

@@ -6,6 +6,7 @@ import { FileIcon } from '../components/FileIcon.js';
 import { FilePreview } from '../components/FilePreview.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { FileListSkeleton } from '../components/Skeleton.js';
+import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { api, ApiError } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
 
@@ -55,7 +56,10 @@ function formatDate(iso: string): string {
 export function WorkspaceViewPage({ view }: { view: ViewName }) {
   const [data, setData] = useState<ViewResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  // A failed load leaves nothing to show, so it gets the full screen; a failed
+  // star or rename leaves the list intact and stays inline.
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<Error | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<WorkspaceFile | null>(null);
 
@@ -64,11 +68,12 @@ export function WorkspaceViewPage({ view }: { view: ViewName }) {
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setLoadError(null);
     try {
       setData(await api<ViewResponse>(`/api/views/${view}`));
     } catch (err) {
       setData(null);
-      setError(err instanceof ApiError ? err.message : 'Could not load this view');
+      setLoadError(err instanceof Error ? err : new Error('Could not load this view'));
     } finally {
       setLoading(false);
     }
@@ -107,6 +112,15 @@ export function WorkspaceViewPage({ view }: { view: ViewName }) {
   const files = data?.files ?? [];
   // Only worth naming the source when more than one account contributed.
   const multipleAccounts = new Set(files.map((file) => file.accountId)).size > 1;
+
+  if (loadError && !loading) {
+    return (
+      <StatusScreen
+        kind={loadError instanceof ApiError ? statusKindFor(loadError.status) : 'server-error'}
+        onRetry={() => void load()}
+      />
+    );
+  }
 
   return (
     <div style={{ display: 'grid', gap: '1rem' }}>

@@ -22,13 +22,27 @@ interface Options {
  * branch on `code` rather than parsing messages.
  */
 export async function api<T>(path: string, options: Options = {}): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    method: options.method ?? 'GET',
-    credentials: 'include',
-    signal: options.signal,
-    headers: options.body === undefined ? undefined : { 'content-type': 'application/json' },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
+  let res: Response;
+
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method: options.method ?? 'GET',
+      credentials: 'include',
+      signal: options.signal,
+      headers: options.body === undefined ? undefined : { 'content-type': 'application/json' },
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    });
+  } catch (err) {
+    // An aborted request is the caller's own doing and must stay distinguishable
+    // from a failure, or every navigation would look like the network broke.
+    if (err instanceof Error && err.name === 'AbortError') throw err;
+
+    // fetch rejects with a bare TypeError when the request never reached the
+    // server at all - no network, DNS failure, the API not running. Status 0
+    // carries that through as something callers can branch on, the same way
+    // they branch on any other status.
+    throw new ApiError(0, 'network_error', 'Could not reach Orbit');
+  }
 
   if (res.status === 204) return undefined as T;
 

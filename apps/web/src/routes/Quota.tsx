@@ -4,6 +4,7 @@ import type { CatalogueEntry, PublicAccount } from '@orbit/shared-types';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { ConfirmDialog } from '../components/NameDialog.js';
 import { AccountCardsSkeleton } from '../components/Skeleton.js';
+import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { StorageBar } from '../components/StorageBar.js';
 import { api, ApiError } from '../lib/api.js';
 
@@ -13,7 +14,11 @@ export function Quota() {
   const [params, setParams] = useSearchParams();
   const [accounts, setAccounts] = useState<PublicAccount[] | null>(null);
   const [connectable, setConnectable] = useState<CatalogueEntry[]>([]);
+  // Kept apart on purpose: failing to load the page and failing to disconnect
+  // one account are different sizes of problem, and turning the second into a
+  // full-page screen would throw away everything the user could still see.
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<Error | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState<PublicAccount | null>(null);
 
@@ -25,14 +30,24 @@ export function Quota() {
       ]);
       setAccounts(rows);
       setConnectable(entries);
+      setLoadError(null);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not load accounts');
+      setLoadError(err instanceof Error ? err : new Error('Could not load accounts'));
     }
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  if (loadError && accounts === null) {
+    return (
+      <StatusScreen
+        kind={loadError instanceof ApiError ? statusKindFor(loadError.status) : 'server-error'}
+        onRetry={() => void load()}
+      />
+    );
+  }
 
   const connectOutcome = params.get('connect');
   const connectReason = params.get('reason');

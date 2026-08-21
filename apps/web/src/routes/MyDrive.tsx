@@ -19,6 +19,7 @@ import { ConfirmDialog, NameDialog } from '../components/NameDialog.js';
 import { Pagination } from '../components/Pagination.js';
 import { Select } from '../components/Select.js';
 import { FileGridSkeleton, FileListSkeleton } from '../components/Skeleton.js';
+import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { UploadPanel, forgetFiles, registerFile } from '../components/UploadPanel.js';
 import {
   EMPTY_FILTERS,
@@ -102,6 +103,11 @@ export function MyDrive() {
   const [listing, setListing] = useState<Listing | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The listing failure specifically, kept as the error object so the file area
+  // can show the screen that explains it. Everything else here is inline: the
+  // breadcrumbs, the account switcher and the toolbar all stay useful when one
+  // folder will not open, and replacing the page would take them away.
+  const [listError, setListError] = useState<Error | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [previewing, setPreviewing] = useState<OrbitFile | null>(null);
@@ -156,6 +162,7 @@ export function MyDrive() {
 
     setLoading(true);
     setError(null);
+    setListError(null);
     try {
       const result = await api<Listing>(
         `/api/files?accountId=${encodeURIComponent(accountId)}&path=${encodeURIComponent(path)}`,
@@ -163,13 +170,13 @@ export function MyDrive() {
       setListing(result);
     } catch (err) {
       setListing(null);
-      setError(
-        err instanceof ApiError
-          ? err.code === 'needs_reauth'
-            ? 'This account needs reconnecting. Open Quota to reconnect it.'
-            : err.message
-          : 'Could not list this folder',
-      );
+      // A revoked grant has a specific remedy, so it keeps its specific message
+      // instead of becoming a generic screen.
+      if (err instanceof ApiError && err.code === 'needs_reauth') {
+        setError('This account needs reconnecting. Open Quota to reconnect it.');
+      } else {
+        setListError(err instanceof Error ? err : new Error('Could not list this folder'));
+      }
     } finally {
       setLoading(false);
     }
@@ -724,7 +731,14 @@ export function MyDrive() {
       </section>
 
       <section className="clay" style={{ padding: 'clamp(0.75rem, 2vw, 1.25rem)' }}>
-        {(loading && !listing) || (searching && !results) ? (
+        {listError && !loading && (
+          <StatusScreen
+            kind={listError instanceof ApiError ? statusKindFor(listError.status) : 'server-error'}
+            onRetry={() => void load()}
+          />
+        )}
+
+        {!listError && ((loading && !listing) || (searching && !results)) ? (
           viewMode === 'grid' ? <FileGridSkeleton /> : <FileListSkeleton />
         ) : null}
 

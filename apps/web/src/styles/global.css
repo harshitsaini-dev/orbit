@@ -944,3 +944,74 @@ body {
     height: clamp(180px, 42vw, 240px);
   }
 }
+
+/* --- status screens: offline, not found, server error, access denied ----- */
+
+.status-screen {
+  display: grid;
+  justify-items: center;
+  gap: 0.85rem;
+  padding: clamp(2rem, 6vw, 3.25rem) clamp(1.25rem, 5vw, 2.5rem);
+  text-align: center;
+}
+
+.status-screen__brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 0.35rem;
+  font-size: 18px;
+  letter-spacing: -0.03em;
+}
+
+.status-screen__glyph {
+  display: grid;
+  place-items: center;
+  width: 78px;
+  height: 78px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: var(--shadow-clay-inset);
+}
+
+.status-screen__glyph--muted {
+  color: var(--text-muted);
+}
+
+.status-screen__glyph--danger {
+  color: var(--danger);
+}
+
+.status-screen h1 {
+  margin: 0;
+  font-size: clamp(1.35rem, 3.6vw, 1.8rem);
+  letter-spacing: -0.02em;
+}
+
+.status-screen p {
+  max-width: 46ch;
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.status-screen__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: center;
+  margin-top: 0.5rem;
+}
+
+.status-screen__actions .clay-button {
+  padding: 0.55rem 1.25rem;
+  font-size: 14px;
+  text-decoration: none;
+}
+
+/* Fills the window when there is no workspace shell to sit inside. */
+.status-shell {
+  display: grid;
+  min-height: 100dvh;
+  padding: clamp(1rem, 4vw, 2rem);
+}

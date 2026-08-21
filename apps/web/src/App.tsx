@@ -13,7 +13,9 @@ import {
   SharedIcon,
   StarOutlineIcon,
 } from './components/Icons.js';
+import { StatusScreen } from './components/StatusScreen.js';
 import { useAuth } from './lib/auth.js';
+import { useOnline } from './lib/online.js';
 import { useTheme } from './lib/theme.js';
 import { Account } from './routes/Account.js';
 import { Dashboard } from './routes/Dashboard.js';
@@ -69,7 +71,7 @@ function RequireSuperadmin({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
   if (loading) return null;
   // Mirrors the API, which 404s rather than 403s so /admin is not confirmed to exist.
-  if (user?.role !== 'superadmin') return <Placeholder title="Not found" phase="-" />;
+  if (user?.role !== 'superadmin') return <StatusScreen kind="not-found" />;
   return <>{children}</>;
 }
 
@@ -125,7 +127,7 @@ function Workspace() {
                 </RequireSuperadmin>
               }
             />
-            <Route path="*" element={<Placeholder title="Not found" phase="-" />} />
+            <Route path="*" element={<StatusScreen kind="not-found" />} />
           </Routes>
         </main>
       </div>
@@ -135,6 +137,18 @@ function Workspace() {
 
 export function App() {
   const { user, loading } = useAuth();
+  const online = useOnline();
+
+  // Nothing in Orbit works without a network - every byte is fetched from the
+  // provider on demand - so a broken page everywhere is worse than saying so
+  // once. The screen goes away by itself when the connection returns.
+  if (!online) {
+    return (
+      <div className="status-shell">
+        <StatusScreen kind="offline" standalone />
+      </div>
+    );
+  }
 
   // Waiting avoids a flash of the landing page for someone already signed in.
   if (loading) return null;
