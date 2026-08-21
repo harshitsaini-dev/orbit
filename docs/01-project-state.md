@@ -215,6 +215,15 @@ provider's own usage figure once the trash allowance is included.
   path resolved, scoping to its ancestor folder found it, and scoping to an unrelated folder
   returned nothing.
 
+### Whole folders, not first pages
+- A folder loads completely rather than stopping at its first page. The first page renders
+  immediately and the rest is fetched behind it, so a large folder is usable straight away
+  instead of being either truncated or blank until everything lands.
+- Capped at 5,000 items, and the count says plainly when that cap was reached rather than
+  presenting a truncated folder as the whole thing.
+- **Verified against the live account:** the root folder now shows all 510 items across three
+  provider pages, where it previously stopped at 200.
+
 ### Grid view, thumbnails and skeletons
 - A list/grid toggle, with real previews in grid: Drive renders its own, including a frame from
   a video and a first page for a document. They are fetched server-side and proxied, so the

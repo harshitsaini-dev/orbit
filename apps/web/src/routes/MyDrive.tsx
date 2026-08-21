@@ -25,6 +25,12 @@ import { formatBytes } from '../lib/format.js';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
+/**
+ * A ceiling on how much of one folder is pulled into the page. Well past any
+ * folder a person browses, and short of the point where the browser struggles.
+ */
+const MAX_FOLDER_ITEMS = 5000;
+
 interface WorkspaceSearchFile extends OrbitFile {
   accountId: string;
   provider: string;
@@ -100,6 +106,7 @@ export function MyDrive() {
   const [searching, setSearching] = useState(false);
   const [sort, setSort] = useState<'name' | 'size' | 'modified'>('name');
   const [viewMode, setViewMode] = useViewMode();
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const accountId = params.get('account') ?? '';
   const path = params.get('path') ?? '/';
@@ -152,6 +159,70 @@ export function MyDrive() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /**
+   * A folder is not its first page. The first page renders immediately and the
+   * rest is fetched behind it, so a large folder is usable straight away rather
+   * than either truncated at 200 items or blank until every page has landed.
+   *
+   * Capped, because a folder with a hundred thousand files would otherwise pull
+   * the lot into the page; the count below says when that happened.
+   */
+  useEffect(() => {
+    if (!listing?.nextCursor || !accountId) return;
+    if (listing.path !== path) return;
+
+    const controller = new AbortController();
+    let cancelled = false;
+
+    void (async () => {
+      setLoadingMore(true);
+      let cursor: string | undefined = listing.nextCursor;
+
+      try {
+        while (cursor && !cancelled) {
+          const next: Listing = await api<Listing>(
+            `/api/files?accountId=${encodeURIComponent(accountId)}&path=${encodeURIComponent(path)}&pageToken=${encodeURIComponent(cursor)}`,
+            { signal: controller.signal },
+          );
+
+          if (cancelled) return;
+
+          let reachedCap = false;
+
+          setListing((current) => {
+            // The folder changed under us; this page belongs to the old one.
+            if (!current || current.path !== path) return current;
+
+            const combined = [...current.files, ...next.files];
+            reachedCap = combined.length >= MAX_FOLDER_ITEMS;
+
+            return {
+              ...current,
+              files: reachedCap ? combined.slice(0, MAX_FOLDER_ITEMS) : combined,
+              nextCursor: reachedCap ? undefined : next.nextCursor,
+            };
+          });
+
+          cursor = reachedCap ? undefined : next.nextCursor;
+        }
+      } catch (err) {
+        // A failed continuation leaves what already loaded in place; the count
+        // still shows more exists.
+        if ((err as Error).name !== 'AbortError') {
+          setError('Could not load the rest of this folder.');
+        }
+      } finally {
+        if (!cancelled) setLoadingMore(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+    // Keyed on the cursor, so each completed page starts the next.
+  }, [accountId, path, listing?.nextCursor, listing?.path]);
 
   const capabilities = listing?.capabilities;
   const searchActive = hasCriteria(filters);
@@ -766,10 +837,13 @@ export function MyDrive() {
           </ul>
         )}
 
-        {!searchActive && listing?.nextCursor && (
-          <p style={{ color: 'var(--text-muted)', fontSize: 13, padding: '0.75rem' }}>
-            Showing the first {listing.files.length} items of this folder. Search reaches the whole
-            account, including subfolders.
+        {!searchActive && listing && listing.files.length > 0 && (
+          <p style={{ color: 'var(--text-muted)', fontSize: 13, padding: '0.75rem' }} aria-live="polite">
+            {loadingMore
+              ? `${listing.files.length} items so far, still loading…`
+              : listing.files.length >= MAX_FOLDER_ITEMS
+                ? `Showing ${MAX_FOLDER_ITEMS.toLocaleString()} items. This folder holds more than Orbit will load at once — use search to find something specific.`
+                : `${listing.files.length} ${listing.files.length === 1 ? 'item' : 'items'}`}
           </p>
         )}
       </section>
