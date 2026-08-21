@@ -28,6 +28,8 @@ export const accountsRouter: Router = Router();
  */
 const CONNECTABLE = [
   'google_drive',
+  'onedrive',
+  'dropbox',
   'aws_s3',
   'cloudflare_r2',
   'supabase_storage',

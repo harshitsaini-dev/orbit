@@ -149,7 +149,7 @@ describe('GET /api/accounts', () => {
 
     assert.ok(!raw.includes('encryptedTokens'), 'the ciphertext column must not be serialised');
     assert.ok(!raw.includes('accessToken'));
-    assert.ok(!raw.includes('"rt"'));
+    assert.ok(!raw.includes(REFRESH_TOKEN));
   });
 
   it('stores tokens encrypted, not in the clear', async () => {

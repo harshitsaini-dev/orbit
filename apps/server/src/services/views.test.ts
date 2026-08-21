@@ -11,18 +11,18 @@ const { useTestDatabase } = await import('../test-utils.js');
 const { getAdapter } = await import('@orbit/adapters');
 
 const drive = getAdapter('google_drive');
-const dropbox = getAdapter('dropbox');
+const onedrive = getAdapter('onedrive');
 
 const pristine = {
   drive: { listView: drive.listView.bind(drive), capabilities: { ...drive.capabilities } },
-  dropbox: { listView: dropbox.listView.bind(dropbox), capabilities: { ...dropbox.capabilities } },
+  onedrive: { listView: onedrive.listView.bind(onedrive), capabilities: { ...onedrive.capabilities } },
 };
 
 function restore(): void {
   (drive as unknown as Record<string, unknown>).listView = pristine.drive.listView;
   Object.assign(drive.capabilities, pristine.drive.capabilities);
-  (dropbox as unknown as Record<string, unknown>).listView = pristine.dropbox.listView;
-  Object.assign(dropbox.capabilities, pristine.dropbox.capabilities);
+  (onedrive as unknown as Record<string, unknown>).listView = pristine.onedrive.listView;
+  Object.assign(onedrive.capabilities, pristine.onedrive.capabilities);
 }
 
 function file(name: string, modifiedAt: string, extra: Record<string, unknown> = {}) {
@@ -39,14 +39,18 @@ function file(name: string, modifiedAt: string, extra: Record<string, unknown> =
   };
 }
 
-async function seed(provider: 'google_drive' | 'dropbox', nickname: string) {
+async function seed(provider: 'google_drive' | 'onedrive', nickname: string) {
   const user = await getLocalUser();
   const account = await createAccount({
     userId: user.id,
     provider,
     catalogueKey: provider,
     nickname,
-    tokens: { accessToken: 'at', refreshToken: 'rt', expiresAt: Date.now() + 3_600_000 },
+    tokens: {
+      accessToken: 'access-token-sentinel',
+      refreshToken: 'refresh-token-sentinel',
+      expiresAt: Date.now() + 3_600_000,
+    },
   });
   return { userId: user.id, accountId: account.id };
 }
@@ -63,18 +67,18 @@ describe('listWorkspaceView', () => {
     (drive as unknown as Record<string, unknown>).listView = async () => ({
       files: [file('drive-old.txt', '2026-01-01T00:00:00.000Z'), file('drive-new.txt', '2026-03-01T00:00:00.000Z')],
     });
-    (dropbox as unknown as Record<string, unknown>).listView = async () => ({
-      files: [file('dropbox-middle.txt', '2026-02-01T00:00:00.000Z')],
+    (onedrive as unknown as Record<string, unknown>).listView = async () => ({
+      files: [file('onedrive-middle.txt', '2026-02-01T00:00:00.000Z')],
     });
 
     const { userId } = await seed('google_drive', 'drive@example.com');
-    await seed('dropbox', 'dropbox@example.com');
+    await seed('onedrive', 'onedrive@example.com');
 
     const result = await listWorkspaceView(userId, 'recent');
 
     assert.deepEqual(
       result.files.map((f) => f.name),
-      ['drive-new.txt', 'dropbox-middle.txt', 'drive-old.txt'],
+      ['drive-new.txt', 'onedrive-middle.txt', 'drive-old.txt'],
       'newest first, regardless of which account it came from',
     );
   });
@@ -104,18 +108,18 @@ describe('listWorkspaceView', () => {
   it('reports an account it could not reach instead of quietly dropping it', async () => {
     // A partial result that looks complete is worse than no result.
     (drive as unknown as Record<string, unknown>).listView = async () => ({ files: [file('a.txt', '2026-01-01T00:00:00.000Z')] });
-    (dropbox as unknown as Record<string, unknown>).listView = async () => {
+    (onedrive as unknown as Record<string, unknown>).listView = async () => {
       throw new Error('needs_reauth');
     };
 
     const { userId } = await seed('google_drive', 'drive@example.com');
-    await seed('dropbox', 'dropbox@example.com');
+    await seed('onedrive', 'onedrive@example.com');
 
     const result = await listWorkspaceView(userId, 'recent');
 
     assert.equal(result.files.length, 1, 'the healthy account still contributes');
     assert.equal(result.problems.length, 1);
-    assert.equal(result.problems[0]!.nickname, 'dropbox@example.com');
+    assert.equal(result.problems[0]!.nickname, 'onedrive@example.com');
     assert.match(result.problems[0]!.reason, /reconnect/);
   });
 

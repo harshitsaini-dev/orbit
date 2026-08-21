@@ -31,6 +31,42 @@ export const OAUTH_PROVIDERS: Partial<Record<ProviderId, OAuthProviderConfig>> =
     clientIdEnv: 'GOOGLE_CLIENT_ID',
     clientSecretEnv: 'GOOGLE_CLIENT_SECRET',
   },
+  onedrive: {
+    // The "common" tenant accepts both personal Microsoft accounts and work
+    // ones; a tenant-specific endpoint would refuse half the people who try.
+    authorizeUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+    scopes: [
+      'Files.ReadWrite.All',
+      'User.Read',
+      // Without this Microsoft issues no refresh token and the connection dies
+      // in an hour, the same trap as Google's access_type=offline.
+      'offline_access',
+    ],
+    clientIdEnv: 'ONEDRIVE_CLIENT_ID',
+    clientSecretEnv: 'ONEDRIVE_CLIENT_SECRET',
+  },
+  dropbox: {
+    authorizeUrl: 'https://www.dropbox.com/oauth2/authorize',
+    // Dropbox scopes are per-endpoint rather than broad; these are exactly the
+    // ones the adapter calls, so the consent screen asks for nothing spare.
+    scopes: [
+      'files.metadata.read',
+      'files.content.read',
+      'files.content.write',
+      'sharing.read',
+      'account_info.read',
+    ],
+    extraParams: {
+      // Without these Dropbox issues a short-lived token and no refresh token,
+      // and the connection dies in four hours with no way to renew it.
+      token_access_type: 'offline',
+      // Ask again even if this app was authorised before, or a reconnect
+      // returns an access token only.
+      force_reapprove: 'false',
+    },
+    clientIdEnv: 'DROPBOX_CLIENT_ID',
+    clientSecretEnv: 'DROPBOX_CLIENT_SECRET',
+  },
 };
 
 export function isOAuthProvider(provider: string): provider is ProviderId {
