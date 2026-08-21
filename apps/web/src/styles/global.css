@@ -1224,6 +1224,7 @@ body {
 /* Players and viewers manage their own internal layout and want the whole area. */
 .preview-stage > .media-shell,
 .preview-stage > .code-view,
+.preview-stage > .office-view,
 .preview-stage > .pdf-shell {
   place-self: stretch;
 }
@@ -1782,4 +1783,377 @@ body {
 
 .upload-row__state[data-state='done'] {
   color: var(--success, var(--text-muted));
+}
+
+.upload-row__target {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.upload-row__provider {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.upload-row__path {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+/* --- office, archive and font viewers ------------------------------------ */
+
+.office-view {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-clay);
+  overflow: hidden;
+}
+
+.office-view--message {
+  grid-template-rows: minmax(0, 1fr);
+  place-items: center;
+  padding: 2rem;
+  text-align: center;
+}
+
+.office-view--message p {
+  margin: 0;
+  color: var(--text-muted);
+  max-width: 44ch;
+  line-height: 1.55;
+}
+
+.office-view__tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.office-view__tabs button {
+  padding: 0.32rem 0.75rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.office-view__tabs button[aria-selected='true'] {
+  color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: 600;
+}
+
+.office-view__tabs button:disabled {
+  color: var(--text);
+  cursor: default;
+}
+
+.office-view__scroll {
+  overflow: auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.office-view__note {
+  margin: 0;
+  padding: 0.5rem 0.8rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* Documents get a measure rather than the full width: a line of text running
+   the width of a monitor is not readable however correct it is. */
+.office-doc {
+  max-width: 78ch;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  line-height: 1.65;
+}
+
+.office-doc h1,
+.office-doc h2,
+.office-doc h3 {
+  margin: 1.4em 0 0.5em;
+  line-height: 1.25;
+}
+
+.office-doc h1:first-child {
+  margin-top: 0;
+}
+
+.office-doc p {
+  margin: 0 0 0.8em;
+}
+
+.office-doc__bullet {
+  position: relative;
+  padding-left: 1.4em;
+}
+
+.office-doc__bullet::before {
+  content: '•';
+  position: absolute;
+  left: 0.35em;
+  color: var(--accent);
+}
+
+.office-doc .csv-table {
+  margin: 1em 0;
+}
+
+.office-slides {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.office-slide {
+  padding: clamp(1rem, 3vw, 1.5rem);
+  border-radius: var(--radius-md);
+  display: grid;
+  gap: 0.5rem;
+}
+
+.office-slide__number {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.office-slide p {
+  margin: 0;
+  white-space: pre-line;
+  line-height: 1.5;
+}
+
+.office-slide__title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.office-slide__empty,
+.office-slide__notes {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.office-slide__notes {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.archive__list {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  display: grid;
+  gap: 2px;
+}
+
+.archive__list button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.archive__list button:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.archive__list button:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.archive__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.archive__size {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.archive__empty {
+  padding: 1rem;
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+
+.archive__opened {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.archive__image {
+  display: grid;
+  place-items: center;
+  padding: 12px;
+}
+
+.archive__image img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+}
+
+.font-view__bar {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.font-view__bar label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.font-view__size {
+  font-variant-numeric: tabular-nums;
+  min-width: 4ch;
+}
+
+.font-view__input {
+  flex: 1;
+  min-width: 160px;
+  border: 0;
+  padding: 0.4rem 0.7rem;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+}
+
+.font-view__samples {
+  padding: clamp(1rem, 3vw, 1.75rem);
+  display: grid;
+  gap: 1rem;
+}
+
+.font-view__line {
+  margin: 0;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+/* Rendered markdown. Kept close to the document styling so a README and a
+   .docx do not look like they came from different applications. */
+.markdown-body {
+  max-width: 78ch;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  line-height: 1.65;
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  margin: 1.4em 0 0.5em;
+  line-height: 1.25;
+}
+
+.markdown-body h1:first-child {
+  margin-top: 0;
+}
+
+.markdown-body p,
+.markdown-body ul,
+.markdown-body ol {
+  margin: 0 0 0.9em;
+}
+
+.markdown-body a {
+  color: var(--accent);
+}
+
+.markdown-body code {
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+  background: var(--accent-soft);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+}
+
+.markdown-body pre {
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  overflow-x: auto;
+}
+
+.markdown-body pre code {
+  padding: 0;
+  background: none;
+}
+
+.markdown-body blockquote {
+  margin: 0 0 0.9em;
+  padding-left: 1rem;
+  border-left: 3px solid var(--accent);
+  color: var(--text-muted);
+}
+
+.markdown-body table {
+  border-collapse: collapse;
+  margin: 0 0 1em;
+  display: block;
+  overflow-x: auto;
+}
+
+.markdown-body th,
+.markdown-body td {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.markdown-body img {
+  max-width: 100%;
+  height: auto;
+}
+
+.markdown-body hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 1.5em 0;
 }

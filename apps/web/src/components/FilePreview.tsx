@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { OrbitFile } from '@orbit/shared-types';
 import { DownloadIcon } from './ActionIcon.js';
+import { ArchiveViewer } from './ArchiveViewer.js';
 import { CodeViewer } from './CodeViewer.js';
+import { FontViewer } from './FontViewer.js';
+import { MarkdownViewer } from './MarkdownViewer.js';
+import { OfficeViewer } from './OfficeViewer.js';
 import { CsvViewer } from './CsvViewer.js';
 import { FileIcon } from './FileIcon.js';
 import { ImageViewer } from './ImageViewer.js';
@@ -198,6 +202,22 @@ function PreviewBody({
     return <PdfViewer src={src} name={file.name} />;
   }
 
+  if (kind === 'spreadsheet' || kind === 'document' || kind === 'presentation') {
+    return <OfficeViewer src={src} name={file.name} kind={kind} />;
+  }
+
+  if (kind === 'archive') {
+    return <ArchiveViewer src={src} name={file.name} sizeBytes={file.sizeBytes} />;
+  }
+
+  if (kind === 'font') {
+    return <FontViewer src={src} name={file.name} />;
+  }
+
+  if (kind === 'markdown') {
+    return <TextPreview src={src} name={file.name} markdown />;
+  }
+
   if (kind === 'text') {
     return <TextPreview src={src} name={file.name} />;
   }
@@ -211,7 +231,7 @@ function PreviewBody({
  * be restyled — but it can be given the whole screen, which is the thing people
  * actually want from a document preview.
  */
-function TextPreview({ src, name }: { src: string; name: string }) {
+function TextPreview({ src, name, markdown = false }: { src: string; name: string; markdown?: boolean }) {
   const [text, setText] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -239,6 +259,8 @@ function TextPreview({ src, name }: { src: string; name: string }) {
 
   // A spreadsheet export read as source is a wall of commas; the point of the
   // file is its columns.
+  if (markdown) return <MarkdownViewer text={text} name={name} />;
+
   const extension = name.slice(name.lastIndexOf('.') + 1).toLowerCase();
   if (extension === 'csv' || extension === 'tsv') return <CsvViewer text={text} name={name} />;
 

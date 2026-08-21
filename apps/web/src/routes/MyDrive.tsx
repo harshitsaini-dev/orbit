@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { catalogueEntry } from '@orbit/shared-types';
 import type { OrbitFile, ProviderCapabilities, PublicAccount } from '@orbit/shared-types';
 import { DownloadIcon, OpenIcon, RenameIcon, StarIcon } from '../components/ActionIcon.js';
 import { FileIcon } from '../components/FileIcon.js';
@@ -454,10 +455,16 @@ export function MyDrive() {
   /** Hands files to the app-level queue, which reports from the header. */
   function enqueue(entries: Array<{ file: File; relativePath: string }>): void {
     if (entries.length === 0 || !accountId) return;
+    const account = accounts?.find((candidate) => candidate.id === accountId);
     uploads.enqueue(entries, {
       accountId,
       path,
-      label: accounts?.find((account) => account.id === accountId)?.nickname ?? 'this account',
+      // The catalogue key, not the adapter id: five entries run on the s3
+      // adapter, so "s3" would name a bucket on R2 and one on Backblaze
+      // identically.
+      provider:
+        catalogueEntry(account?.catalogueKey ?? '')?.label ?? account?.provider ?? 'this account',
+      label: account?.nickname ?? 'this account',
     });
   }
 
@@ -645,6 +652,12 @@ export function MyDrive() {
             type="button"
             className="clay-button icon-button"
             style={{ padding: '0.4rem 1rem', fontSize: 13 }}
+            // The browser asks for confirmation before handing over a whole
+            // folder, and no page can suppress that - it is a permission
+            // prompt, not a dialog. Saying so beforehand stops it reading as
+            // something Orbit did. Dragging the folder in avoids it entirely,
+            // because a drop carries the files without a picker.
+            title="Your browser will ask before handing over a folder. Dragging it in skips that."
             onClick={() => folderInputRef.current?.click()}
           >
             <UploadFolderIcon size={16} />

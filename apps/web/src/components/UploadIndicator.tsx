@@ -122,13 +122,26 @@ export function Row({ job }: { job: UploadJob }) {
       <span className="upload-row__state" data-state={job.state}>
         {job.state === 'error'
           ? (job.error ?? 'Failed')
-          : job.state === 'done'
-            ? `Uploaded to ${job.destination}`
-            : job.state === 'cancelled'
-              ? 'Cancelled'
-              : job.state === 'queued'
-                ? 'Waiting'
+          : job.state === 'cancelled'
+            ? 'Cancelled'
+            : job.state === 'queued'
+              ? 'Waiting'
+              : job.state === 'done'
+                ? 'Uploaded'
                 : `${percent}% · ${formatBytes(job.uploadedBytes)} of ${formatBytes(job.sizeBytes)}`}
+      </span>
+
+      {/*
+        Where it went, always - not only once it has finished. With several
+        accounts connected, and five catalogue entries sharing the s3 adapter,
+        the account alone does not say which service or which bucket.
+      */}
+      <span className="upload-row__target">
+        <span className="upload-row__provider">{job.provider}</span>
+        <span aria-hidden="true">·</span>
+        <span>{job.destination}</span>
+        <span aria-hidden="true">·</span>
+        <span className="upload-row__path">{job.targetPath}</span>
       </span>
     </div>
   );

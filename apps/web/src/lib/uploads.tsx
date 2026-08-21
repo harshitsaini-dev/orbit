@@ -34,13 +34,18 @@ export interface UploadJob extends UploadItem {
   /** Where it is going, so the list means something away from that folder. */
   accountId: string;
   targetPath: string;
-  /** Account label, for the same reason. */
+  /** Which service, e.g. "Google Drive" or "Cloudflare R2". */
+  provider: string;
+  /** The account or bucket within it. */
   destination: string;
 }
 
 interface UploadsContext {
   jobs: UploadJob[];
-  enqueue: (files: QueuedFile[], target: { accountId: string; path: string; label: string }) => void;
+  enqueue: (
+    files: QueuedFile[],
+    target: { accountId: string; path: string; provider: string; label: string },
+  ) => void;
   cancel: () => void;
   clearFinished: () => void;
   /** Fires when a batch finishes, so an open folder can refresh itself. */
@@ -89,6 +94,7 @@ export function UploadsProvider({ children }: { children: ReactNode }) {
         state: 'queued' as const,
         accountId: target.accountId,
         targetPath: target.path,
+        provider: target.provider,
         destination: target.label,
       };
     });
