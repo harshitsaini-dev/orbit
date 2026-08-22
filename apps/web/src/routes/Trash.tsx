@@ -1,9 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import { catalogueEntry, type OrbitFile } from '@orbit/shared-types';
 import { FileIcon } from '../components/FileIcon.js';
-import { FilterBox, SortControl, useFileFilter, useFileSort } from '../components/ListControls.js';
+import { FileGrid } from '../components/FileGrid.js';
+import { FilePreview } from '../components/FilePreview.js';
+import {
+  FilterBox,
+  SortControl,
+  ViewToggle,
+  useFileFilter,
+  useFileSort,
+  useListView,
+} from '../components/ListControls.js';
 import { ConfirmDialog } from '../components/NameDialog.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
+import { FileListSkeleton } from '../components/Skeleton.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { ApiError, api } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
@@ -27,7 +37,29 @@ interface TrashedFile extends OrbitFile {
   provider: string;
   catalogueKey: string | null;
   canPurge: boolean;
+  /** Null where the provider does not say when it was deleted. */
+  purgesAt: string | null;
 }
+
+/**
+ * How long is left, in the words somebody would use.
+ *
+ * The point of the page: whether to bother restoring something depends almost
+ * entirely on this. Where the provider will not say, it says that instead of
+ * showing a number it made up.
+ */
+function timeLeft(purgesAt: string | null): { text: string; urgent: boolean } {
+  if (!purgesAt) return { text: 'No deadline reported', urgent: false };
+
+  const days = Math.ceil((new Date(purgesAt).getTime() - Date.now()) / 86_400_000);
+
+  if (days <= 0) return { text: 'Due to be destroyed', urgent: true };
+  if (days === 1) return { text: '1 day left', urgent: true };
+  if (days <= 7) return { text: `${days} days left`, urgent: true };
+  return { text: `${days} days left`, urgent: false };
+}
+
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 interface TrashResponse {
   files: TrashedFile[];
@@ -43,6 +75,10 @@ export function Trash() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [purging, setPurging] = useState<TrashedFile | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [viewMode, setViewMode] = useListView('trash');
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [purgingMany, setPurgingMany] = useState(false);
+  const [previewing, setPreviewing] = useState<TrashedFile | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -62,6 +98,61 @@ export function Trash() {
   const { sort, setSort, descending, toggleDirection, sorted } = useFileSort('trash', matching);
 
   const keyOf = (file: TrashedFile) => `${file.accountId}:${file.remoteId}`;
+
+  function toggle(key: string): void {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }
+
+  /** Everything currently shown, which is not the same as everything there is. */
+  const shownKeys = sorted.map(keyOf);
+  const allShownSelected = shownKeys.length > 0 && shownKeys.every((key) => selected.has(key));
+
+  function toggleAll(): void {
+    // Selecting "all" while a filter is on must mean the rows in front of
+    // somebody, not the ones the filter is hiding.
+    setSelected((current) => {
+      const next = new Set(current);
+      if (allShownSelected) shownKeys.forEach((key) => next.delete(key));
+      else shownKeys.forEach((key) => next.add(key));
+      return next;
+    });
+  }
+
+  const chosen = sorted.filter((file) => selected.has(keyOf(file)));
+  /** A selection cannot be destroyed unless every file in it may be. */
+  const canPurgeChosen = chosen.length > 0 && chosen.every((file) => file.canPurge);
+
+  async function actOnMany(kind: 'restore' | 'purge'): Promise<void> {
+    setNotice(null);
+    setPurgingMany(false);
+
+    const files = chosen.map((file) => ({ accountId: file.accountId, remoteId: file.remoteId }));
+
+    try {
+      const outcome = await api<{ failed: Array<{ reason: string }>; succeeded: unknown[] }>(
+        kind === 'restore' ? '/api/trash/restore-many' : '/api/trash/purge-many',
+        { method: 'POST', body: { files } },
+      );
+
+      setSelected(new Set());
+      await load();
+
+      // A mixed batch says so. Reporting "done" for a selection where two
+      // failed is how somebody discovers it a week later.
+      if (outcome.failed.length > 0) {
+        setNotice(
+          `${outcome.succeeded.length} done, ${outcome.failed.length} could not be: ${outcome.failed[0]!.reason}`,
+        );
+      }
+    } catch (err) {
+      setNotice(err instanceof ApiError ? err.message : 'That did not work');
+    }
+  }
 
   function forget(file: TrashedFile): void {
     setData((current) =>
@@ -139,7 +230,7 @@ export function Trash() {
             <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Bin</h1>
             <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: 14 }}>
               {data === null
-                ? 'Looking…'
+                ? 'Looking through every drive that keeps a bin…'
                 : all.length === 0
                   ? 'Nothing deleted is waiting to be recovered.'
                   : `${all.length} ${all.length === 1 ? 'file' : 'files'} deleted but not yet destroyed.`}
@@ -147,6 +238,34 @@ export function Trash() {
           </div>
 
           <span style={{ flex: 1 }} />
+
+          {selected.size > 0 && (
+            <>
+              <button type="button" className="clay-button" onClick={() => void actOnMany('restore')}>
+                Restore {selected.size}
+              </button>
+              <button
+                type="button"
+                className="clay-button"
+                style={{ color: 'var(--danger)' }}
+                // A selection cannot be destroyed unless every file in it may
+                // be: a batch that silently skipped the ones it could not is
+                // worse than one that refuses until the selection is honest.
+                disabled={!canPurgeChosen}
+                title={
+                  canPurgeChosen
+                    ? 'Destroy every selected file now'
+                    : 'Some of these are on a drive that will not let this account empty its bin'
+                }
+                onClick={() => setPurgingMany(true)}
+              >
+                Delete {selected.size} for ever
+              </button>
+              <button type="button" className="clay-button" onClick={() => setSelected(new Set())}>
+                Unselect
+              </button>
+            </>
+          )}
 
           {all.length > 1 && (
             <SortControl
@@ -156,6 +275,8 @@ export function Trash() {
               onToggleDirection={toggleDirection}
             />
           )}
+
+          <ViewToggle view={viewMode} onChange={setViewMode} />
         </div>
 
         <FilterBox value={filter} onChange={setFilter} count={all.length} />
@@ -185,17 +306,69 @@ export function Trash() {
         </p>
       )}
 
+      {/* The shape of what is coming, rather than the word "loading": a page
+          that redraws into the same outline reads as fast even when it is not. */}
+      {data === null && (
+        <section className="clay" style={{ padding: '0.75rem' }}>
+          <FileListSkeleton rows={6} />
+        </section>
+      )}
+
       {sorted.length > 0 && (
         <section className="clay" style={{ padding: '0.75rem' }}>
+          <label className="trash-all">
+            <input type="checkbox" checked={allShownSelected} onChange={toggleAll} />
+            <span>
+              {allShownSelected ? 'Unselect' : 'Select'} all {sorted.length}
+              {filter.trim() ? ' shown' : ''}
+            </span>
+          </label>
+
+          {viewMode === 'grid' && (
+            <FileGrid
+              files={sorted}
+              accountIdFor={(file) => (file as TrashedFile).accountId}
+              selected={selected}
+              // The grid keys selection on remoteId alone; the bin spans
+              // drives, so the account has to be part of it.
+              onToggleSelect={(remoteId) => {
+                const match = sorted.find((file) => file.remoteId === remoteId);
+                if (match) toggle(keyOf(match));
+              }}
+              onOpen={(file) => {
+                const match = sorted.find((entry) => entry.remoteId === file.remoteId);
+                if (match && !match.isFolder) setPreviewing(match);
+              }}
+              showLocation
+              locationOf={(file) => (file as TrashedFile).accountNickname}
+            />
+          )}
+
+          {viewMode === 'list' && (
           <ul className="trash-list">
             {sorted.map((file) => (
               <li key={keyOf(file)} data-busy={busyId === keyOf(file) ? '' : undefined}>
-                <FileIcon
-                  name={file.name}
-                  mimeType={file.mimeType}
-                  isFolder={file.isFolder}
-                  size={22}
+                <input
+                  type="checkbox"
+                  checked={selected.has(keyOf(file))}
+                  onChange={() => toggle(keyOf(file))}
+                  aria-label={`Select ${file.name}`}
                 />
+
+                <button
+                  type="button"
+                  className="dup-open"
+                  title={file.isFolder ? 'A folder has nothing to preview' : 'Look at it before deciding'}
+                  disabled={file.isFolder}
+                  onClick={() => setPreviewing(file)}
+                >
+                  <FileIcon
+                    name={file.name}
+                    mimeType={file.mimeType}
+                    isFolder={file.isFolder}
+                    size={22}
+                  />
+                </button>
 
                 <span className="trash-list__what">
                   <strong>{file.name}</strong>
@@ -204,6 +377,13 @@ export function Trash() {
                     <ProviderIcon provider={file.catalogueKey ?? file.provider} size={13} />{' '}
                     {catalogueEntry(file.catalogueKey ?? '')?.label ?? file.provider} ·{' '}
                     {file.accountNickname}
+                    {' · '}
+                    <span
+                      className="trash-list__deadline"
+                      data-urgent={timeLeft(file.purgesAt).urgent ? '' : undefined}
+                    >
+                      {timeLeft(file.purgesAt).text}
+                    </span>
                   </span>
                 </span>
 
@@ -238,6 +418,7 @@ export function Trash() {
               </li>
             ))}
           </ul>
+          )}
 
           {data?.nextCursor && (
             <div style={{ display: 'grid', placeItems: 'center', padding: '0.9rem 0 0.3rem' }}>
@@ -258,6 +439,42 @@ export function Trash() {
         <section className="clay" style={{ padding: '1.25rem', textAlign: 'center' }}>
           <p style={{ color: 'var(--text-muted)', margin: 0 }}>Nothing here matches “{filter}”.</p>
         </section>
+      )}
+
+      {previewing && (
+        <FilePreview
+          file={previewing}
+          // The bin is the set to step through: somebody looking for one thing
+          // they lost is often looking at several.
+          siblings={sorted.filter((file) => !file.isFolder)}
+          contentUrl={(file, download) => {
+            const owner =
+              sorted.find((entry) => entry.remoteId === file.remoteId)?.accountId ??
+              previewing.accountId;
+            const query = new URLSearchParams({ accountId: owner });
+            if (download) {
+              query.set('download', '1');
+              query.set('name', file.name);
+            }
+            return `${API_BASE}/api/files/${encodeURIComponent(file.remoteId)}/content?${query.toString()}`;
+          }}
+          onSelect={(next) => {
+            const match = sorted.find((entry) => entry.remoteId === next.remoteId);
+            if (match) setPreviewing(match);
+          }}
+          onClose={() => setPreviewing(null)}
+        />
+      )}
+
+      {purgingMany && (
+        <ConfirmDialog
+          title={`Destroy ${chosen.length} ${chosen.length === 1 ? 'file' : 'files'}?`}
+          description="This is the one thing in Orbit with nothing behind it. They leave the providers' bins immediately and cannot be recovered by anybody, including the providers."
+          confirmLabel={`Destroy ${chosen.length}`}
+          destructive
+          onConfirm={() => void actOnMany('purge')}
+          onClose={() => setPurgingMany(false)}
+        />
       )}
 
       {purging && (

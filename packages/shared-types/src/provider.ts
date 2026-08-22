@@ -73,6 +73,15 @@ export interface OrbitFile {
   modifiedAt: string;
   checksum?: string;
   /**
+   * When the provider put it in the bin, where it says.
+   *
+   * The useful number is not this but what follows from it - how long is left
+   * before the provider destroys it on its own, which is the whole basis for
+   * deciding whether to bother restoring something.
+   */
+  trashedAt?: string;
+
+  /**
    * True when Orbit has a live public link for this file.
    *
    * Set by the listing route rather than by an adapter: it is a fact about

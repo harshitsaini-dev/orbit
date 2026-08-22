@@ -15,6 +15,7 @@ import {
 import { CollectionsIcon } from '../components/Icons.js';
 import { ConfirmDialog, NameDialog } from '../components/NameDialog.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
+import { Skeleton } from '../components/Skeleton.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { ApiError, api } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
@@ -400,6 +401,20 @@ export function Collections() {
           noun="collections"
         />
       </section>
+
+      {collections === null && (
+        <ul className="collection-grid" aria-busy="true" aria-label="Loading collections">
+          {Array.from({ length: 4 }, (_, index) => (
+            <li key={index}>
+              <span className="clay" style={{ display: 'grid', gap: 8, padding: '1rem 1.1rem' }}>
+                <Skeleton width={40} height={40} radius="12px" />
+                <Skeleton width={`${52 + ((index * 11) % 30)}%`} height={14} />
+                <Skeleton width="42%" height={11} />
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {collections?.length === 0 && (
         <section

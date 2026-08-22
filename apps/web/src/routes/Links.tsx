@@ -4,6 +4,7 @@ import { FileIcon } from '../components/FileIcon.js';
 import { FilterBox, useFileFilter } from '../components/ListControls.js';
 import { ConfirmDialog } from '../components/NameDialog.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
+import { FileListSkeleton } from '../components/Skeleton.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { ApiError, api } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
@@ -123,7 +124,7 @@ export function Links() {
         <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Links</h1>
         <p style={{ color: 'var(--text-muted)', margin: '0.4rem 0 0', lineHeight: 1.6 }}>
           {shares === null
-            ? 'Loading…'
+            ? 'Reading what you have published…'
             : shares.length === 0
               ? 'Nothing is published. A link you create from a file appears here so you can take it away again.'
               : `${shares.length} ${shares.length === 1 ? 'file is' : 'files are'} reachable by anyone holding the link. Revoking one stops it immediately.`}
@@ -141,6 +142,12 @@ export function Links() {
         <p role="alert" className="clay" style={{ padding: '0.8rem 1.1rem', margin: 0, color: 'var(--danger)' }}>
           {notice}
         </p>
+      )}
+
+      {shares === null && (
+        <section className="clay" style={{ padding: '0.75rem' }}>
+          <FileListSkeleton rows={4} />
+        </section>
       )}
 
       {shown.length > 0 && (

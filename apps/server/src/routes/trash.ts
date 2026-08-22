@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/auth.js';
-import { listTrash, purge, restore } from '../services/trash.js';
+import { listTrash, purge, purgeMany, restore, restoreMany } from '../services/trash.js';
 import { record } from '../services/audit.js';
 import { sendProviderError } from '../lib/provider-error.js';
 
@@ -15,6 +15,18 @@ import { sendProviderError } from '../lib/provider-error.js';
 export const trashRouter = Router();
 
 const target = z.object({ accountId: z.string().min(1), remoteId: z.string().min(1) });
+
+/**
+ * A selection, capped.
+ *
+ * Two hundred at a time. Each one is a request to a provider, so an unbounded
+ * list is an unbounded number of them held open by a single HTTP call - and a
+ * selection larger than this is somebody emptying the whole bin, which is
+ * better done as several rounds it can report on than one that might time out.
+ */
+const targets = z.object({
+  files: z.array(target).min(1).max(200),
+});
 
 trashRouter.get('/api/trash', requireAuth, async (req, res, next) => {
   try {
@@ -60,6 +72,68 @@ trashRouter.post('/api/trash/restore', requireAuth, async (req, res, next) => {
     });
 
     res.status(204).end();
+  } catch (err) {
+    if (!sendProviderError(err, res)) next(err);
+  }
+});
+
+/**
+ * Restores or destroys a whole selection.
+ *
+ * 207 when the batch was mixed, so a caller cannot read a 200 as "all done" -
+ * the same rule the bulk delete of live files follows.
+ */
+trashRouter.post('/api/trash/restore-many', requireAuth, async (req, res, next) => {
+  const parsed = targets.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: { code: 'invalid_request', message: 'A selection is required' } });
+    return;
+  }
+
+  try {
+    const outcome = await restoreMany(req.user!.id, parsed.data.files);
+
+    if (outcome.succeeded.length > 0) {
+      await record({
+        actorId: req.user!.id,
+        actorEmail: req.user!.email,
+        action: 'file.relocate',
+        accountId: outcome.succeeded[0]!.accountId,
+        targetType: 'file',
+        summary: `Restored ${outcome.succeeded.length} ${outcome.succeeded.length === 1 ? 'file' : 'files'} from the bin`,
+        ip: req.ip,
+      });
+    }
+
+    res.status(outcome.failed.length > 0 ? 207 : 200).json(outcome);
+  } catch (err) {
+    if (!sendProviderError(err, res)) next(err);
+  }
+});
+
+trashRouter.post('/api/trash/purge-many', requireAuth, async (req, res, next) => {
+  const parsed = targets.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: { code: 'invalid_request', message: 'A selection is required' } });
+    return;
+  }
+
+  try {
+    const outcome = await purgeMany(req.user!.id, parsed.data.files);
+
+    if (outcome.succeeded.length > 0) {
+      await record({
+        actorId: req.user!.id,
+        actorEmail: req.user!.email,
+        action: 'file.delete',
+        accountId: outcome.succeeded[0]!.accountId,
+        targetType: 'file',
+        summary: `Destroyed ${outcome.succeeded.length} ${outcome.succeeded.length === 1 ? 'file' : 'files'} in the bin`,
+        ip: req.ip,
+      });
+    }
+
+    res.status(outcome.failed.length > 0 ? 207 : 200).json(outcome);
   } catch (err) {
     if (!sendProviderError(err, res)) next(err);
   }

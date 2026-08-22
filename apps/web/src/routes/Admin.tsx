@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ConfirmDialog } from '../components/NameDialog.js';
+import { FileListSkeleton } from '../components/Skeleton.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { ApiError, api } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
@@ -157,6 +158,12 @@ export function Admin() {
 
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
         <h2 style={{ fontSize: '1.1rem', margin: 0 }}>People</h2>
+
+        {users === null && (
+          <div style={{ marginTop: '1rem' }}>
+            <FileListSkeleton rows={4} />
+          </div>
+        )}
 
         <ul className="admin-users">
           {users?.map((person) => (

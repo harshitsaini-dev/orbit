@@ -52,6 +52,7 @@ interface DriveFile {
   parents?: string[];
   md5Checksum?: string;
   shortcutDetails?: { targetId?: string; targetMimeType?: string };
+  trashedTime?: string;
 }
 
 interface DriveList {
@@ -772,7 +773,21 @@ export class GoogleDriveAdapter extends BaseAdapter {
     });
 
     return {
-      files: (page.files ?? []).map((file) => toOrbitFile(file, `/${file.name ?? ''}`)),
+      files: (page.files ?? []).map((file) => {
+        const mapped = toOrbitFile(file, `/${file.name ?? ''}`);
+        /*
+         * Only shared drives answer this.
+         *
+         * `trashedTime` is requested for everything, but Drive populates it
+         * only for items in a shared drive - confirmed against this account,
+         * where My Drive's trashed files come back without it. So the deadline
+         * is known there and unknown here, and the caller says which rather
+         * than inferring one from `modifiedTime`, which is not the same thing
+         * and would be a guess presented as a fact.
+         */
+        if (file.trashedTime) mapped.trashedAt = file.trashedTime;
+        return mapped;
+      }),
       nextPageToken: page.nextPageToken,
     };
   }

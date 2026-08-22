@@ -30,7 +30,32 @@ export interface TrashedFile extends OrbitFile {
   catalogueKey: string | null;
   /** False where the provider keeps a bin but will not let this account empty it. */
   canPurge: boolean;
+  /**
+   * When the provider will destroy it on its own, where that can be worked out.
+   *
+   * Null more often than not, and that is the honest answer rather than a
+   * missing feature. Dropbox reports a deleted entry with no timestamp at all,
+   * and Drive populates `trashedTime` only for items in a shared drive - so a
+   * file deleted from somebody's own Drive has no knowable deadline.
+   *
+   * Guessing one from the modified time would be worse than admitting it:
+   * somebody told "3 days left" who loses the file tomorrow was misled by
+   * Orbit rather than by the provider.
+   */
+  purgesAt: string | null;
 }
+
+/**
+ * How long a provider keeps a deleted file before destroying it.
+ *
+ * Both are thirty days and both are the provider's published policy rather than
+ * something Orbit controls; a provider missing from here simply reports no
+ * deadline.
+ */
+const RETENTION_DAYS: Record<string, number> = {
+  google_drive: 30,
+  dropbox: 30,
+};
 
 export interface TrashResult {
   files: TrashedFile[];
@@ -97,6 +122,12 @@ export async function listTrash(
     }
 
     for (const file of outcome.value.files ?? []) {
+      const days = RETENTION_DAYS[row.provider];
+      const purgesAt =
+        file.trashedAt && days
+          ? new Date(new Date(file.trashedAt).getTime() + days * 86_400_000).toISOString()
+          : null;
+
       result.files.push({
         ...file,
         accountId: row.id,
@@ -104,6 +135,7 @@ export async function listTrash(
         accountNickname: row.nickname,
         catalogueKey: row.catalogueKey,
         canPurge: 'canPurge' in outcome.value ? Boolean(outcome.value.canPurge) : false,
+        purgesAt,
       });
     }
 
@@ -112,15 +144,101 @@ export async function listTrash(
     }
   }
 
-  // Most recently deleted first: somebody opening this page is almost always
-  // after something they have just lost.
-  result.files.sort((a, b) => Date.parse(b.modifiedAt) - Date.parse(a.modifiedAt));
+  /*
+   * Whatever is closest to being destroyed first, then the most recently
+   * deleted.
+   *
+   * Both orderings answer a real question, but they answer different ones:
+   * "what did I just lose" and "what am I about to lose for good". The second
+   * is the one with a deadline attached, so it wins where there is one.
+   */
+  result.files.sort((a, b) => {
+    if (a.purgesAt && b.purgesAt) return Date.parse(a.purgesAt) - Date.parse(b.purgesAt);
+    if (a.purgesAt) return -1;
+    if (b.purgesAt) return 1;
+    return Date.parse(b.modifiedAt) - Date.parse(a.modifiedAt);
+  });
   result.nextCursor = encodeCursor(nextCursor);
 
   return result;
 }
 
 export type TrashAction = { ok: true } | { ok: false; reason: 'not_found' | 'unsupported' };
+
+export interface BulkOutcome {
+  succeeded: Array<{ accountId: string; remoteId: string }>;
+  failed: Array<{ accountId: string; remoteId: string; reason: string }>;
+}
+
+/**
+ * Restores or destroys a whole selection.
+ *
+ * Grouped by drive, and **one at a time within each drive**. Every provider
+ * here does this a file at a time anyway - Drive patches one id, Dropbox
+ * restores one revision - so firing forty at once buys nothing and is the
+ * shape that gets an account rate limited for something the user thought was
+ * a single action. Different drives do run at once, since they are different
+ * services with separate limits.
+ *
+ * Never throws for one file. A selection of forty where two fail should report
+ * two failures, not lose the other thirty-eight.
+ */
+async function eachInTurn(
+  userId: string,
+  targets: Array<{ accountId: string; remoteId: string }>,
+  act: (userId: string, accountId: string, remoteId: string) => Promise<TrashAction>,
+): Promise<BulkOutcome> {
+  const byAccount = new Map<string, string[]>();
+  for (const target of targets) {
+    byAccount.set(target.accountId, [...(byAccount.get(target.accountId) ?? []), target.remoteId]);
+  }
+
+  const outcome: BulkOutcome = { succeeded: [], failed: [] };
+
+  await Promise.all(
+    [...byAccount.entries()].map(async ([accountId, remoteIds]) => {
+      for (const remoteId of remoteIds) {
+        try {
+          const result = await act(userId, accountId, remoteId);
+
+          if (result.ok) outcome.succeeded.push({ accountId, remoteId });
+          else {
+            outcome.failed.push({
+              accountId,
+              remoteId,
+              reason:
+                result.reason === 'unsupported'
+                  ? 'this drive does not allow it'
+                  : 'no such account',
+            });
+          }
+        } catch (err) {
+          outcome.failed.push({
+            accountId,
+            remoteId,
+            reason: err instanceof Error ? err.message : 'failed',
+          });
+        }
+      }
+    }),
+  );
+
+  return outcome;
+}
+
+export function restoreMany(
+  userId: string,
+  targets: Array<{ accountId: string; remoteId: string }>,
+): Promise<BulkOutcome> {
+  return eachInTurn(userId, targets, restore);
+}
+
+export function purgeMany(
+  userId: string,
+  targets: Array<{ accountId: string; remoteId: string }>,
+): Promise<BulkOutcome> {
+  return eachInTurn(userId, targets, purge);
+}
 
 /**
  * Puts a file back.

@@ -3,6 +3,7 @@ import type { PublicAccount } from '@orbit/shared-types';
 import { catalogueEntry } from '@orbit/shared-types';
 import { ConfirmDialog } from '../components/NameDialog.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
+import { FileListSkeleton } from '../components/Skeleton.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { ApiError, api } from '../lib/api.js';
 
@@ -218,6 +219,12 @@ export function Schedules() {
         <p role="alert" className="clay" style={{ padding: '0.8rem 1.1rem', color: 'var(--danger)', margin: 0 }}>
           {notice}
         </p>
+      )}
+
+      {schedules === null && (
+        <section className="clay" style={{ padding: '0.75rem' }}>
+          <FileListSkeleton rows={3} />
+        </section>
       )}
 
       {schedules && schedules.length > 0 && (

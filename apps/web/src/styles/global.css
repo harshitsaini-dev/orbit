@@ -4241,3 +4241,31 @@ body {
     grid-column: 1 / -1;
   }
 }
+
+/* Select-all sits above the rows it applies to, and says how many that is —
+   which is not the same number as everything in the bin once a filter is on. */
+.trash-all {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.6rem 0.6rem;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.trash-list > li {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+}
+
+@media (max-width: 40rem) {
+  .trash-list > li {
+    grid-template-columns: auto auto minmax(0, 1fr);
+  }
+}
+
+/* How long is left. Plain until it is nearly gone, then not. */
+.trash-list__deadline[data-urgent] {
+  color: var(--danger);
+  font-weight: 500;
+}

@@ -463,7 +463,9 @@ export function MyDrive() {
         onSelect: () => setDetailing(file),
       },
       {
-        label: 'Delete',
+        // Named for what it does on this provider, not for what delete usually
+        // means: on a bucket there is no bin behind it.
+        label: capabilities?.trash ? 'Move to bin' : 'Delete for ever',
         icon: <TrashIcon />,
         danger: true,
         onSelect: () => setDialog({ kind: 'delete', files: [file] }),
@@ -813,7 +815,7 @@ export function MyDrive() {
               onClick={() => setDialog({ kind: 'delete', files: selectedFiles })}
             >
               <TrashIcon size={16} />
-              Delete {selectedFiles.length}
+              {capabilities?.trash ? 'Bin' : 'Delete'} {selectedFiles.length}
             </button>
           )}
         </div>
@@ -1188,14 +1190,27 @@ export function MyDrive() {
       )}
 
       {dialog?.kind === 'delete' && (
+        /*
+         * The wording follows the provider, because the two are different acts.
+         *
+         * Drive and Dropbox keep a bin, so this is reversible and should say
+         * so. An object store has none: the file is gone the moment the button
+         * is pressed. Calling both "Move to bin" is a promise Orbit cannot keep
+         * on half its providers, and the half it breaks it on is the half where
+         * being wrong costs the most.
+         */
         <ConfirmDialog
           title={
             dialog.files.length === 1
               ? `Delete ${dialog.files[0]!.name}?`
               : `Delete ${dialog.files.length} items?`
           }
-          description="They move to the provider's own trash, where they can still be recovered."
-          confirmLabel="Move to trash"
+          description={
+            capabilities?.trash
+              ? "They move to the provider's own bin, where they can still be recovered. Orbit's Bin page lists them."
+              : 'This provider keeps no bin. They are gone the moment you confirm, and nobody — including the provider — can bring them back.'
+          }
+          confirmLabel={capabilities?.trash ? 'Move to bin' : 'Delete for ever'}
           destructive
           busy={busyId === 'delete'}
           onConfirm={() => void remove(dialog.files)}

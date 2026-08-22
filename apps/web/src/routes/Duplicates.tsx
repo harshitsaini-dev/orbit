@@ -5,6 +5,7 @@ import { FilePreview } from '../components/FilePreview.js';
 import { GridViewIcon, ListViewIcon } from '../components/Icons.js';
 import { ConfirmDialog } from '../components/NameDialog.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
+import { FileListSkeleton } from '../components/Skeleton.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { ApiError, api } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
@@ -244,7 +245,7 @@ export function Duplicates() {
             <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Duplicates</h1>
             <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: 14 }}>
               {report === null
-                ? 'Looking…'
+                ? 'Comparing every file Orbit has indexed…'
                 : report.groups.length === 0
                   ? `Nothing duplicated across ${report.scanned.toLocaleString()} files.`
                   : `${report.groups.length} sets across ${report.scanned.toLocaleString()} files · ${formatBytes(reclaimable)} could be freed.`}
@@ -342,6 +343,12 @@ export function Duplicates() {
           </p>
         )}
       </section>
+
+      {report === null && (
+        <section className="clay" style={{ padding: '0.75rem' }}>
+          <FileListSkeleton rows={6} />
+        </section>
+      )}
 
       {report?.groups.map((group) => (
         <section key={group.key} className="clay dup-group">
