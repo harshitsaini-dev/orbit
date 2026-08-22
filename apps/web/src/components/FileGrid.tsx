@@ -42,7 +42,12 @@ export function FileGrid({
    * that was never in the set.
    */
   selectionKey?: (file: OrbitFile) => string;
-  onOpen: (file: OrbitFile) => void;
+  /**
+   * Opening a tile - and the event that did it, because a click holding shift
+   * or ctrl means "select", not "open", and only the caller keeps the
+   * selection to act on.
+   */
+  onOpen: (file: OrbitFile, event: React.MouseEvent) => void;
   showLocation?: boolean;
   /**
    * What to say under the name instead of the size.
@@ -78,7 +83,7 @@ export function FileGrid({
             selectionKey={selectionKey ? selectionKey(file) : file.remoteId}
             selected={selected.has(selectionKey ? selectionKey(file) : file.remoteId)}
             onToggleSelect={() => onToggleSelect(file.remoteId)}
-            onOpen={() => onOpen(file)}
+            onOpen={(event) => onOpen(file, event)}
             location={showLocation ? locationOf?.(file) : undefined}
           />
         </li>
@@ -100,7 +105,7 @@ function Tile({
   accountId: string;
   selected: boolean;
   onToggleSelect: () => void;
-  onOpen: () => void;
+  onOpen: (event: React.MouseEvent) => void;
   location?: ReactNode;
   /** What a drag-select box matches this tile by. */
   selectionKey: string;
@@ -126,10 +131,19 @@ function Tile({
     return () => observer.disconnect();
   }, [file.isFolder]);
 
+  /*
+   * A folder has no preview to show, so it does not get the square kept for
+   * one. It used to: a 44px icon centred in a 160px empty box, repeated for
+   * every folder in the drive - and most drives are mostly folders, so a grid
+   * of them was mostly nothing. Compact, they read as a block of folders above
+   * the files, which is the shape people already expect from a file manager.
+   */
+  const compact = file.isFolder;
+
   return (
     <div
       ref={ref}
-      className="clay-sunken file-tile"
+      className={`clay-sunken file-tile${compact ? ' file-tile--folder' : ''}`}
       // What a drag-select box looks for. Also what marks a tile as "not empty
       // space", so a drag cannot start on top of one.
       data-file={selectionKey}
@@ -146,41 +160,53 @@ function Tile({
 
       <button
         type="button"
-        onClick={onOpen}
+        onClick={(event) => onOpen(event)}
         title={file.name}
         style={{
           all: 'unset',
           cursor: 'pointer',
-          display: 'grid',
+          display: compact ? 'flex' : 'grid',
+          alignItems: 'center',
           gap: 8,
           minWidth: 0,
         }}
       >
-        <span
-          style={{
-            position: 'relative',
-            aspectRatio: '1 / 1',
-            borderRadius: 'var(--radius-sm)',
-            background: 'var(--surface)',
-            display: 'grid',
-            placeItems: 'center',
-            overflow: 'hidden',
-          }}
-        >
-          {!near || !mightHaveThumbnail(file) ? (
-            <FileIcon name={file.name} mimeType={file.mimeType} isFolder={file.isFolder} size={44} />
-          ) : (
-            <Thumbnail file={file} accountId={accountId} />
-          )}
+        {compact ? (
+          <span style={{ position: 'relative', display: 'grid', placeItems: 'center', flex: 'none' }}>
+            <FileIcon name={file.name} mimeType={file.mimeType} isFolder size={26} />
+            {file.shared && (
+              <span className="shared-badge" title="Anyone with the link can open this">
+                <ShareIcon />
+              </span>
+            )}
+          </span>
+        ) : (
+          <span
+            style={{
+              position: 'relative',
+              aspectRatio: '1 / 1',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--surface)',
+              display: 'grid',
+              placeItems: 'center',
+              overflow: 'hidden',
+            }}
+          >
+            {!near || !mightHaveThumbnail(file) ? (
+              <FileIcon name={file.name} mimeType={file.mimeType} isFolder={file.isFolder} size={44} />
+            ) : (
+              <Thumbnail file={file} accountId={accountId} />
+            )}
 
-          {/* A file anyone with the link can open is worth seeing at a glance,
-              without opening anything. */}
-          {file.shared && (
-            <span className="shared-badge" title="Anyone with the link can open this">
-              <ShareIcon />
-            </span>
-          )}
-        </span>
+            {/* A file anyone with the link can open is worth seeing at a glance,
+                without opening anything. */}
+            {file.shared && (
+              <span className="shared-badge" title="Anyone with the link can open this">
+                <ShareIcon />
+              </span>
+            )}
+          </span>
+        )}
 
         <span style={{ display: 'grid', gap: 1, minWidth: 0 }}>
           <span
@@ -206,7 +232,7 @@ function Tile({
               minWidth: 0,
             }}
           >
-            {location ?? (file.isFolder ? 'Folder' : formatBytes(file.sizeBytes))}
+            {location ?? (file.isFolder ? '' : formatBytes(file.sizeBytes))}
           </span>
         </span>
       </button>

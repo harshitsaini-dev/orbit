@@ -29,6 +29,7 @@ import {
 } from '../components/Icons.js';
 import { ViewToggle, useViewMode } from '../components/ViewToggle.js';
 import { PHONE, useMediaQuery } from '../lib/media.js';
+import { useRangeSelection } from '../lib/selection.js';
 import { ConfirmDialog, NameDialog } from '../components/NameDialog.js';
 import { Pagination } from '../components/Pagination.js';
 import { Select } from '../components/Select.js';
@@ -645,6 +646,28 @@ export function MyDrive() {
     onClear: () => setSelected(new Set()),
   });
 
+  /*
+   * Shift, ctrl and the arrow keys, as every file manager has them.
+   *
+   * Click still opens - that is what this app has always done and what the web
+   * expects - so the modifiers are what select: ctrl-click adds one, shift-click
+   * takes the run in between, the arrows walk the list, shift-arrow drags the
+   * selection along, ctrl-A takes everything on the page and escape lets go.
+   */
+  const keyboard = useRangeSelection({
+    keys: paged.map((file) => file.remoteId),
+    selected,
+    setSelected,
+    container: containerRef,
+  });
+
+  /** A click that selected rather than opened must not also open. */
+  function openOrSelect(event: React.MouseEvent, file: OrbitFile): void {
+    if (keyboard.activate(event, file.remoteId) === 'selected') return;
+    if (file.isFolder) navigate({ path: file.virtualPath });
+    else setPreviewing(file);
+  }
+
   const selectedFiles = paged.filter((file) => selected.has(file.remoteId));
   const allVisibleSelected = paged.length > 0 && selectedFiles.length === paged.length;
 
@@ -969,7 +992,7 @@ export function MyDrive() {
             accountIdFor={() => accountId}
             selected={selected}
             onToggleSelect={toggleSelected}
-            onOpen={(file) => (file.isFolder ? navigate({ path: file.virtualPath }) : setPreviewing(file))}
+            onOpen={(file, event) => openOrSelect(event, file)}
             showLocation={searchActive}
             locationOf={locationOf}
             onContextMenu={(event, file) => menu.open(event, file)}
@@ -1005,9 +1028,7 @@ export function MyDrive() {
 
                 <button
                   type="button"
-                  onClick={() =>
-                    file.isFolder ? navigate({ path: file.virtualPath }) : setPreviewing(file)
-                  }
+                  onClick={(event) => openOrSelect(event, file)}
                   style={{
                     flex: 1,
                     minWidth: 0,

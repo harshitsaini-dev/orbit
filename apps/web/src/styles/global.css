@@ -524,6 +524,29 @@ body {
 
 /* The tick only clutters a tile until it is needed, so it appears on hover,
    on focus, and whenever the tile is actually selected. */
+/*
+ * A folder tile is a row, not a card.
+ *
+ * There is no preview to show, so the square kept for one was a 44px icon
+ * centred in a 160px box - repeated for every folder in a drive, and most
+ * drives are mostly folders. Compact, they read as a block of folders above
+ * the files, which is the shape a file manager is expected to have.
+ */
+.file-tile--folder {
+  align-content: center;
+  min-height: 52px;
+}
+
+/* The tick sits inside the row rather than floating over a preview. */
+.file-tile--folder .file-tile__select {
+  position: static !important;
+  order: -1;
+}
+
+.file-tile--folder button {
+  padding-left: 2px;
+}
+
 .file-tile__select {
   opacity: 0;
   transition: opacity var(--dur-fast) var(--ease-clay);

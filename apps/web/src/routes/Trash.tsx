@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { catalogueEntry, type OrbitFile } from '@orbit/shared-types';
 import { Checkbox } from '../components/Checkbox.js';
 import { DragSelectBox, useDragSelect } from '../components/DragSelect.js';
@@ -18,6 +18,7 @@ import { ProviderIcon } from '../components/ProviderIcon.js';
 import { FileListSkeleton } from '../components/Skeleton.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { ApiError, api } from '../lib/api.js';
+import { useRangeSelection } from '../lib/selection.js';
 import { formatBytes } from '../lib/format.js';
 
 /**
@@ -144,6 +145,20 @@ export function Trash() {
       return next;
     });
   }
+
+  /*
+   * The same selection this app has everywhere else: ctrl to add one, shift for
+   * the run between, arrows to walk, ctrl-A for the lot, escape to let go. It
+   * matters more here than anywhere - the bin is where somebody picks out six
+   * files from thirty and then presses a button that cannot be undone.
+   */
+  const listRef = useRef<HTMLDivElement>(null);
+  const keyboard = useRangeSelection({
+    keys: shownKeys,
+    selected,
+    setSelected,
+    container: listRef,
+  });
 
   const chosen = sorted.filter((file) => selected.has(keyOf(file)));
   /** A selection cannot be destroyed unless every file in it may be. */
@@ -357,7 +372,11 @@ export function Trash() {
       )}
 
       {sorted.length > 0 && (
-        <section className="clay" style={{ padding: '0.75rem' }}>
+        <section
+          className="clay"
+          ref={listRef}
+          style={{ padding: '0.75rem' }}
+        >
           {/* The same control as every other tick in the app, rather than the
               browser's own - two kinds of checkbox on one page reads as one of
               them being broken. */}
@@ -435,7 +454,11 @@ export function Trash() {
                   className="dup-open"
                   title={file.isFolder ? 'A folder has nothing to preview' : 'Look at it before deciding'}
                   disabled={file.isFolder}
-                  onClick={() => setPreviewing(file)}
+                  onClick={(event) => {
+                    // A click holding shift or ctrl is a selection, not a look.
+                    if (keyboard.activate(event, keyOf(file)) === 'selected') return;
+                    setPreviewing(file);
+                  }}
                 >
                   <FileIcon
                     name={file.name}
