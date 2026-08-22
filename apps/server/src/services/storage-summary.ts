@@ -1,7 +1,8 @@
 import { getAdapter } from '@orbit/adapters';
-import { accounts, filesMirror } from '@orbit/db';
+import { accounts, filesMirror, sharedDriveStats } from '@orbit/db';
 import { summarise, type CategoryTotal } from '@orbit/shared-types';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import { db } from '../lib/db.js';
 import { useAccount } from './accounts.js';
 
@@ -56,6 +57,14 @@ export interface SharedDriveEntry {
   driveId: string;
   name: string;
   path: string;
+  /**
+   * What was last worked out about it, or null if it has not been measured yet.
+   *
+   * Never measured on this request: listing a drive takes minutes, so the page
+   * shows the last figure and when it was taken rather than making somebody
+   * wait for a fresh one.
+   */
+  measured: MeasuredDrive | null;
 }
 
 export interface StorageSummary {
@@ -93,7 +102,7 @@ export interface StorageSummary {
 async function sharedDrivesFor(
   userId: string,
   rows: Array<typeof accounts.$inferSelect>,
-): Promise<SharedDriveEntry[]> {
+): Promise<Array<Omit<SharedDriveEntry, 'measured'>>> {
   const found = await Promise.all(
     rows
       .filter((row) => row.provider === 'google_drive')
@@ -122,82 +131,191 @@ async function sharedDrivesFor(
   return found.flat();
 }
 
+/** The same list, with whatever has already been measured attached. */
+async function sharedDrivesWithStats(
+  userId: string,
+  rows: Array<typeof accounts.$inferSelect>,
+): Promise<SharedDriveEntry[]> {
+  const drives = await sharedDrivesFor(userId, rows);
+  if (drives.length === 0) return [];
+
+  const known = await storedMeasurements([...new Set(drives.map((d) => d.accountId))]);
+
+  return drives.map((drive) => ({
+    ...drive,
+    measured: known.get(`${drive.accountId}:${drive.driveId}`) ?? null,
+  }));
+}
+
 /** Orbit's own name for the folder it synthesises to hold them. */
 const SHARED_DRIVES_PATH = '/Shared drives';
 
 /**
- * A measured shared drive, remembered.
+ * How long a measurement stays good enough to reuse.
  *
- * Measuring one means listing every file in it, which is the reason it is not
- * done on every dashboard load. Once done it is worth keeping: a shared drive
- * does not change size between one look and the next in any way that matters
- * for a breakdown.
+ * A shared drive does not change size between one look and the next in any way
+ * that matters for a breakdown, and re-listing twenty-five thousand files to
+ * find out is not free.
  */
-const measured = new Map<string, MeasuredDrive>();
+const MEASURE_TTL_MS = 6 * 60 * 60 * 1000;
 
-/** Long enough that browsing back does not re-measure, short enough to be true. */
-const MEASURE_TTL_MS = 30 * 60 * 1000;
-
-/** A page cap, so one enormous drive cannot run for minutes. */
-const MAX_PAGES = 25;
+/**
+ * A runaway guard, not a page size.
+ *
+ * Set far above any real shared drive - a million files - so it never truncates
+ * a genuine answer. It is here because a loop that only stops when a provider
+ * says it has finished does not stop at all if the provider is wrong, and this
+ * one runs unattended in the background where nothing would notice.
+ */
+const MAX_PAGES = 1_000;
 
 export interface MeasuredDrive {
   sizeBytes: number;
   fileCount: number;
   totals: CategoryTotal[];
-  /** True when the cap was hit, so the figures are a floor rather than a total. */
+  /** True only when the listing could not be finished, not when it was capped. */
   partial: boolean;
-  measuredAt: number;
+  measuredAt: string;
+}
+
+/** What has already been worked out, for the pages that only want to show it. */
+export async function storedMeasurements(
+  accountIds: string[],
+): Promise<Map<string, MeasuredDrive>> {
+  if (accountIds.length === 0) return new Map();
+
+  const rows = await db()
+    .select()
+    .from(sharedDriveStats)
+    .where(inArray(sharedDriveStats.accountId, accountIds));
+
+  return new Map(
+    rows.map((row) => [
+      `${row.accountId}:${row.driveId}`,
+      {
+        sizeBytes: row.sizeBytes,
+        fileCount: row.fileCount,
+        totals: JSON.parse(row.totals) as CategoryTotal[],
+        partial: row.partial,
+        measuredAt: row.measuredAt,
+      },
+    ]),
+  );
 }
 
 /**
- * Measures one shared drive by listing it, or returns what was measured before.
+ * Lists one shared drive in full and records what is in it.
  *
- * Asked for explicitly rather than computed with the summary. Google reports no
- * quota for a shared drive - the organisation's storage is pooled - so there is
- * no cheap number to read, and enumerating is the only way to one.
+ * No page cap: this runs on the sync pass with nobody waiting on it, which is
+ * the whole reason it moved off the request path. A drive that took over a
+ * minute to half-list is exactly the drive that should not be listed while
+ * somebody watches a spinner.
  */
 export async function measureSharedDrive(
   userId: string,
   accountId: string,
   driveId: string,
+  name: string,
 ): Promise<MeasuredDrive | null> {
-  const key = `${accountId}:${driveId}`;
-  const cached = measured.get(key);
-  if (cached && Date.now() - cached.measuredAt < MEASURE_TTL_MS) return cached;
-
   const active = await useAccount(userId, accountId, 'read');
   if (!active?.adapter.listAllUnder) return null;
 
   const files: Array<{ name: string; mimeType: string; sizeBytes: number; isFolder: boolean }> = [];
   let pageToken: string | undefined;
-  let pages = 0;
   let partial = false;
 
-  do {
-    const page = await active.adapter.listAllUnder(active.tokens, driveId, pageToken);
-    files.push(...page.files);
-    pageToken = page.nextPageToken;
+  let pages = 0;
 
-    if (++pages >= MAX_PAGES && pageToken) {
-      // Said rather than silently stopped: a truncated total that looks whole
-      // is worse than one that admits it.
-      partial = true;
-      break;
-    }
-  } while (pageToken);
+  try {
+    do {
+      const page = await active.adapter.listAllUnder(active.tokens, driveId, pageToken);
+      files.push(...page.files);
+      pageToken = page.nextPageToken;
 
-  const result: MeasuredDrive = {
+      if (++pages >= MAX_PAGES && pageToken) {
+        partial = true;
+        break;
+      }
+    } while (pageToken);
+  } catch {
+    // Whatever was read is still worth recording, marked as incomplete: a
+    // figure that admits it is a floor beats no figure at all.
+    partial = true;
+  }
+
+  const measured: MeasuredDrive = {
     sizeBytes: files.reduce((sum, file) => sum + (file.isFolder ? 0 : file.sizeBytes), 0),
     fileCount: files.filter((file) => !file.isFolder).length,
     totals: summarise(files),
     partial,
-    measuredAt: Date.now(),
+    measuredAt: new Date().toISOString(),
   };
 
-  measured.set(key, result);
-  return result;
+  await db()
+    .insert(sharedDriveStats)
+    .values({
+      id: nanoid(),
+      accountId,
+      driveId,
+      name,
+      sizeBytes: measured.sizeBytes,
+      fileCount: measured.fileCount,
+      totals: JSON.stringify(measured.totals),
+      partial,
+      measuredAt: measured.measuredAt,
+    })
+    .onConflictDoUpdate({
+      target: [sharedDriveStats.accountId, sharedDriveStats.driveId],
+      set: {
+        name,
+        sizeBytes: measured.sizeBytes,
+        fileCount: measured.fileCount,
+        totals: JSON.stringify(measured.totals),
+        partial,
+        measuredAt: measured.measuredAt,
+      },
+    });
+
+  return measured;
 }
+
+/**
+ * Measures every shared drive whose figures have gone stale.
+ *
+ * Called from the sync pass. Returns how many it did, so the log can say.
+ */
+export async function measureStaleSharedDrives(): Promise<number> {
+  const owners = await db()
+    .selectDistinct({ userId: accounts.userId })
+    .from(accounts)
+    .where(eq(accounts.provider, 'google_drive'));
+
+  let done = 0;
+
+  for (const { userId } of owners) {
+    const rows = await db().select().from(accounts).where(eq(accounts.userId, userId));
+    const drives = await sharedDrivesFor(userId, rows);
+    if (drives.length === 0) continue;
+
+    const known = await storedMeasurements(drives.map((drive) => drive.accountId));
+
+    for (const drive of drives) {
+      const previous = known.get(`${drive.accountId}:${drive.driveId}`);
+      const fresh =
+        previous && Date.now() - new Date(previous.measuredAt).getTime() < MEASURE_TTL_MS;
+
+      if (fresh) continue;
+
+      // One at a time on purpose: this is a long listing against somebody's
+      // provider, and running several at once is how an account gets rate
+      // limited for something nobody asked for.
+      if (await measureSharedDrive(userId, drive.accountId, drive.driveId, drive.name)) done += 1;
+    }
+  }
+
+  return done;
+}
+
 
 export async function storageSummary(userId: string): Promise<StorageSummary> {
   const rows = await db().select().from(accounts).where(eq(accounts.userId, userId));
@@ -276,7 +394,7 @@ export async function storageSummary(userId: string): Promise<StorageSummary> {
 
   return {
     groups: ordered,
-    sharedDrives: await sharedDrivesFor(userId, rows),
+    sharedDrives: await sharedDrivesWithStats(userId, rows),
     overall: {
       usedBytes: ordered.reduce((sum, group) => sum + group.usedBytes, 0),
       quotaBytes: ordered.reduce((sum, group) => sum + group.quotaBytes, 0),

@@ -2,6 +2,7 @@ import cron, { type ScheduledTask } from 'node-cron';
 import { runDue } from './schedules.js';
 import { env } from '../lib/env.js';
 import { nameUnlabelledAccounts, refreshExpiringAccounts } from './accounts.js';
+import { measureStaleSharedDrives } from './storage-summary.js';
 import { syncAll } from './sync.js';
 
 export interface Scheduler {
@@ -45,6 +46,23 @@ async function runSyncPass(): Promise<void> {
  * Separate from `runSyncPass` and never allowed to throw into it: a broken
  * schedule must not stop tokens being renewed.
  */
+/**
+ * Works out how much is in each shared drive.
+ *
+ * Here rather than on a request because it is a listing of every file in the
+ * drive - over a minute for the first twenty-five thousand on a real one. With
+ * nobody waiting there is no page cap and no reason to stop early, which is
+ * both why it moved and what makes the figure a real total rather than a floor.
+ */
+async function measureSharedDrives(): Promise<void> {
+  try {
+    const done = await measureStaleSharedDrives();
+    if (done > 0) console.log(`shared drives: measured ${done}`);
+  } catch (err) {
+    console.error('shared drive pass failed', err instanceof Error ? err.message : err);
+  }
+}
+
 async function nameAccounts(): Promise<void> {
   try {
     const named = await nameUnlabelledAccounts();
@@ -73,6 +91,7 @@ export function startSyncScheduler(): Scheduler {
       console.error('sync pass failed', err instanceof Error ? err.message : err);
     });
     void runUserSchedules();
+    void measureSharedDrives();
   });
 
   // One pass at boot, so a restart after a long idle period renews immediately
@@ -88,6 +107,10 @@ export function startSyncScheduler(): Scheduler {
   // Once at boot only: a connection is named when it is made, so this is for
   // rows made before Orbit asked - it finds nothing on the second run.
   void nameAccounts();
+
+  // And a first measurement, so a freshly connected drive has a figure without
+  // waiting for the first tick.
+  void measureSharedDrives();
 
   return {
     stop: () => task.stop(),

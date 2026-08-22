@@ -436,15 +436,24 @@ accountsRouter.get('/api/storage/summary', requireAuth, async (req, res, next) =
 });
 
 /**
- * How much is in one shared drive, and what it is.
+ * Measures one shared drive now, rather than waiting for the next sync pass.
  *
- * A separate request because it is a separate cost: Google reports no quota for
- * a shared drive, so the only way to a number is listing the whole thing. Asked
- * for when somebody wants it rather than paid for on every dashboard load.
+ * The figures normally arrive on their own - this is for somebody who has just
+ * changed something and does not want to wait six hours to see it. It is a long
+ * listing either way, so it is a POST: it does work rather than reading a
+ * result.
  */
-accountsRouter.get('/api/accounts/:id/shared-drives/:driveId', requireAuth, async (req, res, next) => {
+accountsRouter.post('/api/accounts/:id/shared-drives/:driveId/measure', requireAuth, async (req, res, next) => {
+  const name = typeof req.body?.name === 'string' ? req.body.name : '';
+
   try {
-    const measurement = await measureSharedDrive(req.user!.id, req.params.id!, req.params.driveId!);
+    const measurement = await measureSharedDrive(
+      req.user!.id,
+      req.params.id!,
+      req.params.driveId!,
+      name,
+    );
+
     if (!measurement) {
       res.status(404).json({ error: { code: 'not_found', message: 'No such shared drive' } });
       return;

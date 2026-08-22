@@ -495,3 +495,39 @@ export const ignoredDuplicates = sqliteTable(
   },
   (t) => [uniqueIndex('ignored_duplicate_uq').on(t.userId, t.groupKey)],
 );
+
+/**
+ * How much is in a shared drive, worked out in the background.
+ *
+ * Google reports no quota for one - the organisation's storage is pooled - so
+ * the only way to a number is listing every file in it. Measured against a real
+ * drive that took over a minute for its first twenty-five thousand files, which
+ * is why this is not something a request waits for.
+ *
+ * So it is measured on the same pass that syncs accounts and the answer is kept
+ * here. Nobody is waiting, so there is no page cap and no reason to stop early;
+ * the page opens on the last known figure and says when it was taken.
+ */
+export const sharedDriveStats = sqliteTable(
+  'shared_drive_stats',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    /** The drive's own id, which is also its root folder id. */
+    driveId: text('drive_id').notNull(),
+    name: text('name').notNull(),
+    sizeBytes: real('size_bytes').notNull().default(0),
+    fileCount: integer('file_count').notNull().default(0),
+    /** `CategoryTotal[]` as JSON, so the breakdown survives a restart. */
+    totals: text('totals').notNull().default('[]'),
+    /**
+     * True only if the listing genuinely could not be finished - a provider
+     * error partway through. A background run has no reason to stop early.
+     */
+    partial: integer('partial', { mode: 'boolean' }).notNull().default(false),
+    measuredAt: text('measured_at').notNull().default(now),
+  },
+  (t) => [uniqueIndex('shared_drive_stats_uq').on(t.accountId, t.driveId)],
+);

@@ -51,26 +51,38 @@ interface SharedDrive {
   driveId: string;
   name: string;
   path: string;
+  measured: Measurement | null;
 }
 
 interface Measurement {
   sizeBytes: number;
   fileCount: number;
   totals: CategoryTotal[];
-  /** True when the listing was capped, so the figures are a floor. */
+  /** True only when the listing could not be finished, not when it was capped. */
   partial: boolean;
+  measuredAt: string;
+}
+
+function measuredAgo(iso: string): string {
+  const hours = (Date.now() - new Date(iso).getTime()) / 3_600_000;
+  if (hours < 1) return 'measured just now';
+  if (hours < 24) return `measured ${Math.round(hours)}h ago`;
+  return `measured ${new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
 }
 
 /**
- * One shared drive, measured only if asked.
+ * One shared drive, with what was last worked out about it.
  *
- * Google reports no quota for a shared drive, so the only way to a size is
- * listing every file in it. Measured against a real one that took over a
- * minute, which is why this is a button somebody presses rather than something
- * that happens when the page opens.
+ * Google reports no quota for a shared drive, so a size means listing every
+ * file in it - over a minute on a real one. That happens on the sync pass with
+ * nobody waiting, which is what lets it run to the end rather than stopping at
+ * a cap; the page shows the last figure and when it was taken.
+ *
+ * The button is for impatience, not for the ordinary case: somebody who has
+ * just changed something and does not want to wait for the next pass.
  */
 function SharedDriveRow({ drive }: { drive: SharedDrive }) {
-  const [measurement, setMeasurement] = useState<Measurement | null>(null);
+  const [measurement, setMeasurement] = useState<Measurement | null>(drive.measured);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
@@ -80,7 +92,8 @@ function SharedDriveRow({ drive }: { drive: SharedDrive }) {
 
     try {
       const { drive: result } = await api<{ drive: Measurement }>(
-        `/api/accounts/${drive.accountId}/shared-drives/${encodeURIComponent(drive.driveId)}`,
+        `/api/accounts/${drive.accountId}/shared-drives/${encodeURIComponent(drive.driveId)}/measure`,
+        { method: 'POST', body: { name: drive.name } },
       );
       setMeasurement(result);
     } catch {
@@ -102,24 +115,24 @@ function SharedDriveRow({ drive }: { drive: SharedDrive }) {
 
         <span className="storage-group__figure">
           {measurement
-            ? `${measurement.partial ? 'at least ' : ''}${formatBytes(measurement.sizeBytes)} · ${measurement.fileCount.toLocaleString()}${measurement.partial ? '+' : ''} files`
-            : 'Size not reported'}
+            ? `${measurement.partial ? 'at least ' : ''}${formatBytes(measurement.sizeBytes)} · ${measurement.fileCount.toLocaleString()} files`
+            : busy
+              ? 'Measuring…'
+              : 'Not measured yet'}
         </span>
 
         <span className="shared-drive__actions">
-          {!measurement && (
-            <button
-              type="button"
-              className="clay-button"
-              // Said before it is pressed: on a drive of any size this is a
-              // minute of listing, not an instant answer.
-              title="Lists every file in the drive to work out its size. Can take a minute."
-              disabled={busy}
-              onClick={() => void measure()}
-            >
-              {busy ? 'Measuring…' : 'Measure'}
-            </button>
-          )}
+          <button
+            type="button"
+            className="clay-button"
+            // Said before it is pressed: on a drive of any size this is minutes
+            // of listing, not an instant answer.
+            title="Lists every file in the drive. Happens on its own every few hours; this does it now."
+            disabled={busy}
+            onClick={() => void measure()}
+          >
+            {busy ? 'Measuring…' : measurement ? 'Re-measure' : 'Measure now'}
+          </button>
 
           <a
             className="clay-button"
@@ -140,12 +153,11 @@ function SharedDriveRow({ drive }: { drive: SharedDrive }) {
         <>
           <CategoryBar totals={measurement.totals} />
           <CategoryLegend totals={measurement.totals} />
-          {measurement.partial && (
-            <p className="share-hint" style={{ margin: 0 }}>
-              The drive is large enough that the listing stopped early, so these are a floor rather
-              than a total — there is at least this much, and probably more.
-            </p>
-          )}
+          <p className="share-hint" style={{ margin: 0 }}>
+            {measuredAgo(measurement.measuredAt)}
+            {measurement.partial &&
+              ' — the listing could not be finished, so these are a floor rather than a total.'}
+          </p>
         </>
       )}
     </li>
@@ -270,8 +282,9 @@ export function StorageGroups() {
           <p className="share-hint" style={{ margin: 0 }}>
             These belong to an organisation, and none of it counts against your own allowance.
             Google pools their storage and reports no quota per drive, so a size has to be worked
-            out by listing the whole drive — which is what <strong>Measure</strong> does, and why
-            it is not done for you.
+            out by listing the whole drive. That happens on its own every few hours, in the
+            background — a drive of any size takes minutes, which is not something to make you
+            wait for.
           </p>
 
           <ul className="shared-drive-list">

@@ -4,7 +4,9 @@ import { beforeEach, describe, it } from 'node:test';
 process.env.AUTH_MODE = 'local';
 process.env.TOKEN_ENCRYPTION_KEY ??= Buffer.alloc(32, 7).toString('base64');
 
-const { measureSharedDrive, storageSummary } = await import('./storage-summary.js');
+const { measureSharedDrive, storageSummary, storedMeasurements } = await import(
+  './storage-summary.js'
+);
 const { getAdapter } = await import('@orbit/adapters');
 const { createAccount } = await import('./accounts.js');
 const { getLocalUser } = await import('./users.js');
@@ -168,51 +170,94 @@ describe('grouping storage by what kind it is', () => {
 });
 
 describe('measuring a shared drive', () => {
-  it('sums what the drive holds, and remembers it', async () => {
-    // Listing a drive of any size takes a minute, so measuring twice for one
-    // answer is not something to do casually.
-    const { userId, accountId } = await seed('drive', 'google_drive', { used: 0, total: 100 });
-
-    let calls = 0;
-    const drive = getAdapter('google_drive');
-    (drive as unknown as Record<string, unknown>).listAllUnder = async () => {
-      calls += 1;
-      return {
-        files: [
-          { name: 'a.jpg', mimeType: 'image/jpeg', sizeBytes: 300, isFolder: false },
-          { name: 'b.pdf', mimeType: 'application/pdf', sizeBytes: 200, isFolder: false },
-        ],
-      };
-    };
-
-    const first = await measureSharedDrive(userId, accountId, 'drive-1');
-    assert.equal(first!.sizeBytes, 500);
-    assert.equal(first!.fileCount, 2);
-    assert.equal(first!.partial, false);
-
-    await measureSharedDrive(userId, accountId, 'drive-1');
-    assert.equal(calls, 1, 'the second answer comes from what was already measured');
-  });
-
-  it('says so when the listing stopped early', async () => {
-    // A truncated total that looks whole is worse than one that admits it.
+  it('sums what the drive holds and writes it down', async () => {
+    // Written down rather than held in memory: the figure has to survive the
+    // restart that happens between the pass measuring it and somebody looking.
     const { userId, accountId } = await seed('drive', 'google_drive', { used: 0, total: 100 });
 
     const drive = getAdapter('google_drive');
     (drive as unknown as Record<string, unknown>).listAllUnder = async () => ({
-      // Always another page, so the cap is what stops it.
-      files: [{ name: 'a.bin', mimeType: 'application/octet-stream', sizeBytes: 1, isFolder: false }],
-      nextPageToken: 'more',
+      files: [
+        { name: 'a.jpg', mimeType: 'image/jpeg', sizeBytes: 300, isFolder: false },
+        { name: 'b.pdf', mimeType: 'application/pdf', sizeBytes: 200, isFolder: false },
+      ],
     });
 
-    const measured = await measureSharedDrive(userId, accountId, 'endless');
+    const measured = await measureSharedDrive(userId, accountId, 'drive-1', 'Marketing');
+    assert.equal(measured!.sizeBytes, 500);
+    assert.equal(measured!.fileCount, 2);
+    assert.equal(measured!.partial, false);
+
+    const stored = await storedMeasurements([accountId]);
+    assert.equal(stored.get(`${accountId}:drive-1`)!.sizeBytes, 500);
+  });
+
+  it('re-measuring replaces the figure rather than adding a second one', async () => {
+    const { userId, accountId } = await seed('drive', 'google_drive', { used: 0, total: 100 });
+
+    const drive = getAdapter('google_drive');
+    let size = 300;
+    (drive as unknown as Record<string, unknown>).listAllUnder = async () => ({
+      files: [{ name: 'a.jpg', mimeType: 'image/jpeg', sizeBytes: size, isFolder: false }],
+    });
+
+    await measureSharedDrive(userId, accountId, 'drive-1', 'Marketing');
+    size = 900;
+    await measureSharedDrive(userId, accountId, 'drive-1', 'Marketing');
+
+    const stored = await storedMeasurements([accountId]);
+    assert.equal(stored.size, 1);
+    assert.equal(stored.get(`${accountId}:drive-1`)!.sizeBytes, 900);
+  });
+
+  it('says so when the listing could not be finished', async () => {
+    // A truncated total that looks whole is worse than one that admits it.
+    const { userId, accountId } = await seed('drive', 'google_drive', { used: 0, total: 100 });
+
+    const drive = getAdapter('google_drive');
+    let page = 0;
+    (drive as unknown as Record<string, unknown>).listAllUnder = async () => {
+      if (++page > 2) throw new Error('the provider gave up');
+      return {
+        files: [{ name: 'a.bin', mimeType: 'application/octet-stream', sizeBytes: 1, isFolder: false }],
+        nextPageToken: 'more',
+      };
+    };
+
+    const measured = await measureSharedDrive(userId, accountId, 'flaky', 'Flaky');
+
     assert.equal(measured!.partial, true);
+    // What was read before it failed is still recorded: a figure that admits
+    // it is a floor beats no figure at all.
+    assert.equal(measured!.fileCount, 2);
+  });
+
+  it('stops rather than looping forever on a provider that never finishes', async () => {
+    /*
+     * This runs unattended on the sync pass, so a loop that only ends when the
+     * provider says it has ended does not end at all if the provider is wrong -
+     * and nothing would notice. The bound is far above any real drive, so it
+     * never truncates a genuine answer.
+     */
+    const { userId, accountId } = await seed('drive', 'google_drive', { used: 0, total: 100 });
+
+    const drive = getAdapter('google_drive');
+    let pages = 0;
+    (drive as unknown as Record<string, unknown>).listAllUnder = async () => {
+      pages += 1;
+      return { files: [], nextPageToken: 'always more' };
+    };
+
+    const measured = await measureSharedDrive(userId, accountId, 'endless', 'Endless');
+
+    assert.equal(measured!.partial, true);
+    assert.ok(pages <= 1_000, 'it gives up rather than running for ever');
   });
 
   it('declines for a provider that cannot list a drive in one pass', async () => {
     // Walking a folder tree a request at a time is not a reasonable fallback,
     // and a caller is better off knowing it cannot be done.
     const { userId, accountId } = await seed('bucket', 's3', { used: 0, total: 0 });
-    assert.equal(await measureSharedDrive(userId, accountId, 'anything'), null);
+    assert.equal(await measureSharedDrive(userId, accountId, 'anything', 'Anything'), null);
   });
 });
