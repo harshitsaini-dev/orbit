@@ -121,6 +121,14 @@ export abstract class BaseAdapter implements ProviderAdapter {
   rename(_tokens: AccountTokens, _remoteId: string, _newName: string): Promise<void> {
     return this.unsupported('rename');
   }
+  relocate(
+    _tokens: AccountTokens,
+    _remoteId: string,
+    _targetPath: string,
+    _options: { copy: boolean },
+  ): Promise<OrbitFile> {
+    return this.unsupported('relocate');
+  }
   remove(_tokens: AccountTokens, _remoteIds: string[]): Promise<BulkResult> {
     return this.unsupported('remove');
   }

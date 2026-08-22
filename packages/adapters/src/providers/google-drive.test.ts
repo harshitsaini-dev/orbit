@@ -678,3 +678,53 @@ describe('shared drives', () => {
     assert.deepEqual(page.files.map((f) => f.name), ['notes.txt']);
   });
 });
+
+describe('relocate', () => {
+  it('copies into the destination without touching the original', async () => {
+    respondWith((call) => {
+      if (call.url.pathname.endsWith('/drives')) return json({ drives: [] });
+      const q = call.url.searchParams.get('q') ?? '';
+      if (q.includes("name = 'Archive'")) {
+        return json({ files: [{ id: 'folder-archive', mimeType: GOOGLE_DRIVE_FOLDER_MIME }] });
+      }
+      if (call.url.pathname.endsWith('/copy')) {
+        return json({ id: 'copy-1', name: 'a.jpg', mimeType: 'image/jpeg' });
+      }
+      return json({ files: [] });
+    });
+
+    const file = await adapter.relocate(TOKENS, 'file-1', '/Archive', { copy: true });
+
+    const copy = calls.find((c) => c.url.pathname.endsWith('/copy'))!;
+    assert.equal(copy.method, 'POST');
+    assert.deepEqual(JSON.parse(copy.body!), { parents: ['folder-archive'] });
+    assert.equal(file.virtualPath, '/Archive/a.jpg');
+
+    assert.equal(calls.some((c) => c.method === 'DELETE'), false);
+  });
+
+  it('moves by naming both the old parent and the new one', async () => {
+    // A Drive file can sit in several folders at once, so "add to that one"
+    // alone would leave it in the old one as well.
+    respondWith((call) => {
+      if (call.url.pathname.endsWith('/drives')) return json({ drives: [] });
+      const q = call.url.searchParams.get('q') ?? '';
+      if (q.includes("name = 'Archive'")) {
+        return json({ files: [{ id: 'folder-archive', mimeType: GOOGLE_DRIVE_FOLDER_MIME }] });
+      }
+      if (call.url.searchParams.get('fields') === 'parents') {
+        return json({ parents: ['folder-old', 'folder-other'] });
+      }
+      if (call.method === 'PATCH') {
+        return json({ id: 'file-1', name: 'a.jpg', mimeType: 'image/jpeg' });
+      }
+      return json({ files: [] });
+    });
+
+    await adapter.relocate(TOKENS, 'file-1', '/Archive', { copy: false });
+
+    const patch = calls.find((c) => c.method === 'PATCH')!;
+    assert.equal(patch.url.searchParams.get('addParents'), 'folder-archive');
+    assert.equal(patch.url.searchParams.get('removeParents'), 'folder-old,folder-other');
+  });
+});

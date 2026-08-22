@@ -168,6 +168,18 @@ Lists one folder from one account. Needs `read` on it.
 `{ accountId, provider, path, files, nextCursor, capabilities }`. The capabilities travel with
 the listing so the UI can hide actions the provider cannot perform.
 
+### `POST /api/files/:id/relocate`
+`{ accountId, targetPath, copy }` → `{ file }`. Moves or copies **within one account**, with the
+provider doing the work — nothing is downloaded and re-uploaded.
+
+Deliberately not the transfer engine: that exists for crossing between two accounts, where the
+bytes genuinely have to travel through Orbit. Inside one account every provider does this itself in
+a call or two.
+
+`copy` defaults to `true`, the option that leaves the original alone. A copy needs `write`; a move
+needs `delete`, because it takes the file away from where it was. `400 unsupported` on a provider
+whose `relocate` capability is false.
+
 ### `GET /api/views/:view`
 `recent`, `starred`, or `shared`, **merged across every readable account** — the caller's own and
 any granted to them — which is the point

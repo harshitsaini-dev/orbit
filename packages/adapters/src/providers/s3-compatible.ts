@@ -66,6 +66,7 @@ export class S3CompatibleAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: false,
+    relocate: true,
     thumbnails: false,
     // The store has no search endpoint, but the adapter can still answer a
     // search by narrowing with a key prefix and matching names as it pages.
@@ -262,6 +263,45 @@ export class S3CompatibleAdapter extends BaseAdapter {
     for (const move of moves) {
       await this.request(tokens, { method: 'DELETE', key: move.source });
     }
+  }
+
+  /**
+   * An object store has no folders and no move, only CopyObject - so a move is
+   * a copy followed by a delete, exactly as `rename` already does it.
+   *
+   * The copy happens inside the provider: S3 copies server-side from one key to
+   * another and the bytes never come near Orbit. A folder is a key prefix, so
+   * relocating one means relocating everything under it.
+   */
+  override async relocate(
+    tokens: AccountTokens,
+    remoteId: string,
+    targetPath: string,
+    options: { copy: boolean },
+  ): Promise<OrbitFile> {
+    const isFolder = remoteId.endsWith('/');
+    // A folder's key ends in '/', so its own name is the segment before it.
+    const trimmed = isFolder ? remoteId.slice(0, -1) : remoteId;
+    const name = trimmed.slice(trimmed.lastIndexOf('/') + 1);
+    const prefix = prefixFor(targetPath);
+    const target = isFolder ? `${prefix}${name}/` : `${prefix}${name}`;
+
+    if (target === remoteId) return this.getFileMeta(tokens, remoteId);
+
+    const sources = isFolder ? await this.allKeysUnder(tokens, remoteId) : [remoteId];
+    const pairs = sources.map((source) => ({
+      source,
+      target: target + source.slice(remoteId.length),
+    }));
+
+    // Every copy first, then the deletes. The other order would leave a
+    // half-moved folder with the original already gone if a copy failed.
+    for (const pair of pairs) await this.copyObject(tokens, pair.source, pair.target);
+    if (!options.copy) {
+      for (const pair of pairs) await this.request(tokens, { method: 'DELETE', key: pair.source });
+    }
+
+    return this.getFileMeta(tokens, target);
   }
 
   override async remove(tokens: AccountTokens, remoteIds: string[]): Promise<BulkResult> {

@@ -77,6 +77,7 @@ export class GoogleDriveAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: true,
+    relocate: true,
     thumbnails: true,
     search: true,
     fullTextSearch: true,
@@ -601,6 +602,53 @@ export class GoogleDriveAdapter extends BaseAdapter {
    * far too easy to trigger by accident, and Drive's own trash is a recovery
    * path the user already understands.
    */
+  /**
+   * Drive has both operations natively, and neither moves any bytes.
+   *
+   * A move is a change of parent, which is why both the old and the new one
+   * have to be named: a Drive file can legitimately sit in several folders at
+   * once, so "remove from this one, add to that one" is the only unambiguous
+   * way to say it.
+   */
+  override async relocate(
+    tokens: AccountTokens,
+    remoteId: string,
+    targetPath: string,
+    options: { copy: boolean },
+  ): Promise<OrbitFile> {
+    const targetId = await this.resolvePath(tokens, targetPath);
+
+    if (options.copy) {
+      const copied = await providerJson<DriveFile>(this.id, `${API}/files/${remoteId}/copy`, {
+        method: 'POST',
+        headers: { ...this.auth(tokens), 'content-type': 'application/json' },
+        query: { fields: FILE_FIELDS, supportsAllDrives: true },
+        body: JSON.stringify({ parents: [targetId] }),
+      });
+
+      return toOrbitFile(copied, joinPath(targetPath, copied.name ?? ''));
+    }
+
+    const current = await providerJson<DriveFile>(this.id, `${API}/files/${remoteId}`, {
+      headers: this.auth(tokens),
+      query: { fields: 'parents', supportsAllDrives: true },
+    });
+
+    const moved = await providerJson<DriveFile>(this.id, `${API}/files/${remoteId}`, {
+      method: 'PATCH',
+      headers: { ...this.auth(tokens), 'content-type': 'application/json' },
+      query: {
+        addParents: targetId,
+        removeParents: (current.parents ?? []).join(','),
+        fields: FILE_FIELDS,
+        supportsAllDrives: true,
+      },
+      body: '{}',
+    });
+
+    return toOrbitFile(moved, joinPath(targetPath, moved.name ?? ''));
+  }
+
   override async remove(tokens: AccountTokens, remoteIds: string[]): Promise<BulkResult> {
     const result: BulkResult = { succeeded: [], failed: [] };
 

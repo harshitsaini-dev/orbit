@@ -18,6 +18,7 @@ export class BunnyAdapter extends BaseAdapter {
     resumableUpload: false,
     rangeRequests: true,
     nativeFolders: true,
+    relocate: false,
     thumbnails: false,
     search: false,
     fullTextSearch: false,

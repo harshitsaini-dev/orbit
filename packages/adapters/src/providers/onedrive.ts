@@ -74,6 +74,7 @@ export class OneDriveAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: true,
+    relocate: true,
     thumbnails: true,
     search: true,
     fullTextSearch: true,
@@ -321,6 +322,43 @@ export class OneDriveAdapter extends BaseAdapter {
       headers: { ...this.auth(tokens), 'content-type': 'application/json' },
       body: JSON.stringify({ name: newName }),
     });
+  }
+
+  /**
+   * A move is a change of parentReference. A copy is not: Graph makes copying
+   * an asynchronous job, answering 202 with a URL to poll rather than the new
+   * item - so the copy is started and the destination folder is described
+   * instead of the file, which is the honest thing to return for work that has
+   * not finished yet.
+   */
+  override async relocate(
+    tokens: AccountTokens,
+    remoteId: string,
+    targetPath: string,
+    options: { copy: boolean },
+  ): Promise<OrbitFile> {
+    // Addressed by path rather than looked up first: Graph accepts a path
+    // address wherever it accepts an id, so this is one call instead of two.
+    const parentReference = { path: `/drive/${graphAddressOf(targetPath)}`.replace(/:$/, '') };
+
+    if (options.copy) {
+      await providerFetch(this.id, `${GRAPH}/me/drive/items/${remoteId}/copy`, {
+        method: 'POST',
+        headers: { ...this.auth(tokens), 'content-type': 'application/json' },
+        body: JSON.stringify({ parentReference }),
+      });
+
+      const source = await this.getFileMeta(tokens, remoteId);
+      return { ...source, remoteId: '', virtualPath: joinPath(targetPath, source.name) };
+    }
+
+    const moved = await providerJson<GraphItem>(this.id, `${GRAPH}/me/drive/items/${remoteId}`, {
+      method: 'PATCH',
+      headers: { ...this.auth(tokens), 'content-type': 'application/json' },
+      body: JSON.stringify({ parentReference }),
+    });
+
+    return graphToOrbitFile(moved, joinPath(targetPath, moved.name ?? ''));
   }
 
   override async remove(tokens: AccountTokens, remoteIds: string[]): Promise<BulkResult> {

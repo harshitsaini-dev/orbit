@@ -334,6 +334,64 @@ filesRouter.post('/api/files/folder', requireAuth, async (req, res, next) => {
   }
 });
 
+const relocateBody = z.object({
+  accountId: z.string().min(1),
+  targetPath: z.string().min(1),
+  /** False moves it. The default is the safe one. */
+  copy: z.boolean().default(true),
+});
+
+/**
+ * Moves or copies within one account, without the bytes leaving the provider.
+ *
+ * Deliberately not the transfer engine: that exists for crossing between two
+ * accounts, where the bytes genuinely have to travel through Orbit. Inside one
+ * account every provider does this itself in a call or two, and routing it
+ * through a transfer would mean downloading and re-uploading a file that never
+ * needed to move.
+ */
+filesRouter.post('/api/files/:id/relocate', requireAuth, async (req, res, next) => {
+  const parsed = relocateBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({
+      error: { code: 'invalid_request', message: 'A destination folder is required' },
+    });
+    return;
+  }
+
+  try {
+    // A move removes the file from where it was, so it needs what deleting
+    // needs. A copy only adds.
+    const need = parsed.data.copy ? 'write' : 'delete';
+    const active = await useAccount(req.user!.id, parsed.data.accountId, need);
+    if (!active) {
+      res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
+      return;
+    }
+
+    if (!active.adapter.capabilities.relocate) {
+      res.status(400).json({
+        error: {
+          code: 'unsupported',
+          message: `${active.adapter.displayName} cannot move files between folders`,
+        },
+      });
+      return;
+    }
+
+    const file = await active.adapter.relocate(
+      active.tokens,
+      req.params.id!,
+      parsed.data.targetPath,
+      { copy: parsed.data.copy },
+    );
+
+    res.json({ file });
+  } catch (err) {
+    if (!sendProviderError(err, res)) next(err);
+  }
+});
+
 const patchBody = z
   .object({
     accountId: z.string().min(1),

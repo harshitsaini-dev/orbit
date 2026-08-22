@@ -162,3 +162,25 @@ export const SchedulesIcon = ({ size }: IconProps) => (
     <path d="M12 7.6V12l2.9 1.8" />
   </Icon>
 );
+
+export const FolderIcon = ({ size }: IconProps) => (
+  <Icon size={size}>
+    <path d="M3.4 7.2a2 2 0 0 1 2-2h3.3l2 2.3h7.9a2 2 0 0 1 2 2v8.3a2 2 0 0 1-2 2H5.4a2 2 0 0 1-2-2z" />
+  </Icon>
+);
+
+export const CopyIcon = ({ size }: IconProps) => (
+  <Icon size={size}>
+    {/* One sheet behind another: the original stays where it was. */}
+    <rect x="8.6" y="8.6" width="11.4" height="11.4" rx="2.2" />
+    <path d="M15.4 5.4H6.2a2 2 0 0 0-2 2v9.2" />
+  </Icon>
+);
+
+export const MoveIcon = ({ size }: IconProps) => (
+  <Icon size={size}>
+    {/* Into a folder, rather than beside it. */}
+    <path d="M3.4 7.2a2 2 0 0 1 2-2h3.3l2 2.3h7.9a2 2 0 0 1 2 2v8.3a2 2 0 0 1-2 2H5.4a2 2 0 0 1-2-2z" />
+    <path d="M12 9.4v6M9.4 12.8L12 15.4l2.6-2.6" />
+  </Icon>
+);

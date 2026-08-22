@@ -17,19 +17,28 @@ import { ProviderIcon } from './ProviderIcon.js';
 
 export function TransferDialog({
   file,
+  mode,
   fromAccountId,
   accounts,
   onClose,
   onQueued,
 }: {
   file: OrbitFile;
+  /**
+   * Which of the two this is. It arrives already decided, because the menu asks
+   * plainly rather than offering one action and a checkbox somebody may not
+   * read before trusting it with something they cannot get back.
+   */
+  mode: 'copy' | 'move';
   fromAccountId: string;
   accounts: PublicAccount[];
   onClose: () => void;
   onQueued: () => void;
 }) {
   const [target, setTarget] = useState<string | null>(null);
-  const [move, setMove] = useState(false);
+  // Still changeable here - having chosen the wrong one from the menu should
+  // not mean closing the dialog and starting again.
+  const [move, setMove] = useState(mode === 'move');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

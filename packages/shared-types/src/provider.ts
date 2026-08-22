@@ -171,6 +171,15 @@ export interface ProviderCapabilities {
   rangeRequests: boolean;
   /** Object stores have no real folders; Orbit synthesises them from key prefixes. */
   nativeFolders: boolean;
+  /**
+   * Whether a file can be moved or copied to another folder **within the same
+   * account**, without the bytes travelling through Orbit.
+   *
+   * Every provider that has this does it server-side in one call, which is why
+   * it is worth having at all: the alternative is a download and a re-upload of
+   * a file that never needed to leave the provider.
+   */
+  relocate: boolean;
   /** Whether the provider reports a total allowance, or only bytes used. */
   reportsQuota: boolean;
   /**
@@ -220,6 +229,20 @@ export interface ProviderAdapter {
 
   createFolder(tokens: AccountTokens, path: string, name: string): Promise<OrbitFile>;
   rename(tokens: AccountTokens, remoteId: string, newName: string): Promise<void>;
+  /**
+   * Moves or copies one file or folder to another folder in the same account.
+   * Gated by the `relocate` capability.
+   *
+   * The provider does the work; nothing is downloaded and re-uploaded. Copying
+   * across *different* accounts is the transfer engine's job and is a different
+   * problem - there the bytes genuinely have to travel.
+   */
+  relocate(
+    tokens: AccountTokens,
+    remoteId: string,
+    targetPath: string,
+    options: { copy: boolean },
+  ): Promise<OrbitFile>;
   remove(tokens: AccountTokens, remoteIds: string[]): Promise<BulkResult>;
   star(tokens: AccountTokens, remoteId: string, starred: boolean): Promise<void>;
 

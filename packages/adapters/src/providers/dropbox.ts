@@ -75,6 +75,7 @@ export class DropboxAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: true,
+    relocate: true,
     thumbnails: true,
     search: true,
     // Dropbox indexes contents for paid plans only, and there is no way to ask
@@ -353,6 +354,32 @@ export class DropboxAdapter extends BaseAdapter {
       to_path: `${parent}/${newName}`,
       autorename: false,
     });
+  }
+
+  /**
+   * Dropbox addresses files by path, so relocating is the same RPC as renaming
+   * with a different destination - and copy_v2 is its exact twin.
+   *
+   * `autorename: false` on purpose: a silent "file (1)" is worse than an error
+   * somebody can act on.
+   */
+  override async relocate(
+    tokens: AccountTokens,
+    remoteId: string,
+    targetPath: string,
+    options: { copy: boolean },
+  ): Promise<OrbitFile> {
+    const name = remoteId.slice(remoteId.lastIndexOf('/') + 1);
+    const parent = normalisePath(targetPath);
+    const to = parent === '/' ? `/${name}` : `${parent}/${name}`;
+
+    const result = await this.rpc<{ metadata: DropboxEntry }>(
+      tokens,
+      options.copy ? '/files/copy_v2' : '/files/move_v2',
+      { from_path: remoteId, to_path: to, autorename: false },
+    );
+
+    return dropboxToOrbitFile(result.metadata);
   }
 
   override async remove(tokens: AccountTokens, remoteIds: string[]): Promise<BulkResult> {

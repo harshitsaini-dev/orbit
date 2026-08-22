@@ -350,3 +350,41 @@ describe('tokens', () => {
     assert.ok(refreshed.expiresAt! > Date.now());
   });
 });
+
+describe('relocate', () => {
+  it('uses the same RPC as renaming, with a different destination', async () => {
+    respondWith(() =>
+      json({ metadata: { '.tag': 'file', id: 'id:1', name: 'a.jpg', path_display: '/Archive/a.jpg', size: 10 } }),
+    );
+
+    const file = await adapter.relocate(TOKENS, '/Photos/a.jpg', '/Archive', { copy: false });
+
+    const call = calls.at(-1)!;
+    assert.match(call.url.pathname, /\/files\/move_v2$/);
+    assert.deepEqual(JSON.parse(call.body!), {
+      from_path: '/Photos/a.jpg',
+      to_path: '/Archive/a.jpg',
+      // A silent "a (1).jpg" is worse than an error somebody can act on.
+      autorename: false,
+    });
+    assert.equal(file.virtualPath, '/Archive/a.jpg');
+  });
+
+  it('copies with copy_v2', async () => {
+    respondWith(() =>
+      json({ metadata: { '.tag': 'file', id: 'id:2', name: 'a.jpg', path_display: '/Archive/a.jpg', size: 10 } }),
+    );
+
+    await adapter.relocate(TOKENS, '/Photos/a.jpg', '/Archive', { copy: true });
+    assert.match(calls.at(-1)!.url.pathname, /\/files\/copy_v2$/);
+  });
+
+  it('puts a file at the root without doubling the slash', async () => {
+    respondWith(() =>
+      json({ metadata: { '.tag': 'file', id: 'id:3', name: 'a.jpg', path_display: '/a.jpg', size: 10 } }),
+    );
+
+    await adapter.relocate(TOKENS, '/Photos/a.jpg', '/', { copy: true });
+    assert.equal(JSON.parse(calls.at(-1)!.body!).to_path, '/a.jpg');
+  });
+});

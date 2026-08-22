@@ -579,3 +579,64 @@ describe('capabilities', () => {
     assert.equal(tokens.region, 'auto');
   });
 });
+
+describe('relocate', () => {
+  it('copies server-side, leaving the original where it is', async () => {
+    // The bytes never come near Orbit: S3 copies key to key itself.
+    const seen: Array<{ method: string; key: string; source?: string }> = [];
+    respondWith((call) => {
+      seen.push({
+        method: call.method,
+        key: new URL(call.url).pathname,
+        source: call.headers['x-amz-copy-source'],
+      });
+      if (call.method === 'HEAD') {
+        return new Response(null, {
+          headers: { 'content-length': '120', 'last-modified': new Date(0).toUTCString() },
+        });
+      }
+      return new Response('<CopyObjectResult/>', { status: 200 });
+    });
+
+    await adapter.relocate(TOKENS, 'photos/a.jpg', '/archive', { copy: true });
+
+    const copies = seen.filter((c) => c.source);
+    assert.equal(copies.length, 1);
+    assert.match(copies[0]!.key, /archive\/a\.jpg$/);
+    assert.equal(seen.some((c) => c.method === 'DELETE'), false, 'a copy deletes nothing');
+  });
+
+  it('moves by copying then deleting, in that order', async () => {
+    // The other order would leave a half-moved folder with the original
+    // already gone if a copy failed.
+    const order: string[] = [];
+    respondWith((call) => {
+      if (call.method === 'HEAD') {
+        return new Response(null, {
+          headers: { 'content-length': '120', 'last-modified': new Date(0).toUTCString() },
+        });
+      }
+      order.push(call.headers['x-amz-copy-source'] ? 'copy' : call.method);
+      return new Response('<CopyObjectResult/>', { status: 200 });
+    });
+
+    await adapter.relocate(TOKENS, 'photos/a.jpg', '/archive', { copy: false });
+
+    assert.deepEqual(order, ['copy', 'DELETE']);
+  });
+
+  it('does nothing when the destination is where it already is', async () => {
+    let requests = 0;
+    respondWith(() => {
+      requests += 1;
+      return new Response(null, {
+        headers: { 'content-length': '120', 'last-modified': new Date(0).toUTCString() },
+      });
+    });
+
+    await adapter.relocate(TOKENS, 'photos/a.jpg', '/photos', { copy: false });
+
+    // One HEAD to describe it, and no copy or delete.
+    assert.equal(requests, 1);
+  });
+});

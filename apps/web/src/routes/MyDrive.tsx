@@ -9,6 +9,7 @@ import { Checkbox } from '../components/Checkbox.js';
 import { ContextMenu, useContextMenu, type MenuItem } from '../components/ContextMenu.js';
 import { DropZone } from '../components/DropZone.js';
 import { AddToCollection } from '../components/AddToCollection.js';
+import { FolderPicker } from '../components/FolderPicker.js';
 import { TransferDialog } from '../components/TransferDialog.js';
 import { ShareDialog } from '../components/ShareDialog.js';
 import { FileGrid } from '../components/FileGrid.js';
@@ -20,6 +21,8 @@ import {
   UpIcon,
   UploadFileIcon,
   UploadFolderIcon,
+  CopyIcon,
+  MoveIcon,
 } from '../components/Icons.js';
 import { ViewToggle, useViewMode } from '../components/ViewToggle.js';
 import { ConfirmDialog, NameDialog } from '../components/NameDialog.js';
@@ -359,7 +362,12 @@ export function MyDrive() {
   const menu = useContextMenu<OrbitFile>();
   const [sharing, setSharing] = useState<OrbitFile | null>(null);
   const [collecting, setCollecting] = useState<OrbitFile | null>(null);
-  const [transferring, setTransferring] = useState<OrbitFile | null>(null);
+  const [transferring, setTransferring] = useState<{ file: OrbitFile; mode: 'copy' | 'move' } | null>(
+    null,
+  );
+  const [relocating, setRelocating] = useState<{ file: OrbitFile; mode: 'copy' | 'move' } | null>(
+    null,
+  );
 
   /**
    * What the right-click menu offers for one file. Built here rather than in
@@ -401,11 +409,39 @@ export function MyDrive() {
         // A folder has no single stream to serve, so there is nothing to share.
         disabled: file.isFolder,
       },
+      /*
+       * Four ways to put a file somewhere else, split along the two axes that
+       * actually differ: whether the original survives, and whether the bytes
+       * have to travel.
+       *
+       * Inside one drive the provider does the work itself and nothing is
+       * downloaded. Across two drives the bytes go through Orbit, which is
+       * slower and worth being a separate, differently-named action rather than
+       * a checkbox somebody might not read.
+       */
       {
-        label: 'Send to another cloud',
+        label: 'Copy to folder…',
+        icon: <CopyIcon />,
+        onSelect: () => setRelocating({ file, mode: 'copy' }),
+        disabled: !capabilities?.relocate,
+      },
+      {
+        label: 'Move to folder…',
+        icon: <MoveIcon />,
+        onSelect: () => setRelocating({ file, mode: 'move' }),
+        disabled: !capabilities?.relocate,
+      },
+      {
+        label: 'Copy to another cloud',
         icon: <TransferIcon />,
-        onSelect: () => setTransferring(file),
+        onSelect: () => setTransferring({ file, mode: 'copy' }),
         // A folder has no single stream to move; the files inside it do.
+        disabled: file.isFolder || (accounts?.length ?? 0) < 2,
+      },
+      {
+        label: 'Move to another cloud',
+        icon: <TransferIcon />,
+        onSelect: () => setTransferring({ file, mode: 'move' }),
         disabled: file.isFolder || (accounts?.length ?? 0) < 2,
       },
       {
@@ -1047,11 +1083,26 @@ export function MyDrive() {
 
       {transferring && (
         <TransferDialog
-          file={transferring}
+          file={transferring.file}
+          mode={transferring.mode}
           fromAccountId={accountId}
           accounts={accounts ?? []}
           onClose={() => setTransferring(null)}
           onQueued={() => undefined}
+        />
+      )}
+
+      {relocating && (
+        <FolderPicker
+          file={relocating.file}
+          accountId={accountId}
+          mode={relocating.mode}
+          currentFolder={path}
+          onClose={() => setRelocating(null)}
+          onDone={() => {
+            setRelocating(null);
+            void load();
+          }}
         />
       )}
 
