@@ -103,6 +103,20 @@ with the three addresses above filled in under Branding and `harshitsaini.in` as
 authorised domain. Google published it without demanding verification; the status reads *In
 production*. Anything below about being stuck in Testing is kept for the record.
 
+**Why "Data access" in the console lists no scopes at all.** Orbit asks for its scopes in the
+authorisation request itself - `drive` and `userinfo.email`, in `apps/server/src/lib/oauth.ts` -
+rather than registering them on the consent screen. That page is a declaration, not the grant, so
+an empty table there is expected and changes nothing: the user still sees the Drive permission
+spelled out when they connect, and still has to allow it.
+
+It is probably also why publishing went through unchallenged. With no restricted scope declared,
+the console had nothing to demand verification for. The real scope appears at connect time, which
+is where the "unverified app" screen and the 100-user cap come from.
+
+**So leave that table empty** unless you are actually going for verification. Declaring `drive`
+there tells Google the app uses a restricted scope and can flip it into a state where it wants the
+assessment done.
+
 **One step people miss.** A refresh token issued while the app was in Testing keeps its seven-day
 expiry - publishing does not repair it. Disconnect the drive in Orbit and connect it again, so
 Google issues a fresh one.
