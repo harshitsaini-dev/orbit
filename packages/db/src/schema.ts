@@ -611,3 +611,32 @@ export const apiTokens = sqliteTable(
     index('api_token_user_idx').on(t.userId),
   ],
 );
+
+/**
+ * When a share link was opened, and what happened.
+ *
+ * Deliberately thin. A share page is opened by people who are not Orbit users
+ * and never agreed to anything: they followed a link somebody sent them. So
+ * what is kept is the least that answers the owner's actual question - is this
+ * link being used, and is it being read or saved - and nothing that identifies
+ * whoever it was.
+ *
+ * No IP address, no user agent, no referrer, no cookie. `device` is one of
+ * three words derived from the user agent and then thrown away, which is enough
+ * to tell "my colleagues opened it on their phones" from "something is
+ * crawling it" and useless for anything else.
+ */
+export const shareViews = sqliteTable(
+  'share_views',
+  {
+    id: text('id').primaryKey(),
+    shortId: text('short_id')
+      .notNull()
+      .references(() => shareLinks.shortId, { onDelete: 'cascade' }),
+    /** `view` opened the page; `download` took the bytes. */
+    kind: text('kind', { enum: ['view', 'download'] }).notNull(),
+    device: text('device', { enum: ['desktop', 'mobile', 'bot'] }).notNull().default('desktop'),
+    viewedAt: text('viewed_at').notNull().default(now),
+  },
+  (t) => [index('share_view_link_idx').on(t.shortId, t.viewedAt)],
+);

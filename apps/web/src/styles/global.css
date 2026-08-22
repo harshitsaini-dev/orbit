@@ -4619,6 +4619,79 @@ body {
   padding: 0.9rem 1.05rem;
 }
 
+/*
+ * The activity panel spans the whole row it belongs to.
+ *
+ * The row is a four-column grid, so without this the panel would become a
+ * fifth column and squeeze the file name into nothing.
+ */
+.share-stats {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--border);
+}
+
+.share-stats__figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.1rem;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.share-stats__figures strong {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.share-stats__bots {
+  color: var(--warning);
+}
+
+.share-stats__when {
+  margin-left: auto;
+}
+
+/* Thirty bars, one per day, sized against the busiest of them. */
+.share-stats__chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 46px;
+}
+
+.share-stats__bar {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  height: 100%;
+  min-width: 3px;
+}
+
+.share-stats__bar > span {
+  width: 100%;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent);
+  /* A day with nothing still draws a hairline, so the axis reads as a row of
+     days rather than as a gap where the chart ended. */
+  min-height: 2px;
+}
+
+.share-stats__bar[data-empty] > span {
+  background: var(--border);
+}
+
+.share-stats__note,
+.share-stats__empty {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .link-list__what {
   display: grid;
   gap: 2px;

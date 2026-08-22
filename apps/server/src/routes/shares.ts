@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { env } from '../lib/env.js';
 import { shareBundle, SHARE_ASSET_DIR, SHARE_ASSET_PATH } from '../lib/share-bundle.js';
 import { record } from '../services/audit.js';
+import { recordView, statsFor } from '../services/share-analytics.js';
 import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
 import {
@@ -240,6 +241,15 @@ sharesRouter.get('/s/:shortId', async (req, res, next) => {
       return;
     }
 
+    /*
+     * Counted here rather than only on the bytes.
+     *
+     * Opening the page is what somebody following a link actually does; a
+     * download is a second, rarer thing. Counting only downloads would report
+     * a link nobody could open as unused rather than as broken.
+     */
+    void recordView(shortId, 'view', req.get('user-agent'));
+
     res
       .type('html')
       .send(sharePage({ kind: 'file', shortId, share: found.share, nonce }));
@@ -335,6 +345,34 @@ sharesRouter.get('/s/:shortId/content', async (req, res, next) => {
 
     Readable.fromWeb(stream.stream as never).pipe(res);
     void recordAccess(shortId);
+    // Only a real download, not the viewer fetching a range to render a page.
+    if (req.query.download !== undefined) void recordView(shortId, 'download', req.get('user-agent'));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * What one link has been doing.
+ *
+ * Owner-only, and answers 404 for a link that is not theirs - so nobody can
+ * learn that a short id exists by asking about its statistics.
+ */
+sharesRouter.get('/api/shares/:shortId/stats', requireAuth, async (req, res, next) => {
+  try {
+    const days = Number(req.query['days']);
+    const stats = await statsFor(
+      req.user!.id,
+      req.params.shortId ?? '',
+      Number.isFinite(days) && days > 0 && days <= 90 ? Math.round(days) : 30,
+    );
+
+    if (!stats) {
+      res.status(404).json({ error: { code: 'not_found', message: 'No such link' } });
+      return;
+    }
+
+    res.json({ stats });
   } catch (err) {
     next(err);
   }

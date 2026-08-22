@@ -35,7 +35,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 19 | Scheduled jobs | 🟢 Done |
 | 20 | Automatic tagging by OCR | ⚪ Designed, not started |
 | 21 | Peer-to-peer direct transfer | ⚪ Designed, not started |
-| 22 | Share analytics | ⚪ Designed, not started |
+| 22 | Share analytics | 🟢 Done |
 
 Phases 12 onward are specified in `18-planned-capabilities.md`, which records
 for each one what it costs, what the free tier will and will not carry, and —
@@ -102,7 +102,7 @@ NULLs as distinct, so those never deduplicate: merging two connections that only
 | Check | Result |
 |---|---|
 | `npm run typecheck --workspaces` | clean |
-| `npm test --workspaces` | 844 pass, 0 fail |
+| `npm test --workspaces` | 857 pass, 0 fail |
 | `npm run lint` | 0 errors |
 | `npm run build --workspaces` | clean |
 | `npx playwright test` (headed) | 219 pass, 0 fail across desktop, tablet and mobile |

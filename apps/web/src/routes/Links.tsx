@@ -4,6 +4,7 @@ import { FileIcon } from '../components/FileIcon.js';
 import { FilterBox, useFileFilter } from '../components/ListControls.js';
 import { ConfirmDialog } from '../components/NameDialog.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
+import { ShareStats } from '../components/ShareStats.js';
 import { FileListSkeleton } from '../components/Skeleton.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { ApiError, api } from '../lib/api.js';
@@ -55,6 +56,8 @@ export function Links() {
   const [error, setError] = useState<Error | null>(null);
   const [revoking, setRevoking] = useState<Share | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  /** Which link's activity is open. One at a time: it is a detail, not a column. */
+  const [showing, setShowing] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -197,6 +200,16 @@ export function Links() {
                 </span>
 
                 <span className="link-list__actions">
+                  <button
+                    type="button"
+                    className="clay-button"
+                    aria-expanded={showing === share.shortId}
+                    onClick={() =>
+                      setShowing((current) => (current === share.shortId ? null : share.shortId))
+                    }
+                  >
+                    {showing === share.shortId ? 'Hide activity' : 'Activity'}
+                  </button>
                   <button type="button" className="clay-button" onClick={() => void copy(share)}>
                     {copied === share.shortId ? 'Copied' : 'Copy'}
                   </button>
@@ -217,6 +230,10 @@ export function Links() {
                     Revoke
                   </button>
                 </span>
+
+                {/* Inside the row rather than in a dialog: it is about this
+                    link, and a dialog would hide the link it is about. */}
+                {showing === share.shortId && <ShareStats shortId={share.shortId} />}
               </li>
             );
           })}

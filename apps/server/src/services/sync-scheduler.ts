@@ -2,6 +2,7 @@ import cron, { type ScheduledTask } from 'node-cron';
 import { runDue } from './schedules.js';
 import { env } from '../lib/env.js';
 import { log } from '../lib/log.js';
+import { pruneOldViews } from './share-analytics.js';
 import { nameUnlabelledAccounts, refreshExpiringAccounts } from './accounts.js';
 import { measureStaleSharedDrives } from './storage-summary.js';
 import { syncAll } from './sync.js';
@@ -72,6 +73,21 @@ async function nameAccounts(): Promise<void> {
   }
 }
 
+/**
+ * Drops share view records past their retention window.
+ *
+ * A log of strangers' behaviour is not something to accumulate forever, and
+ * nothing reads a record that old anyway.
+ */
+async function pruneShareViews(): Promise<void> {
+  try {
+    const dropped = await pruneOldViews();
+    if (dropped > 0) log.info('share views pruned', { rows: dropped });
+  } catch (err) {
+    log.error('share view prune failed', { error: err });
+  }
+}
+
 async function runUserSchedules(): Promise<void> {
   try {
     const ran = await runDue();
@@ -92,6 +108,7 @@ export function startSyncScheduler(): Scheduler {
     });
     void runUserSchedules();
     void measureSharedDrives();
+    void pruneShareViews();
   });
 
   // One pass at boot, so a restart after a long idle period renews immediately

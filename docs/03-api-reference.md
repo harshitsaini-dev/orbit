@@ -441,6 +441,20 @@ so somebody can find out whether a job works rather than waiting until 2am to di
 Channel pub/sub. Client frames: `{"type":"subscribe","channel":"..."}`, `unsubscribe`, `ping`.
 Server frames: `upload:progress`, `upload:complete`, `upload:error`, `sync:status`.
 
+### `GET /api/shares/:shortId/stats`
+How one published link has been used: `{ stats: { daily, views, downloads, bots, byDevice,
+lastViewedAt } }`. `daily` covers the last 30 days by default (`?days=` up to 90) and includes
+the days with nothing, because a chart built only from the days with data draws a straight line
+through a fortnight of silence.
+
+Owner-only, and `404` for a link that is not yours — so nobody can learn that a short id exists
+by asking about its statistics.
+
+A view record holds the time, whether it was a read or a download, and one of three words for
+the device. No address, no user agent, no referrer, no cookie (ADR 0014), which is why there is
+no unique-visitor count: telling one person refreshing from ten people looking would mean
+identifying somebody who only followed a link.
+
 ## The public API — `/v1`
 
 > Rendered in the app at **`/developer/docs`**, from `packages/shared-types/src/api-spec.ts`.
