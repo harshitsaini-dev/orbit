@@ -2,7 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { OrbitFile, WorkspaceView as ViewName } from '@orbit/shared-types';
 import { DownloadIcon, StarIcon } from '../components/ActionIcon.js';
+import { FileGrid } from '../components/FileGrid.js';
 import { FileIcon } from '../components/FileIcon.js';
+import { FilterBox, ViewToggle, useFileFilter, useListView } from '../components/ListControls.js';
 import { FilePreview } from '../components/FilePreview.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { FileListSkeleton } from '../components/Skeleton.js';
@@ -11,6 +13,9 @@ import { api, ApiError } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
+
+/** These views do not select, so the grid is handed one empty set for all time. */
+const EMPTY_SELECTION: Set<string> = new Set();
 
 interface WorkspaceFile extends OrbitFile {
   accountId: string;
@@ -62,6 +67,7 @@ export function WorkspaceViewPage({ view }: { view: ViewName }) {
   const [loadError, setLoadError] = useState<Error | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<WorkspaceFile | null>(null);
+  const [viewMode, setViewMode] = useListView(`view-${view}`);
 
   const copy = COPY[view];
 
@@ -109,7 +115,8 @@ export function WorkspaceViewPage({ view }: { view: ViewName }) {
     }
   }
 
-  const files = data?.files ?? [];
+  const all = data?.files ?? [];
+  const { filter, setFilter, shown: files } = useFileFilter(all);
   // Only worth naming the source when more than one account contributed.
   const multipleAccounts = new Set(files.map((file) => file.accountId)).size > 1;
 
@@ -127,17 +134,23 @@ export function WorkspaceViewPage({ view }: { view: ViewName }) {
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)', display: 'grid', gap: '0.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <h1 style={{ fontSize: '1.4rem' }}>{copy.title}</h1>
-          <button
-            type="button"
-            className="clay-button"
-            style={{ padding: '0.4rem 1rem', fontSize: 13 }}
-            disabled={loading}
-            onClick={() => void load()}
-          >
-            {loading ? 'Loading…' : 'Refresh'}
-          </button>
+
+          <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <ViewToggle view={viewMode} onChange={setViewMode} />
+            <button
+              type="button"
+              className="clay-button"
+              style={{ padding: '0.4rem 1rem', fontSize: 13 }}
+              disabled={loading}
+              onClick={() => void load()}
+            >
+              {loading ? 'Loading…' : 'Refresh'}
+            </button>
+          </div>
         </div>
         <p style={{ color: 'var(--text-muted)', margin: 0 }}>{copy.blurb}</p>
+
+        <FilterBox value={filter} onChange={setFilter} count={all.length} />
 
         {error && (
           <p role="alert" style={{ color: 'var(--danger)', margin: '0.5rem 0 0', fontSize: 14 }}>
@@ -165,11 +178,29 @@ export function WorkspaceViewPage({ view }: { view: ViewName }) {
       <section className="clay" style={{ padding: 'clamp(0.75rem, 2vw, 1.25rem)' }}>
         {loading && !data && <FileListSkeleton rows={6} />}
 
-        {data && files.length === 0 && (
+        {data && all.length === 0 && (
           <p style={{ color: 'var(--text-muted)', padding: '1rem' }}>{copy.empty}</p>
         )}
 
-        {files.length > 0 && (
+        {data && all.length > 0 && files.length === 0 && (
+          <p style={{ color: 'var(--text-muted)', padding: '1rem' }}>
+            Nothing here matches “{filter}”.
+          </p>
+        )}
+
+        {files.length > 0 && viewMode === 'grid' && (
+          <FileGrid
+            files={files}
+            accountIdFor={(file) => (file as WorkspaceFile).accountId}
+            selected={EMPTY_SELECTION}
+            onToggleSelect={() => undefined}
+            onOpen={(file) => setPreviewing(file as WorkspaceFile)}
+            showLocation={multipleAccounts}
+            locationOf={(file) => (file as WorkspaceFile).accountNickname}
+          />
+        )}
+
+        {files.length > 0 && viewMode === 'list' && (
           <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: 4 }} data-testid="view-list">
             {files.map((file) => (
               <li

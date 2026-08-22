@@ -227,6 +227,19 @@ export interface ProviderAdapter {
    */
   getThumbnail(tokens: AccountTokens, remoteId: string, size?: number): Promise<FileStreamResult | null>;
 
+  /**
+   * Who the connected account belongs to, where the provider will say.
+   *
+   * Used for three things at connect time: labelling the connection with an
+   * address rather than the provider's name, recognising a reconnection of an
+   * account already here, and seeding an empty profile. Optional because an
+   * object store has no identity to report - a bucket belongs to a key, not to
+   * a person.
+   */
+  getAccountIdentity?(
+    tokens: AccountTokens,
+  ): Promise<{ email?: string; displayName?: string; photoUrl?: string }>;
+
   createFolder(tokens: AccountTokens, path: string, name: string): Promise<OrbitFile>;
   rename(tokens: AccountTokens, remoteId: string, newName: string): Promise<void>;
   /**

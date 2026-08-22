@@ -32,6 +32,14 @@ export interface CollectionSummary {
 export interface CollectionItem {
   id: string;
   accountId: string;
+  /**
+   * The provider's own id, so a collection's files can actually be opened.
+   *
+   * Safe to publish: every route that takes one checks the account against the
+   * caller anyway, and My Drive has always sent them. A collection whose files
+   * cannot be previewed or downloaded is half a feature.
+   */
+  remoteId: string;
   /** Which account it lives in, for the badge on each row. */
   accountNickname: string;
   provider: string;
@@ -193,6 +201,7 @@ export async function readCollection(
     items: items.map(({ item, nickname, provider, catalogueKey }) => ({
       id: item.id,
       accountId: item.accountId,
+      remoteId: item.remoteId,
       accountNickname: nickname,
       provider,
       catalogueKey,
@@ -272,6 +281,7 @@ export async function addToCollection(
   return {
     id: inserted.id,
     accountId,
+    remoteId: inserted.remoteId,
     accountNickname: active.row.nickname,
     provider: active.row.provider,
     catalogueKey: active.row.catalogueKey ?? null,

@@ -601,11 +601,10 @@ describe('what a flat enumeration asks for', () => {
 });
 
 describe('shared drives', () => {
-  it('lists them at the root, beside My Drive', async () => {
-    // `includeItemsFromAllDrives` makes their contents visible once the parent
-    // is known, but a shared drive is its own root and is not a child of
-    // `root` - so without this a Workspace user's team drives were absent from
-    // the top level with nothing to say they existed.
+  it('puts them behind one folder rather than among My Drive', async () => {
+    // A team drive is not in My Drive. Listing one among somebody's personal
+    // folders is wrong about who owns it, wrong about who else can see it, and
+    // wrong about whose quota it counts against.
     respondWith((call) => {
       if (call.url.pathname.endsWith('/drives')) {
         return json({ drives: [{ id: 'drive-marketing', name: 'Marketing' }] });
@@ -618,13 +617,52 @@ describe('shared drives', () => {
     assert.deepEqual(
       page.files.map((f) => [f.name, f.isFolder]),
       [
-        ['Marketing', true],
+        ['Shared drives', true],
         ['notes.txt', false],
       ],
+    );
+  });
+
+  it('offers no such folder when there are none', async () => {
+    // An empty container is worse than no container: it says there is
+    // something here to look at.
+    respondWith((call) => {
+      if (call.url.pathname.endsWith('/drives')) return json({ drives: [] });
+      return json({ files: [{ id: 'f1', name: 'notes.txt', mimeType: 'text/plain' }] });
+    });
+
+    const page = await adapter.listFolder(TOKENS, '/');
+    assert.deepEqual(page.files.map((f) => f.name), ['notes.txt']);
+  });
+
+  it('lists the drives themselves inside it', async () => {
+    respondWith((call) => {
+      if (call.url.pathname.endsWith('/drives')) {
+        return json({ drives: [{ id: 'drive-marketing', name: 'Marketing' }] });
+      }
+      return json({ files: [] });
+    });
+
+    const page = await adapter.listFolder(TOKENS, '/Shared drives');
+
+    assert.deepEqual(
+      page.files.map((f) => [f.name, f.isFolder]),
+      [['Marketing', true]],
     );
     // A shared drive's id doubles as its root folder id, so everything below
     // behaves like any other folder from here.
     assert.equal(page.files[0]!.remoteId, 'drive-marketing');
+    /*
+     * Resolving the path costs one lookup and listing it costs none.
+     *
+     * The lookup is deliberate: Drive is asked whether a real folder of that
+     * name exists first, so somebody who genuinely has one called "Shared
+     * drives" still reaches theirs. The synthetic folder is the fallback, not
+     * the override.
+     */
+    const lookups = calls.filter((c) => (c.url.searchParams.get('q') ?? '').includes('in parents'));
+    assert.equal(lookups.length, 1);
+    assert.match(lookups[0]!.url.searchParams.get('q')!, /'root' in parents/);
   });
 
   it('does not ask for them while a path resolves normally', async () => {
@@ -644,7 +682,7 @@ describe('shared drives', () => {
     assert.equal(calls.filter((c) => c.url.pathname.endsWith('/drives')).length, 0);
   });
 
-  it('walks a path that starts at a shared drive', async () => {
+  it('walks a path that goes through a shared drive', async () => {
     respondWith((call) => {
       if (call.url.pathname.endsWith('/drives')) {
         return json({ drives: [{ id: 'drive-marketing', name: 'Marketing' }] });
@@ -658,7 +696,7 @@ describe('shared drives', () => {
       return json({ files: [] });
     });
 
-    await adapter.listFolder(TOKENS, '/Marketing/2026');
+    await adapter.listFolder(TOKENS, '/Shared drives/Marketing/2026');
 
     // The walk starts at the shared drive rather than at `root`, which is the
     // only place `2026` could have been found.

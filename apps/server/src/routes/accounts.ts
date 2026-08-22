@@ -1,4 +1,4 @@
-import { GoogleDriveAdapter, getAdapter, ProviderError } from '@orbit/adapters';
+import { getAdapter, ProviderError } from '@orbit/adapters';
 import { catalogueEntry } from '@orbit/shared-types';
 import { Router } from 'express';
 import { z } from 'zod';
@@ -122,14 +122,28 @@ accountsRouter.get('/auth/callback/:provider', requireAuth, async (req, res, nex
     // the same lookup.
     let nickname = adapter.displayName;
     let remoteAccountId: string | undefined;
-    if (adapter instanceof GoogleDriveAdapter) {
+
+    /*
+     * Asked of whatever can answer, rather than of Google alone.
+     *
+     * This used to be gated on the adapter being Google Drive, so Dropbox and
+     * OneDrive - both of which implement it - were never asked. Every Dropbox
+     * connection was therefore called "Dropbox", with nothing to say whose it
+     * was, and had no remote id, so reconnecting one added a second row beside
+     * the first instead of updating it.
+     */
+    if (adapter.getAccountIdentity) {
       const identity = await adapter
         .getAccountIdentity(tokens)
-        .catch((): Awaited<ReturnType<GoogleDriveAdapter['getAccountIdentity']>> => ({}));
-      if (identity.email) {
-        nickname = identity.email;
-        remoteAccountId = identity.email;
-      }
+        .catch((): { email?: string; displayName?: string; photoUrl?: string } => ({}));
+
+      // The address first: it is unique, and it is what somebody looking at two
+      // connections to the same provider needs to tell them apart. A display
+      // name is better than nothing when the provider gives no address.
+      const label = identity.email ?? identity.displayName;
+      if (label) nickname = label;
+      if (identity.email) remoteAccountId = identity.email;
+
       await seedProfileFrom(req.user!.id, identity).catch(() => undefined);
     }
 

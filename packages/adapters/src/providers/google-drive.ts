@@ -23,6 +23,16 @@ const UPLOAD_API = 'https://www.googleapis.com/upload/drive/v3';
 const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
 export const GOOGLE_DRIVE_FOLDER_MIME = 'application/vnd.google-apps.folder';
+
+/**
+ * The folder shared drives live behind.
+ *
+ * Not a real folder anywhere: Drive has no such thing, so Orbit synthesises one
+ * to hold roots that are not children of anything. The id is deliberately not a
+ * plausible Drive id, so it cannot collide with one.
+ */
+export const SHARED_DRIVES = 'Shared drives';
+const SHARED_DRIVES_ID = 'orbit:shared-drives';
 export const GOOGLE_DRIVE_SHORTCUT_MIME = 'application/vnd.google-apps.shortcut';
 
 /** Drive resumable uploads require a multiple of 256 KiB for every chunk but the last. */
@@ -186,6 +196,15 @@ export class GoogleDriveAdapter extends BaseAdapter {
     const parent = normalisePath(path);
     const folderId = await this.resolvePath(tokens, parent);
 
+    // Answered without a query: there is no such folder to list.
+    if (folderId === SHARED_DRIVES_ID) {
+      return {
+        files: (await this.sharedDrives(tokens)).map((drive) =>
+          toOrbitFile(drive, joinPath(parent, drive.name ?? '')),
+        ),
+      };
+    }
+
     const page = await providerJson<DriveList>(this.id, `${API}/files`, {
       headers: this.auth(tokens),
       query: {
@@ -208,16 +227,26 @@ export class GoogleDriveAdapter extends BaseAdapter {
      * `includeItemsFromAllDrives` makes their *contents* visible once the
      * parent is known, which is why files in one have always worked - but a
      * shared drive is its own root and is not a child of `root`, so a Workspace
-     * user's team drives were simply absent from the top level with nothing to
-     * say they existed.
+     * user's team drives were absent from the top level with nothing to say
+     * they existed.
      *
-     * They are folded in as folders at the root. A shared drive's id doubles as
-     * its root folder id, so from that point everything below behaves exactly
-     * like any other folder.
+     * They go behind one folder rather than being listed at the root directly.
+     * A shared drive is not in My Drive, and putting a team drive among
+     * somebody's personal folders says that it is - which is wrong about who
+     * owns it, wrong about who else can see it, and wrong about whose quota it
+     * counts against. Google's own client draws the same line.
      */
-    if (parent === '/' && !pageToken) {
-      files = [...(await this.sharedDrives(tokens)), ...files];
+    if (parent === '/' && !pageToken && (await this.sharedDrives(tokens)).length > 0) {
+      files = [
+        {
+          id: SHARED_DRIVES_ID,
+          name: SHARED_DRIVES,
+          mimeType: GOOGLE_DRIVE_FOLDER_MIME,
+        },
+        ...files,
+      ];
     }
+
 
     // Drive answers a listing of a folder the caller cannot see with an empty
     // list rather than an error, so a shortcut whose target was deleted or
@@ -864,13 +893,17 @@ export class GoogleDriveAdapter extends BaseAdapter {
 
       if (!match) {
         /*
-         * The first segment may name a shared drive rather than a folder. Those
-         * are roots of their own and will never be found by looking inside
-         * `root`, so the list of them is consulted - but only here, on the way
-         * to a 404. Asking up front would add a call to every path resolution
-         * for a case most accounts do not have.
+         * "/Shared drives" is not a folder in Drive - Orbit synthesises it to
+         * hold roots that are not children of anything. Recognised here rather
+         * than up front so an ordinary path never pays for the check.
          */
-        if (parentId === 'root') {
+        if (parentId === 'root' && segment === SHARED_DRIVES) {
+          parentId = SHARED_DRIVES_ID;
+          continue;
+        }
+
+        // And its children are the shared drives themselves, addressed by name.
+        if (parentId === SHARED_DRIVES_ID) {
           const drive = (await this.sharedDrives(tokens)).find((d) => d.name === segment);
           if (drive) {
             parentId = drive.id;

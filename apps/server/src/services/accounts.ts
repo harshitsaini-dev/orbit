@@ -252,6 +252,49 @@ export async function useAccount(
  * genuinely dead grant is discovered and surfaced before they need it rather
  * than at the moment they do.
  */
+/**
+ * Fills in the label and remote id of connections that were made before Orbit
+ * asked for them.
+ *
+ * Every connection used to be named after the provider unless it was Google
+ * Drive, so a Dropbox account said only "Dropbox" - useless the moment there
+ * are two - and had no remote id, which is what tells a reconnection from a
+ * second account. Rather than making people disconnect and reconnect to fix
+ * rows Orbit got wrong, the sweep asks once for the ones still unnamed.
+ *
+ * Only accounts whose nickname is still the bare provider name are touched: a
+ * name somebody chose is theirs, not something to overwrite.
+ */
+export async function nameUnlabelledAccounts(): Promise<number> {
+  const rows = await db().select().from(accounts);
+  let named = 0;
+
+  for (const row of rows) {
+    if (row.remoteAccountId) continue;
+
+    const adapter = getAdapter(row.provider);
+    if (!adapter.getAccountIdentity) continue;
+    if (row.nickname !== adapter.displayName) continue;
+
+    try {
+      const identity = await adapter.getAccountIdentity(decryptTokens(row.encryptedTokens));
+      const label = identity.email ?? identity.displayName;
+      if (!label) continue;
+
+      await db()
+        .update(accounts)
+        .set({ nickname: label, remoteAccountId: identity.email ?? null })
+        .where(eq(accounts.id, row.id));
+      named += 1;
+    } catch {
+      // A provider having a bad moment is not a reason to fail the sweep; the
+      // next one will try again.
+    }
+  }
+
+  return named;
+}
+
 export async function refreshExpiringAccounts(now = new Date()): Promise<{
   refreshed: number;
   revoked: number;

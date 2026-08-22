@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { catalogueEntry } from '@orbit/shared-types';
+import { catalogueEntry, mimeForName, type OrbitFile } from '@orbit/shared-types';
+import { FileGrid } from '../components/FileGrid.js';
 import { FileIcon } from '../components/FileIcon.js';
+import { FilePreview } from '../components/FilePreview.js';
+import { FilterBox, ViewToggle, useFileFilter, useListView } from '../components/ListControls.js';
 import { CollectionsIcon } from '../components/Icons.js';
 import { ConfirmDialog, NameDialog } from '../components/NameDialog.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
@@ -33,6 +36,7 @@ interface Collection {
 interface Item {
   id: string;
   accountId: string;
+  remoteId: string;
   accountNickname: string;
   provider: string;
   catalogueKey: string | null;
@@ -43,6 +47,25 @@ interface Item {
   virtualPath: string;
 }
 
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
+
+/** Collections do not select, so the grid is handed one empty set for all time. */
+const EMPTY_SELECTION: Set<string> = new Set();
+
+/** A collection item is most of a file; the grid and the viewer want the rest. */
+function asOrbitFile(item: Item): OrbitFile {
+  return {
+    remoteId: item.remoteId,
+    name: item.name,
+    virtualPath: item.virtualPath,
+    mimeType: item.mimeType || mimeForName(item.name),
+    sizeBytes: item.sizeBytes,
+    isFolder: item.isFolder,
+    starred: false,
+    modifiedAt: new Date(0).toISOString(),
+  };
+}
+
 export function Collections() {
   const [params, setParams] = useSearchParams();
   const openId = params.get('id');
@@ -50,7 +73,8 @@ export function Collections() {
   const [collections, setCollections] = useState<Collection[] | null>(null);
   const [open, setOpen] = useState<{ collection: Collection; items: Item[] } | null>(null);
   const [error, setError] = useState<Error | null>(null);
-  const [filter, setFilter] = useState('');
+  const [viewMode, setViewMode] = useListView('collection');
+  const [previewing, setPreviewing] = useState<Item | null>(null);
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<Collection | null>(null);
   const [deleting, setDeleting] = useState<Collection | null>(null);
@@ -69,10 +93,13 @@ export function Collections() {
     void load();
   }, [load]);
 
+  const { filter, setFilter, shown } = useFileFilter(open?.items ?? []);
+
   useEffect(() => {
     if (!openId) {
       setOpen(null);
       setFilter('');
+      setPreviewing(null);
       return;
     }
 
@@ -88,17 +115,8 @@ export function Collections() {
       });
 
     return () => controller.abort();
-  }, [openId, setParams]);
+  }, [openId, setParams, setFilter]);
 
-  const shown = useMemo(() => {
-    const needle = filter.trim().toLowerCase();
-    if (!needle || !open) return open?.items ?? [];
-    return open.items.filter(
-      (item) =>
-        item.name.toLowerCase().includes(needle) ||
-        item.virtualPath.toLowerCase().includes(needle),
-    );
-  }, [open, filter]);
 
   async function create(name: string): Promise<void> {
     const { collection } = await api<{ collection: Collection }>('/api/collections', {
@@ -164,6 +182,8 @@ export function Collections() {
 
             <span style={{ flex: 1 }} />
 
+            <ViewToggle view={viewMode} onChange={setViewMode} />
+
             <button type="button" className="clay-button" onClick={() => setRenaming(open.collection)}>
               Rename
             </button>
@@ -177,17 +197,7 @@ export function Collections() {
             </button>
           </div>
 
-          {/* Only once there is enough in here to need it. */}
-          {open.items.length > 8 && (
-            <input
-              type="search"
-              className="clay-sunken collection-filter"
-              placeholder={`Filter ${open.items.length} files…`}
-              aria-label="Filter this collection"
-              value={filter}
-              onChange={(event) => setFilter(event.target.value)}
-            />
-          )}
+          <FilterBox value={filter} onChange={setFilter} count={open.items.length} />
         </section>
 
         <section className="clay" style={{ padding: '0.75rem' }}>
@@ -199,15 +209,44 @@ export function Collections() {
             </p>
           )}
 
+          {viewMode === 'grid' && shown.length > 0 && (
+            <FileGrid
+              files={shown.map(asOrbitFile)}
+              accountIdFor={(file) =>
+                shown.find((item) => item.remoteId === file.remoteId)?.accountId ?? ''
+              }
+              selected={EMPTY_SELECTION}
+              onToggleSelect={() => undefined}
+              onOpen={(file) => {
+                const item = shown.find((entry) => entry.remoteId === file.remoteId);
+                if (item && !item.isFolder) setPreviewing(item);
+              }}
+              // A collection spans accounts by definition, so where each file
+              // lives is never redundant here the way it is inside one folder.
+              showLocation
+              locationOf={(file) =>
+                shown.find((item) => item.remoteId === file.remoteId)?.accountNickname ?? ''
+              }
+            />
+          )}
+
+          {viewMode === 'list' && (
           <ul className="collection-items">
             {shown.map((item) => (
               <li key={item.id}>
-                <FileIcon
-                  name={item.name}
-                  mimeType={item.mimeType}
-                  isFolder={item.isFolder}
-                  size={22}
-                />
+                <button
+                  type="button"
+                  className="dup-open"
+                  title={item.isFolder ? 'Open where it lives' : 'Open it'}
+                  onClick={() => (item.isFolder ? undefined : setPreviewing(item))}
+                >
+                  <FileIcon
+                    name={item.name}
+                    mimeType={item.mimeType}
+                    isFolder={item.isFolder}
+                    size={22}
+                  />
+                </button>
 
                 <a
                   className="collection-item__name"
@@ -242,7 +281,33 @@ export function Collections() {
               </li>
             ))}
           </ul>
+          )}
         </section>
+
+        {previewing && (
+          <FilePreview
+            file={asOrbitFile(previewing)}
+            // The collection is the set to step through: that is what somebody
+            // grouped these files for.
+            siblings={shown.filter((item) => !item.isFolder).map(asOrbitFile)}
+            contentUrl={(file, download) => {
+              const owner =
+                shown.find((item) => item.remoteId === file.remoteId)?.accountId ??
+                previewing.accountId;
+              const query = new URLSearchParams({ accountId: owner });
+              if (download) {
+                query.set('download', '1');
+                query.set('name', file.name);
+              }
+              return `${API_BASE}/api/files/${encodeURIComponent(file.remoteId)}/content?${query.toString()}`;
+            }}
+            onSelect={(next) => {
+              const item = shown.find((entry) => entry.remoteId === next.remoteId);
+              if (item) setPreviewing(item);
+            }}
+            onClose={() => setPreviewing(null)}
+          />
+        )}
 
         {renaming && (
           <NameDialog

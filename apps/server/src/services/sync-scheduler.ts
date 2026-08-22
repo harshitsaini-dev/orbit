@@ -1,7 +1,7 @@
 import cron, { type ScheduledTask } from 'node-cron';
 import { runDue } from './schedules.js';
 import { env } from '../lib/env.js';
-import { refreshExpiringAccounts } from './accounts.js';
+import { nameUnlabelledAccounts, refreshExpiringAccounts } from './accounts.js';
 import { syncAll } from './sync.js';
 
 export interface Scheduler {
@@ -45,6 +45,15 @@ async function runSyncPass(): Promise<void> {
  * Separate from `runSyncPass` and never allowed to throw into it: a broken
  * schedule must not stop tokens being renewed.
  */
+async function nameAccounts(): Promise<void> {
+  try {
+    const named = await nameUnlabelledAccounts();
+    if (named > 0) console.log(`accounts: named ${named} connection(s) from the provider`);
+  } catch (err) {
+    console.error('naming pass failed', err instanceof Error ? err.message : err);
+  }
+}
+
 async function runUserSchedules(): Promise<void> {
   try {
     const ran = await runDue();
@@ -75,6 +84,10 @@ export function startSyncScheduler(): Scheduler {
   // And the user's own jobs, for the same reason and more so: the instance
   // sleeps, so waking up is the only chance a 2am job gets to run at all.
   void runUserSchedules();
+
+  // Once at boot only: a connection is named when it is made, so this is for
+  // rows made before Orbit asked - it finds nothing on the second run.
+  void nameAccounts();
 
   return {
     stop: () => task.stop(),
