@@ -39,7 +39,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 17 | Cross-cloud transfer engine | 🟢 Done |
 | 18 | Cross-cloud duplicate finder | 🟢 Done |
 | 19 | Scheduled jobs | 🟢 Done |
-| 20 | Automatic tagging by OCR | ⚪ Designed, not started |
+| 20 | Automatic tagging by OCR | 🟢 Done — Tesseract in a worker, readings stored and searched |
 | 21 | Peer-to-peer direct transfer | ⚪ Designed, not started |
 | 22 | Share analytics | 🟢 Done |
 
