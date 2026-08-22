@@ -2520,3 +2520,198 @@ body {
     width: 100%;
   }
 }
+
+/* --- collections ---------------------------------------------------------- */
+
+.collection-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 1.1rem;
+}
+
+.collection-tabs button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0.4rem 0.85rem;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: var(--shadow-clay);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.collection-tabs button[aria-selected='true'] {
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: var(--shadow-clay), var(--glow-accent);
+}
+
+.collection-tabs button span {
+  padding: 0.05rem 0.4rem;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  font-size: 11.5px;
+}
+
+.collection-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 0.5rem 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.collection-head > span:nth-of-type(1) {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.collection-head .clay-button {
+  padding: 0.3rem 0.85rem;
+  font-size: 12.5px;
+}
+
+.collection-empty {
+  margin: 0;
+  padding: 1.5rem 1rem;
+  color: var(--text-muted);
+  font-size: 13.5px;
+  text-align: center;
+}
+
+.collection-items {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0 0;
+  display: grid;
+  gap: 2px;
+}
+
+.collection-items li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius-sm);
+  min-width: 0;
+}
+
+.collection-items li:hover {
+  background: var(--accent-soft);
+}
+
+.collection-item__name {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.collection-item__name strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collection-item__name > span {
+  color: var(--text-muted);
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collection-item__where {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.collection-item__size {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.collection-items .clay-button {
+  padding: 0.28rem 0.8rem;
+  font-size: 12px;
+}
+
+.collection-picker {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 3px;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.collection-picker button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  box-shadow: var(--shadow-clay-inset);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.collection-picker button > span:first-child {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collection-picker__count {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.collection-picker button:disabled .collection-picker__count {
+  color: var(--accent);
+}
+
+.collection-picker__new {
+  display: flex;
+  gap: 8px;
+}
+
+.collection-picker__new input {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  /* On a phone the provider badge and the size compete with the name, which is
+     the part someone is scanning for. */
+  .collection-item__where span:last-child,
+  .collection-item__size {
+    display: none;
+  }
+}

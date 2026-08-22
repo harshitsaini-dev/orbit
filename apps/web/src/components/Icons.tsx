@@ -132,3 +132,13 @@ export const TrashIcon = ({ size }: IconProps) => (
     <path d="M6.6 6.6l.9 12.2a1.6 1.6 0 0 0 1.6 1.5h5.8a1.6 1.6 0 0 0 1.6-1.5l.9-12.2" />
   </Icon>
 );
+
+export function CollectionsIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg {...base} width={size} height={size}>
+      {/* Stacked cards: a grouping of things that live elsewhere. */}
+      <rect x="4.4" y="8.6" width="15.2" height="11" rx="2.2" />
+      <path d="M6.8 5.8h10.4M8.6 3h6.8" />
+    </svg>
+  );
+}

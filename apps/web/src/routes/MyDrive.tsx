@@ -8,9 +8,11 @@ import { FilePreview } from '../components/FilePreview.js';
 import { Checkbox } from '../components/Checkbox.js';
 import { ContextMenu, useContextMenu, type MenuItem } from '../components/ContextMenu.js';
 import { DropZone } from '../components/DropZone.js';
+import { AddToCollection } from '../components/AddToCollection.js';
 import { ShareDialog } from '../components/ShareDialog.js';
 import { FileGrid } from '../components/FileGrid.js';
 import {
+  CollectionsIcon,
   NewFolderIcon,
   RefreshIcon,
   TrashIcon,
@@ -355,6 +357,7 @@ export function MyDrive() {
 
   const menu = useContextMenu<OrbitFile>();
   const [sharing, setSharing] = useState<OrbitFile | null>(null);
+  const [collecting, setCollecting] = useState<OrbitFile | null>(null);
 
   /**
    * What the right-click menu offers for one file. Built here rather than in
@@ -395,6 +398,11 @@ export function MyDrive() {
         onSelect: () => setSharing(file),
         // A folder has no single stream to serve, so there is nothing to share.
         disabled: file.isFolder,
+      },
+      {
+        label: 'Add to collection',
+        icon: <CollectionsIcon size={16} />,
+        onSelect: () => setCollecting(file),
       },
       {
         label: 'Rename',
@@ -1027,6 +1035,10 @@ export function MyDrive() {
           </p>
         )}
       </section>
+
+      {collecting && (
+        <AddToCollection file={collecting} accountId={accountId} onClose={() => setCollecting(null)} />
+      )}
 
       {sharing && (
         <ShareDialog

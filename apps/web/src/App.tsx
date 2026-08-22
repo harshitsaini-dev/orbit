@@ -9,6 +9,7 @@ import {
   DashboardIcon,
   DriveIcon,
   PersonIcon,
+  CollectionsIcon,
   QuotaIcon,
   UploadFileIcon,
   SharedIcon,
@@ -27,6 +28,7 @@ import { Landing } from './routes/Landing.js';
 import { Login } from './routes/Login.js';
 import { MyDrive } from './routes/MyDrive.js';
 import { Placeholder } from './routes/Placeholder.js';
+import { Collections } from './routes/Collections.js';
 import { Quota } from './routes/Quota.js';
 import { Uploads } from './routes/Uploads.js';
 import { WorkspaceViewPage } from './routes/WorkspaceView.js';
@@ -36,6 +38,7 @@ const NAV = [
   { to: '/my-drive', label: 'My Drive', Icon: DriveIcon },
   { to: '/recent', label: 'Recent', Icon: ClockIcon },
   { to: '/starred', label: 'Starred', Icon: StarOutlineIcon },
+  { to: '/collections', label: 'Collections', Icon: CollectionsIcon },
   { to: '/shared-with-me', label: 'Shared with me', Icon: SharedIcon },
   { to: '/quota', label: 'Quota', Icon: QuotaIcon },
   { to: '/uploads', label: 'Uploads', Icon: UploadFileIcon },
@@ -163,6 +166,7 @@ function Workspace({ online }: { online: boolean }) {
             <Route path="/recent" element={<WorkspaceViewPage view="recent" />} />
             <Route path="/starred" element={<WorkspaceViewPage view="starred" />} />
             <Route path="/shared-with-me" element={<WorkspaceViewPage view="shared" />} />
+            <Route path="/collections" element={<Collections />} />
             <Route path="/quota" element={<Quota />} />
             <Route path="/uploads" element={<Uploads />} />
             <Route path="/account" element={<Account />} />

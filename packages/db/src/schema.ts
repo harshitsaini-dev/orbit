@@ -234,3 +234,59 @@ export const auditLog = sqliteTable(
   },
   (t) => [index('audit_actor_idx').on(t.actorId, t.createdAt)],
 );
+
+/**
+ * A virtual folder: files from any number of accounts, grouped without being
+ * moved or copied.
+ *
+ * Cloud providers give you a folder hierarchy; people want tags. A collection
+ * is the second built out of references to the first, so "Tax Documents 2026"
+ * can hold a PDF from a bucket and a spreadsheet from Drive while both stay
+ * exactly where they are.
+ */
+export const collections = sqliteTable(
+  'collections',
+  {
+    id: text('id').primaryKey(),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    colour: text('colour'),
+    createdAt: text('created_at').notNull().default(now),
+  },
+  (t) => [index('collection_owner_idx').on(t.ownerId)],
+);
+
+/**
+ * One reference, with a snapshot of what it pointed at when it was added.
+ *
+ * The snapshot is what lets a collection render without asking every provider
+ * for every item on every open - which for a collection spanning five accounts
+ * would be five round trips to draw a list. It also means a file deleted at the
+ * provider can be shown as missing rather than silently vanishing.
+ */
+export const collectionItems = sqliteTable(
+  'collection_items',
+  {
+    id: text('id').primaryKey(),
+    collectionId: text('collection_id')
+      .notNull()
+      .references(() => collections.id, { onDelete: 'cascade' }),
+    accountId: text('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    remoteId: text('remote_id').notNull(),
+    name: text('name').notNull(),
+    mimeType: text('mime_type').notNull().default('application/octet-stream'),
+    sizeBytes: real('size_bytes').notNull().default(0),
+    isFolder: integer('is_folder', { mode: 'boolean' }).notNull().default(false),
+    virtualPath: text('virtual_path').notNull(),
+    addedAt: text('added_at').notNull().default(now),
+  },
+  (t) => [
+    // Adding the same file twice is a no-op rather than a duplicate row.
+    uniqueIndex('collection_item_uq').on(t.collectionId, t.accountId, t.remoteId),
+    index('collection_item_idx').on(t.collectionId),
+  ],
+);

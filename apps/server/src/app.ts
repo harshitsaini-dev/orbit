@@ -8,6 +8,7 @@ import { env } from './lib/env.js';
 import { attachUser } from './middleware/auth.js';
 import { accountsRouter } from './routes/accounts.js';
 import { authRouter } from './routes/auth.js';
+import { collectionsRouter } from './routes/collections.js';
 import { filesRouter } from './routes/files.js';
 import { profileRouter } from './routes/profile.js';
 import { sharesRouter } from './routes/shares.js';
@@ -137,6 +138,7 @@ export function createApp(): Express {
   app.use(filesRouter);
   app.use(profileRouter);
   app.use(sharesRouter);
+  app.use(collectionsRouter);
   app.use(uploadsRouter);
 
   app.use((_req, res) => {

@@ -263,6 +263,35 @@ downloading.
 ### `GET /s/:shortId/qr`
 An SVG QR code of the link. SVG rather than PNG so it scales to whatever it is printed at.
 
+### `GET /api/collections`
+`{ collections: [] }` with an item count on each. Counted in one query rather than one per
+collection, so a dozen collections is not a dozen round trips.
+
+### `POST /api/collections`
+`{ name, colour? }` → `201 { collection }`.
+
+### `GET /api/collections/:id`
+`{ collection, items }`. Each item carries the account it lives in and the path it lives at, which
+is what makes a collection different from a folder.
+
+### `PATCH /api/collections/:id`
+`{ name }` → `204`.
+
+### `DELETE /api/collections/:id`
+`204`. The files are untouched: a collection holds references, so deleting one deletes a grouping.
+
+### `POST /api/collections/:id/items`
+`{ accountId, remoteId, virtualPath? }` → `201 { item }`. The name, type and size are snapshotted
+from the provider so a collection spanning five accounts is not five round trips to draw a list.
+
+`virtualPath` is the path the caller was standing in. A provider's metadata call returns the file
+and not the walk to it — Drive would need a request per ancestor — so without it a row says
+`/invoice.pdf` for a file three folders deep. Adding the same file twice refreshes the snapshot
+rather than erroring or duplicating.
+
+### `DELETE /api/collections/:id/items/:itemId`
+`204`. Removes the reference. The file is not touched.
+
 ### `WS /ws`
 Channel pub/sub. Client frames: `{"type":"subscribe","channel":"..."}`, `unsubscribe`, `ping`.
 Server frames: `upload:progress`, `upload:complete`, `upload:error`, `sync:status`.

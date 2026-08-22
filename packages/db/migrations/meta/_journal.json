@@ -50,6 +50,13 @@
       "when": 1787329387679,
       "tag": "0006_share_links_by_account",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1787329387680,
+      "tag": "0007_collections",
+      "breakpoints": true
     }
   ]
 }
