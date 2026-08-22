@@ -227,6 +227,18 @@ export const InfoIcon = ({ size }: IconProps) => (
   </Icon>
 );
 
+export const TextScanIcon = ({ size }: IconProps) => (
+  <Icon size={size}>
+    {/* Corner marks and lines of type: a page being looked at, which is what
+        reading the text out of a picture is. */}
+    <path d="M4.4 8.4V5.6a1.2 1.2 0 0 1 1.2-1.2h2.8" />
+    <path d="M15.6 4.4h2.8a1.2 1.2 0 0 1 1.2 1.2v2.8" />
+    <path d="M19.6 15.6v2.8a1.2 1.2 0 0 1-1.2 1.2h-2.8" />
+    <path d="M8.4 19.6H5.6a1.2 1.2 0 0 1-1.2-1.2v-2.8" />
+    <path d="M8.2 9.8h7.6M8.2 12.8h7.6M8.2 15.8h4.2" />
+  </Icon>
+);
+
 export const LinkIcon = ({ size }: IconProps) => (
   <Icon size={size}>
     {/* Two halves of a chain: an address that reaches something, held open. */}

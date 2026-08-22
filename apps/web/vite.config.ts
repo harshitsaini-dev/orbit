@@ -26,6 +26,18 @@ export default defineConfig({
       // kind of state a test run must not carry between cases.
       devOptions: { enabled: process.env.ORBIT_E2E !== 'true', type: 'module' },
       includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'og-image.png'],
+      workbox: {
+        /*
+         * The OCR engine is not part of the app.
+         *
+         * Fourteen megabytes of WebAssembly and trained data, fetched the
+         * first time somebody asks to read a picture and never otherwise.
+         * Precaching it would make every install of Orbit pay for a feature
+         * most sessions do not touch, and would mean an offline app carrying
+         * an engine but no files to run it on.
+         */
+        globIgnores: ['**/tesseract/**'],
+      },
       manifest: {
         name: 'Orbit',
         short_name: 'Orbit',

@@ -125,6 +125,9 @@ export async function alreadyScanned(
 
 export interface TextMatch extends StoredText {
   accountNickname: string;
+  /** So a result can be drawn with the right badge without a second lookup. */
+  provider: string;
+  catalogueKey: string | null;
   /** The words around the hit, so a result can show why it matched. */
   excerpt: string;
 }
@@ -181,6 +184,8 @@ export async function searchText(
       confidence: fileText.confidence,
       scannedAt: fileText.scannedAt,
       accountNickname: accounts.nickname,
+      provider: accounts.provider,
+      catalogueKey: accounts.catalogueKey,
     })
     .from(fileText)
     .innerJoin(accounts, eq(accounts.id, fileText.accountId))

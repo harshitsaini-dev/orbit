@@ -53,3 +53,7 @@ dev-dist/
 
 # the share page's viewer, built into the server rather than committed
 apps/server/public/share/
+
+# Vendored OCR engine: 14 MB of somebody else's build output, fetched by
+# scripts/vendor-tesseract.mjs on prebuild. The lockfile pins which build.
+apps/web/public/tesseract/
