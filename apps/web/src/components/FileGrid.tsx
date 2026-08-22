@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { OrbitFile } from '@orbit/shared-types';
 import { Checkbox } from './Checkbox.js';
 import { FileIcon } from './FileIcon.js';
+import { ShareIcon } from './ActionIcon.js';
 import { formatBytes } from '../lib/format.js';
 import { fetchThumbnail, mightHaveThumbnail } from '../lib/thumbnails.js';
 
@@ -130,6 +131,7 @@ function Tile({
       >
         <span
           style={{
+            position: 'relative',
             aspectRatio: '1 / 1',
             borderRadius: 'var(--radius-sm)',
             background: 'var(--surface)',
@@ -142,6 +144,14 @@ function Tile({
             <FileIcon name={file.name} mimeType={file.mimeType} isFolder={file.isFolder} size={44} />
           ) : (
             <Thumbnail file={file} accountId={accountId} />
+          )}
+
+          {/* A file anyone with the link can open is worth seeing at a glance,
+              without opening anything. */}
+          {file.shared && (
+            <span className="shared-badge" title="Anyone with the link can open this">
+              <ShareIcon />
+            </span>
           )}
         </span>
 

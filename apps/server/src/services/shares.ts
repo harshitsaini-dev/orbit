@@ -1,5 +1,5 @@
 import { shareLinks } from '@orbit/db';
-import { and, desc, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import { customAlphabet } from 'nanoid';
 import { db } from '../lib/db.js';
 import { hashSecret, verifySecret } from '../lib/hash.js';
@@ -160,6 +160,37 @@ export async function findShare(
     .limit(1);
 
   return row ? toPublicShare(row) : null;
+}
+
+/**
+ * Which of these files have a live link, for one account.
+ *
+ * A set rather than the links themselves: a listing needs to mark the shared
+ * ones, not describe how each is shared, and returning the links would put
+ * every short id on the client for a page that shows none of them.
+ *
+ * One query for the whole page. Asking per file would be a query per row.
+ */
+export async function sharedRemoteIds(
+  userId: string,
+  accountId: string,
+  remoteIds: string[],
+): Promise<Set<string>> {
+  if (remoteIds.length === 0) return new Set();
+
+  const rows = await db()
+    .select({ remoteId: shareLinks.remoteId })
+    .from(shareLinks)
+    .where(
+      and(
+        eq(shareLinks.ownerId, userId),
+        eq(shareLinks.accountId, accountId),
+        isNull(shareLinks.revokedAt),
+        inArray(shareLinks.remoteId, remoteIds),
+      ),
+    );
+
+  return new Set(rows.map((row) => row.remoteId));
 }
 
 export async function listShares(userId: string): Promise<PublicShare[]> {

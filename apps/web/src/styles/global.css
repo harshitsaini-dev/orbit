@@ -4058,3 +4058,118 @@ body {
     grid-column: 1 / -1;
   }
 }
+
+/* The mark on a file that anyone with a link can open. Small, in the corner,
+   and legible over a photo as well as over an icon. */
+.shared-badge {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border-radius: 50%;
+  color: var(--accent-contrast, #fff);
+  background: var(--accent);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.shared-badge svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* In a row rather than over a tile: inline, after the name. */
+.shared-badge--inline {
+  position: static;
+  width: 17px;
+  height: 17px;
+  flex: none;
+}
+
+.shared-badge--inline svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* --- every link this account has published -------------------------------- */
+
+.link-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.link-list > li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.9rem 1.05rem;
+}
+
+.link-list__what {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.link-list__what strong {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link-list__what > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* The terms wrap into as many rows as they need rather than being cut off:
+   which of them applies is the reason somebody is looking. */
+.link-list__terms {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.85rem;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.link-list__terms span[data-expired] {
+  color: var(--danger);
+}
+
+.link-list__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.link-list__actions button,
+.link-list__actions a {
+  padding: 0.3rem 0.8rem;
+  font-size: 12.5px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+@media (max-width: 52rem) {
+  /* Stacked: four columns in a phone's width leaves none of them readable. */
+  .link-list > li {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .link-list__terms,
+  .link-list__actions {
+    grid-column: 1 / -1;
+  }
+}

@@ -49,6 +49,15 @@ export default defineConfig({
       '/api': { target: API_TARGET, changeOrigin: true },
       '/auth': { target: API_TARGET, changeOrigin: true },
       '/health': { target: API_TARGET, changeOrigin: true },
+      /*
+       * Share pages, and the QR image the share dialog embeds.
+       *
+       * Without this the dialog's <img> asks Vite for /s/<id>/qr, gets the SPA
+       * index.html back, and shows a broken image - only in development, since
+       * production serves both from one origin. That is exactly the kind of
+       * thing that looks like a broken feature rather than a missing proxy.
+       */
+      '/s': { target: API_TARGET, changeOrigin: true },
       '/ws': { target: `ws://localhost:${API_PORT}`, ws: true },
     },
   },

@@ -218,3 +218,11 @@ export const InfoIcon = ({ size }: IconProps) => (
     <path d="M12 11.2v5M12 7.9h.01" />
   </Icon>
 );
+
+export const LinkIcon = ({ size }: IconProps) => (
+  <Icon size={size}>
+    {/* Two halves of a chain: an address that reaches something, held open. */}
+    <path d="M10.4 13.6a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1.7 1.7" />
+    <path d="M13.6 10.4a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.7-1.7" />
+  </Icon>
+);

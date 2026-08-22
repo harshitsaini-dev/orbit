@@ -963,8 +963,29 @@ export function MyDrive() {
                     gap: 1,
                   }}
                 >
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {file.name}
+                  <span
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      overflow: 'hidden',
+                      minWidth: 0,
+                    }}
+                  >
+                    <span
+                      style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    >
+                      {file.name}
+                    </span>
+
+                    {file.shared && (
+                      <span
+                        className="shared-badge shared-badge--inline"
+                        title="Anyone with the link can open this"
+                      >
+                        <ShareIcon />
+                      </span>
+                    )}
                   </span>
                   {/* A result is far less useful without saying where it lives. */}
                   {searchActive && (

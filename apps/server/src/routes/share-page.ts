@@ -163,6 +163,21 @@ const STYLES = `
 
 const MARK = `<svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><circle cx="16" cy="16" r="6" fill="#6c8cff"/><ellipse cx="16" cy="16" rx="14" ry="5.5" fill="none" stroke="#6c8cff" stroke-width="1.6" opacity="0.7" transform="rotate(-22 16 16)"/></svg>`;
 
+/**
+ * The same mark again, as a data URI for the tab.
+ *
+ * Inline rather than a link to /favicon.svg: this page is served by the API,
+ * which serves no static files, so a link would 404 and leave a share looking
+ * like it came from nowhere. A data URI has no such dependency and costs a few
+ * hundred bytes on a page that is already sending an image.
+ */
+const FAVICON = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
+    '<circle cx="16" cy="16" r="6" fill="#6c8cff"/>' +
+    '<ellipse cx="16" cy="16" rx="14" ry="5.5" fill="none" stroke="#6c8cff" stroke-width="1.6" opacity="0.7" transform="rotate(-22 16 16)"/>' +
+    '</svg>',
+)}`;
+
 function shell(title: string, body: string): string {
   return `<!doctype html>
 <html lang="en">
@@ -171,6 +186,7 @@ function shell(title: string, body: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escapeHtml(title)}</title>
 <meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="${FAVICON}" type="image/svg+xml">
 <style>${STYLES}</style>
 </head>
 <body>

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
 import { record } from '../services/audit.js';
+import { sharedRemoteIds } from '../services/shares.js';
 import { renderThumbnail } from '../services/thumbnails.js';
 import { forgetBreakdown } from '../services/breakdown.js';
 import { searchWorkspace } from '../services/search.js';
@@ -50,11 +51,26 @@ filesRouter.get('/api/files', requireAuth, async (req, res, next) => {
 
     const page = await active.adapter.listFolder(active.tokens, parsed.data.path, parsed.data.pageToken);
 
+    /*
+     * Marked here rather than looked up per row by the client.
+     *
+     * One query for the whole page, and it publishes a flag rather than the
+     * links - a listing needs to say which files are shared, not put every
+     * short id on a page that shows none of them.
+     */
+    const shared = await sharedRemoteIds(
+      active.row.userId,
+      active.row.id,
+      page.files.map((file) => file.remoteId),
+    );
+
     res.json({
       accountId: active.row.id,
       provider: active.row.provider,
       path: parsed.data.path,
-      files: page.files,
+      files: page.files.map((file) =>
+        shared.has(file.remoteId) ? { ...file, shared: true } : file,
+      ),
       nextCursor: page.nextPageToken,
       capabilities: active.adapter.capabilities,
     });

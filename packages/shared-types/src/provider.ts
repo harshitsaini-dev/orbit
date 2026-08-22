@@ -73,6 +73,14 @@ export interface OrbitFile {
   modifiedAt: string;
   checksum?: string;
   /**
+   * True when Orbit has a live public link for this file.
+   *
+   * Set by the listing route rather than by an adapter: it is a fact about
+   * Orbit, not about the provider - a file can be shared inside Google Drive
+   * and not shared through Orbit, and the two mean different things.
+   */
+  shared?: boolean;
+  /**
    * Set when this entry points at another one (a Drive shortcut, and the same
    * idea elsewhere). Content and navigation follow the target; rename, delete
    * and star act on the pointer itself.
