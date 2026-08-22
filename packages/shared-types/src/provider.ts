@@ -10,7 +10,6 @@ export const PROVIDER_IDS = [
   'dropbox',
   'mega',
   'pcloud',
-  'gcs',
   'azure_blob',
   'bunny',
   's3',

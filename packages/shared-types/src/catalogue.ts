@@ -175,16 +175,19 @@ export const PROVIDER_CATALOGUE: CatalogueEntry[] = [
   {
     key: 'gcs',
     label: 'Google Cloud Storage',
-    provider: 'gcs',
-    blurb: 'A GCS bucket, authenticated with a service account key.',
+    provider: 's3',
+    blurb: 'A GCS bucket, over its S3-compatible interoperability endpoint.',
+    endpointTemplate: 'https://storage.googleapis.com',
+    defaultRegion: 'auto',
+    forcePathStyle: true,
     fields: [
-      { name: 'bucket', label: 'Bucket name' },
       {
-        name: 'serviceAccountJson',
-        label: 'Service account key (JSON)',
-        secret: true,
-        help: 'Needs the Storage Object Admin role on the bucket.',
+        name: 'accessKeyId',
+        label: 'Access key',
+        help: 'An HMAC key from Cloud Storage → Settings → Interoperability. Not a service account JSON key.',
       },
+      { name: 'secretAccessKey', label: 'Secret', secret: true },
+      { name: 'bucket', label: 'Bucket name' },
     ],
   },
   {
