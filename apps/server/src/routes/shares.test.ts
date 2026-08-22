@@ -176,12 +176,13 @@ describe('GET /s/:shortId', () => {
     assert.match(html, /<img src="\/s\/[a-z2-9]+\/content"/);
   });
 
-  it('permits the one script it ships, and nothing else', async () => {
+  it('permits the scripts it ships, and nothing else', async () => {
     /*
-     * The image viewer runs inline, so the policy cannot say `script-src
-     * 'none'` any more - but it must not say `'unsafe-inline'` either. This is
-     * the one page an attacker gets to point a stranger at, so the policy
-     * names the script that is there rather than the class it belongs to.
+     * Two kinds run here: the fallback image viewer, inline on a nonce, and
+     * the bundled viewer, fetched from this origin. So the policy cannot say
+     * `script-src 'none'` any more - but it must not say `'unsafe-inline'`
+     * either. This is the one page an attacker gets to point a stranger at, so
+     * it names what is there rather than the class it belongs to.
      */
     const { res } = await makeShare();
     const { share } = (await res.json()) as { share: { shortId: string } };
@@ -191,17 +192,23 @@ describe('GET /s/:shortId', () => {
     const csp = page.headers.get('content-security-policy') ?? '';
 
     assert.match(csp, /default-src 'none'/);
-    assert.doesNotMatch(csp, /unsafe-inline'[^;]*script/);
     assert.doesNotMatch(csp, /script-src[^;]*unsafe-inline/);
+    assert.doesNotMatch(csp, /script-src[^;]*unsafe-eval/);
 
-    const inHeader = /script-src 'nonce-([^']+)'/.exec(csp);
+    const inHeader = /script-src[^;]*'nonce-([^']+)'/.exec(csp);
     assert.ok(inHeader, `no nonce in the policy: ${csp}`);
 
-    // Every script tag on the page carries that nonce; one without it would be
-    // blocked, and one the policy did not name is one nobody vouched for.
+    /*
+     * An inline script has to carry that nonce or it would be blocked, and one
+     * the policy did not name is one nobody vouched for. A script with a src
+     * is covered by the origin instead, and a JSON block is data rather than
+     * code - the browser never runs it.
+     */
     const expected = `nonce="${inHeader[1]!}"`;
     for (const [, attributes] of html.matchAll(/<script([^>]*)>/gi)) {
-      assert.ok(attributes?.includes(expected), `a script tag carries no nonce: ${attributes}`);
+      const tag = attributes ?? '';
+      if (tag.includes('src=') || tag.includes('application/json')) continue;
+      assert.ok(tag.includes(expected), `an inline script carries no nonce: ${tag}`);
     }
   });
 
@@ -212,13 +219,39 @@ describe('GET /s/:shortId', () => {
     const nonces = new Set<string>();
     for (let i = 0; i < 3; i += 1) {
       const page = await fetch(`${baseUrl}/s/${share.shortId}`);
-      const match = /script-src 'nonce-([^']+)'/.exec(
+      const match = /script-src[^;]*'nonce-([^']+)'/.exec(
         page.headers.get('content-security-policy') ?? '',
       );
       if (match) nonces.add(match[1]!);
     }
 
     assert.equal(nonces.size, 3);
+  });
+
+  it('hands the viewer what it needs, and renders a page without it', async () => {
+    /*
+     * The bundled viewer is what makes a shared spreadsheet or archive open
+     * the way its owner sees it. It is mounted over a page that already works,
+     * so both have to be there: the markup the browser can render on its own,
+     * and the data plus the module that replaces it.
+     */
+    const { res } = await makeShare();
+    const { share } = (await res.json()) as { share: { shortId: string } };
+
+    const html = await (await fetch(`${baseUrl}/s/${share.shortId}`)).text();
+
+    assert.match(html, /<div id="share-root">/);
+    assert.match(html, /<img src="\/s\/[a-z2-9]+\/content"/, 'the fallback must render on its own');
+
+    const data = /<script type="application\/json" id="share-data">(.+?)<\/script>/s.exec(html);
+    assert.ok(data, 'the viewer has nothing to render without this');
+
+    const parsed = JSON.parse(data[1]!) as { name: string; mimeType: string; shortId: string };
+    assert.equal(parsed.name, 'beach.jpg');
+    assert.equal(parsed.mimeType, 'image/jpeg');
+    assert.equal(parsed.shortId, share.shortId);
+
+    assert.match(html, /<script type="module" src="[^"]+"><\/script>/);
   });
 
   it('keeps the page out of search indexes', async () => {

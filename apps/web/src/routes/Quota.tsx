@@ -154,11 +154,16 @@ export function Quota() {
                 textDecoration: 'none',
                 textAlign: 'left' as const,
                 width: '100%',
+                // Filling the row rather than sizing to the blurb: one provider
+                // needs two lines to describe and the next needs one, and cards
+                // of three different heights read as a broken layout rather
+                // than as descriptions of different lengths.
+                height: '100%',
               },
             };
 
             return (
-              <li key={entry.key}>
+              <li key={entry.key} style={{ display: 'grid' }}>
                 {/* A store with fields to fill in stays in the app; an OAuth
                     provider has to leave it, which needs a real navigation. */}
                 {entry.fields?.length ? (

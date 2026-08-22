@@ -34,6 +34,8 @@ export default tseslint.config(
       'apps/web/public/**',
       // Generated service worker and its workbox runtime.
       'apps/web/dev-dist/**',
+      // The share page's viewer, built from apps/web into the server.
+      'apps/server/public/**',
       'packages/db/migrations/**',
     ],
   },

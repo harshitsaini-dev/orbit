@@ -50,3 +50,6 @@ logs/
 
 # vite-plugin-pwa writes the development service worker here
 dev-dist/
+
+# the share page's viewer, built into the server rather than committed
+apps/server/public/share/

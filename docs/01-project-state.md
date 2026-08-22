@@ -16,7 +16,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 0 | Foundation (monorepo, CI, docs, infra accounts) | 🟢 Code done · infra accounts pending |
 | 1 | Auth (email OTP, sessions, local-mode bypass) | 🟢 Done |
 | 2 | First adapter — Google Drive | 🟢 Done |
-| 3 | Remaining adapters | 🟡 Drive, OneDrive, Dropbox, every S3 store, GCS, Azure and Bunny done · pCloud pending · MEGA removed |
+| 3 | Remaining adapters | 🟢 Drive, OneDrive, Dropbox, every S3 store, GCS, Azure, Bunny and pCloud done · MEGA removed |
 | 4 | Unified workspace views | 🟢 Done |
 | 5 | Upload system + WebSocket progress + allocation | 🟢 Done |
 | 6 | Sync engine | 🟢 Done |
@@ -468,17 +468,35 @@ rather than claiming a history it does not have.
 
 ## Blocked on the owner
 
-OneDrive and Dropbox are written and unit-tested but have never run against a
-real account. Each needs a free OAuth app registered - `05-onedrive-dropbox.md`
-has the steps. Until then those two adapters are verified only against mocked
-provider responses, which is not the same as verified.
+Everything here needs an account, a console, or an approval — none of it can be
+done from the codebase. Step-by-step instructions are in
+**`docs/05-owner-setup.md`**. In rough order of what unblocks the most:
 
+1. **pCloud OAuth app** — free, instant, no review. `my.pcloud.com` → Settings →
+   Developers → new app, redirect URI `http://localhost:8787/auth/callback/pcloud`.
+   Put the id and secret in `.env` as `PCLOUD_CLIENT_ID` / `PCLOUD_CLIENT_SECRET`.
+   The adapter is written and unit-tested; without a real account it has never
+   run against pCloud itself, which is not the same as verified.
+2. **Microsoft app registration** — free, at `portal.azure.com` → App
+   registrations, personal-and-work accounts, same callback shape. OneDrive is
+   in the same position pCloud is: written, tested against mocked responses,
+   never run for real.
+3. **Google verification** — the Google client is live but the consent screen is
+   still in *testing*, which caps it at 100 users and expires every refresh
+   token after seven days. Verification needs a reachable homepage and privacy
+   policy, so it cannot happen before a deploy.
+4. **Dropbox production mode** — connected and working, but the app is in
+   development mode, which is capped at 50 linked accounts. Fine for now;
+   needed before anyone else uses it.
+5. **Deployment sign-ups** — Turso, Render, Vercel, Resend, Cloudflare DNS. All
+   card-free, all Phase 10, and (3) depends on them.
+6. **Production secrets** — fresh `TOKEN_ENCRYPTION_KEY` and `SESSION_SECRET`.
+   Generated on the machine that deploys, never committed.
 
-Step-by-step instructions for all of these are in **`docs/05-owner-setup.md`**.
-
-- **Google OAuth client** — this is the one blocking Phase 2. Nothing else is urgent.
-- Turso, Render, Vercel, Resend, and Cloudflare DNS sign-ups (all card-free).
-- Generating production values for `TOKEN_ENCRYPTION_KEY` and `SESSION_SECRET`.
+Optional, and only to exercise an adapter against something real: an Azure
+storage account, a Bunny storage zone, and a GCS bucket with its
+interoperability keys. All three are credentials rather than OAuth, so they cost
+nothing but a sign-up.
 
 ## Phase 8 — sharing a drive with other people
 

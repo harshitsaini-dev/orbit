@@ -1,3 +1,4 @@
+import { shareBundle } from '../lib/share-bundle.js';
 import type { PublicShare } from '../services/shares.js';
 
 /**
@@ -9,9 +10,14 @@ import type { PublicShare } from '../services/shares.js';
  * file really is. Serving both from the same place is what keeps the provider
  * invisible.
  *
- * It runs no JavaScript at all. Not minimalism - the content-security-policy
- * can then say `default-src 'none'` and mean it, which matters on a page whose
- * whole job is to render a file a stranger sent you.
+ * What it renders on its own is what the browser renders natively: an image, a
+ * video, a PDF. Over that it mounts the workspace's own viewer, built as its
+ * own bundle and served from this origin, so a shared spreadsheet, archive or
+ * document opens the way its owner sees it rather than as a download button.
+ *
+ * The order matters. The page works with no JavaScript at all, and the viewer
+ * replaces what is already there; if the bundle is missing or blocked, a
+ * visitor loses the richer formats rather than the file.
  */
 
 export type SharePageInput =
@@ -207,7 +213,14 @@ const FAVICON = `data:image/svg+xml,${encodeURIComponent(
     '</svg>',
 )}`;
 
-function shell(title: string, body: string): string {
+/**
+ * `head` and `tail` carry the viewer bundle, when there is one.
+ *
+ * Everything the server renders lives inside #share-root, because that is what
+ * the viewer replaces. The bootstrap data and the scripts sit outside it, or
+ * mounting would delete the data it was about to read.
+ */
+function shell(title: string, body: string, head = '', tail = ''): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -217,8 +230,10 @@ function shell(title: string, body: string): string {
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="${FAVICON}" type="image/svg+xml">
 <style>${STYLES}</style>
+${head}
 </head>
 <body>
+<div id="share-root">
 <main>
   <div class="card">
     <span class="brand">${MARK} Orbit</span>
@@ -226,6 +241,8 @@ function shell(title: string, body: string): string {
   </div>
   <footer>Shared through Orbit. The file stays in its owner's own cloud storage.</footer>
 </main>
+</div>
+${tail}
 </body>
 </html>`;
 }
@@ -302,6 +319,34 @@ export function sharePage(input: SharePageInput): string {
       ? `<a class="button" href="${src}?download" download="${name}">Download</a>`
       : '';
 
+  const bundle = shareBundle();
+
+  /*
+   * The data the viewer needs, as JSON rather than as attributes to be
+   * scraped back off the markup. `<` is escaped because a file name containing
+   * `</script>` would otherwise end the element early - the one way a name can
+   * become markup inside a JSON block.
+   */
+  const bootstrap = JSON.stringify({
+    shortId,
+    name: share.name,
+    mimeType: share.mimeType,
+    sizeBytes: share.sizeBytes,
+    permission: share.permission,
+    expiresAt: share.expiresAt ?? null,
+  }).replace(/</g, '\\u003c');
+
+  const head = (bundle?.styles ?? [])
+    .map((href) => `<link rel="stylesheet" href="${escapeHtml(href)}">`)
+    .join('');
+
+  const tail = bundle
+    ? `<script type="application/json" id="share-data">${bootstrap}</script>` +
+      bundle.scripts
+        .map((src) => `<script type="module" src="${escapeHtml(src)}"></script>`)
+        .join('')
+    : '';
+
   return shell(
     share.name,
     `<h1>${name}</h1>
@@ -320,6 +365,8 @@ export function sharePage(input: SharePageInput): string {
        <span class="meta">Scan to open on a phone</span>
      </div>
      ${preview === 'image' ? viewerScript(input.nonce) : ''}`,
+    head,
+    tail,
   );
 }
 

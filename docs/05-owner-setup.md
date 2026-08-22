@@ -100,11 +100,45 @@ and reconnecting weekly is the cost.
 
 ---
 
-## 1b. OneDrive and Dropbox OAuth — optional, for the newer adapters
+## 1b. OneDrive OAuth — optional, for an adapter never run for real
 
-Both adapters are written and tested but have not run against a real account.
-Registering their apps is free and needs no card. Step by step in
+Written and tested against mocked responses, never against a real account.
+Registering the app is free and needs no card. Step by step in
 `05-onedrive-dropbox.md`; nothing else waits on it.
+
+Dropbox, in the same document, is already connected. Its app is in *development*
+mode, which caps it at 50 linked accounts - fine while it is only you, and
+something to move to production before anyone else uses it.
+
+---
+
+## 1c. pCloud OAuth — free, instant, no review
+
+The only provider left whose adapter has never seen a real account. Unlike
+Google, pCloud asks for no verification and no review: an app is usable the
+moment it is created.
+
+1. Sign in at <https://my.pcloud.com/> and open **Settings → Developers → My
+   applications → New application**. (The direct link, if the menu moves, is
+   <https://docs.pcloud.com/my_apps/>.)
+2. Name it *Orbit*. There is no scope list to choose from - a pCloud app is
+   granted the account it is authorised against, whole.
+3. Add the redirect URI **`http://localhost:8787/auth/callback/pcloud`**, and
+   later `https://api.orbit.harshitsaini.in/auth/callback/pcloud` for the
+   deployed one. Both may be registered at once.
+4. Copy the **Client ID** and **Client secret** into `.env`:
+
+```
+PCLOUD_CLIENT_ID=<id>
+PCLOUD_CLIENT_SECRET=<secret>
+```
+
+5. Restart the server and connect pCloud from **Quota → Connect an account**.
+
+A pCloud account lives in either the US or the EU region and only sign-in says
+which; Orbit stores the host it is told and uses it from then on, so there is
+nothing to choose here. Tokens do not expire unless revoked, so there is no
+weekly reconnect of the kind Google's testing mode forces.
 
 ---
 
@@ -246,6 +280,7 @@ Render's free instance sleeps after 15 minutes idle, so the first visit of the d
 
 - [ ] `TOKEN_ENCRYPTION_KEY` and `SESSION_SECRET` generated and in local `.env`
 - [ ] Google OAuth client created; both redirect URIs registered; keys in `.env`
+- [ ] pCloud application created and its id and secret in `.env`
 - [ ] Resend domain `signal.harshitsaini.in` verified and API key created
 - [ ] Turso database created and migrated
 - [ ] Render service deployed with all environment variables

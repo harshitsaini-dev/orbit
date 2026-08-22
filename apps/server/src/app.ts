@@ -131,7 +131,10 @@ export function createApp(): Express {
       limit: env.SHARE_RATE_LIMIT,
       standardHeaders: 'draft-7',
       legacyHeaders: false,
-      skip: (req) => !req.path.startsWith('/s/'),
+      // The viewer's own chunks are exempt: a PDF pulls several of them, and
+      // spending a stranger's budget on Orbit's own assets would lock them out
+      // of the file they came for.
+      skip: (req) => !req.path.startsWith('/s/') || req.path.startsWith('/s/asset/'),
     }),
   );
 

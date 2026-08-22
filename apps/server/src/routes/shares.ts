@@ -1,9 +1,10 @@
 import { Readable } from 'node:stream';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
-import { Router } from 'express';
+import express, { Router } from 'express';
 import QRCode from 'qrcode';
 import { z } from 'zod';
 import { env } from '../lib/env.js';
+import { shareBundle, SHARE_ASSET_DIR, SHARE_ASSET_PATH } from '../lib/share-bundle.js';
 import { record } from '../services/audit.js';
 import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
@@ -170,20 +171,51 @@ function publicHeaders(
 ): void {
   res.setHeader('x-robots-tag', 'noindex, nofollow, noarchive');
   res.setHeader('referrer-policy', 'no-referrer');
+
+  /*
+   * `origins` is empty in production - the viewer is served from here. In
+   * development it is the Vite server, which is the only way to work on the
+   * viewer without rebuilding it between edits.
+   */
+  const extra = nonce ? (shareBundle()?.origins ?? []).join(' ') : '';
+  const from = extra ? ` ${extra}` : '';
+
   res.setHeader(
     'content-security-policy',
     [
       "default-src 'none'",
-      "img-src 'self' data:",
-      "media-src 'self'",
-      "style-src 'unsafe-inline'",
-      nonce ? `script-src 'nonce-${nonce}'` : "script-src 'none'",
+      // blob: for the viewers that decode a file themselves - an archive entry,
+      // a font, a PDF page - and hand the result back to the page.
+      `img-src 'self' data: blob:${from}`,
+      `media-src 'self' blob:${from}`,
+      `font-src 'self' data: blob:${from}`,
+      `style-src 'self' 'unsafe-inline'${from}`,
+      `connect-src 'self'${from}`,
+      "worker-src 'self' blob:",
+      nonce ? `script-src 'self' 'nonce-${nonce}'${from}` : "script-src 'none'",
       "form-action 'self'",
       "frame-ancestors 'none'",
       "base-uri 'none'",
     ].join('; '),
   );
 }
+
+/*
+ * The viewer bundle, from the same origin as the bytes it renders.
+ *
+ * Mounted before /s/:shortId, or the path would be read as a link id and
+ * answered with the "this link does not work" page. The names are content
+ * hashed, so a year is safe and a changed build is a different URL.
+ */
+sharesRouter.use(
+  SHARE_ASSET_PATH,
+  express.static(SHARE_ASSET_DIR, {
+    index: false,
+    fallthrough: true,
+    maxAge: '365d',
+    immutable: true,
+  }),
+);
 
 sharesRouter.get('/s/:shortId', async (req, res, next) => {
   const shortId = req.params.shortId ?? '';

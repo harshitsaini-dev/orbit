@@ -137,7 +137,7 @@ export function FilePreview({ file, siblings, contentUrl, onSelect, onClose }: P
       </header>
 
       <div className="preview-stage">
-        <PreviewBody file={file} kind={kind} contentUrl={contentUrl} />
+        <FileViewer file={file} kind={kind} contentUrl={contentUrl} />
       </div>
 
       <footer style={{ display: 'flex', justifyContent: 'center' }}>
@@ -168,13 +168,20 @@ export function FilePreview({ file, siblings, contentUrl, onSelect, onClose }: P
   );
 }
 
-function PreviewBody({
+/**
+ * The viewer itself, without the dialog around it.
+ *
+ * Exported because the share page renders the same thing: somebody opening a
+ * link should see the file the way its owner does, and two implementations of
+ * that would drift the moment either gained a format.
+ */
+export function FileViewer({
   file,
-  kind,
+  kind = previewKindFor(file),
   contentUrl,
 }: {
   file: OrbitFile;
-  kind: ReturnType<typeof previewKindFor>;
+  kind?: ReturnType<typeof previewKindFor>;
   contentUrl: Props['contentUrl'];
 }) {
   const src = contentUrl(file, false);

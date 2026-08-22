@@ -1221,6 +1221,32 @@ body {
  * back to its natural size, and a portrait video runs off the bottom of the
  * screen with its controls floating over the picture.
  */
+/* --- the share page ------------------------------------------------------ */
+
+/*
+ * A share is one file and nothing else, so it gets the window: a bar naming
+ * the file, the viewer under it, and a line saying where the bytes live. The
+ * viewer components size themselves to the space they are given, which here is
+ * everything left over.
+ */
+.share-page {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  padding: clamp(0.6rem, 2vw, 1.5rem);
+  background: var(--surface);
+}
+
+.share-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0.7rem 0.9rem;
+  min-width: 0;
+}
+
 .preview-stage {
   display: grid;
   grid-template-rows: minmax(0, 1fr);
