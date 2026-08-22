@@ -284,6 +284,38 @@ figure less than six hours old, so `measuring: true` is the ordinary answer just
 `{ name }` → `200 { drive }` with the same shape. Starts the listing and waits for it, for
 somebody who does not want to wait for the background pass. `404` if the drive is not there.
 
+### `POST /api/text`
+`{ accountId, remoteId, name, virtualPath, text, confidence }` → `200 { stored }`.
+
+Records what a browser read out of a file. The reading is not done here and never will be: it
+happens on the machine that already has the bytes on screen, which is what keeps OCR free and
+keeps Orbit from having to hold a file in order to index it.
+
+`stored: false` is a **success**, not a failure. A reading under 45 mean confidence or shorter
+than 8 characters is refused, because an unreadable photo produces confident-looking noise and a
+search that returns a file for a word never in it is worse than one that returns nothing. A
+refused reading also deletes any previous one for that file — the file changed, and the reading
+is about the file.
+
+### `GET /api/text/search?q=`
+`200 { matches }`, each with the file's name, path, account, the stored text and an excerpt
+around the hit. Spans every drive the caller may read. Queries under two characters return
+nothing.
+
+This is the only search in Orbit that does not go to a provider — providers search names, and a
+photographed receipt is called `1759653621497799480627.jpg`.
+
+### `POST /api/text/known`
+`{ accountId, remoteIds: [] }` → `200 { scanned: [] }`. Asked before a folder scan so it can skip
+what has already been read, rather than spending minutes of somebody's laptop on an answer
+already in the database.
+
+### `GET /api/text/coverage`
+`200 { files, accounts }` — how much has been read, for a page that wants to say so.
+
+### `DELETE /api/text/:accountId/:remoteId`
+`204`, or `404` if there was no reading. For somebody who does not want one kept.
+
 ### `GET /api/connectable`
 Only the catalogue entries with a working adapter behind them, so the connect UI never offers a
 dead end. The full intended list is `GET /api/catalogue`.
