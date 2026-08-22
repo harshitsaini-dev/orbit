@@ -143,7 +143,7 @@ function SpreadsheetView({ sheets }: { sheets: Sheet[] }) {
         <table className="csv-table">
           <tbody>
             {sheet.rows.map((row, rowIndex) => (
-              // eslint-disable-next-line react/no-array-index-key
+               
               <tr key={rowIndex}>
                 <td className="csv-table__gutter">{rowIndex + 1}</td>
                 {Array.from({ length: columns }, (_, column) => (
@@ -172,7 +172,7 @@ function DocumentView({ blocks }: { blocks: DocBlock[] }) {
       <div className="office-view__scroll">
         <article className="office-doc">
           {blocks.map((block, index) => {
-            // eslint-disable-next-line react/no-array-index-key
+             
             const key = index;
 
             if (block.kind === 'table') {
@@ -180,10 +180,10 @@ function DocumentView({ blocks }: { blocks: DocBlock[] }) {
                 <table key={key} className="csv-table">
                   <tbody>
                     {block.rows?.map((row, rowIndex) => (
-                      // eslint-disable-next-line react/no-array-index-key
+                       
                       <tr key={rowIndex}>
                         {row.map((cell, cellIndex) => (
-                          // eslint-disable-next-line react/no-array-index-key
+                           
                           <td key={cellIndex}>{cell}</td>
                         ))}
                       </tr>
@@ -230,7 +230,7 @@ function PresentationView({ slides }: { slides: Slide[] }) {
                 <p className="office-slide__empty">No text on this slide.</p>
               ) : (
                 slide.blocks.map((block, index) => (
-                  // eslint-disable-next-line react/no-array-index-key
+                   
                   <p key={index} className={index === 0 ? 'office-slide__title' : undefined}>
                     {block}
                   </p>

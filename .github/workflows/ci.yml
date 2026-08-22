@@ -25,6 +25,11 @@ jobs:
       - name: Typecheck
         run: npm run typecheck --workspaces --if-present
 
+      # Errors fail the build; warnings do not. The warnings are the React
+      # Compiler's, and each needs looking at rather than silencing wholesale.
+      - name: Lint
+        run: npm run lint
+
       - name: Unit tests
         run: npm test --workspaces --if-present
 

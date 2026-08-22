@@ -72,12 +72,12 @@ export function CodeViewer({ text, name }: { text: string; name: string }) {
       <div className="code-view__scroll" data-wrap={wrap ? '' : undefined}>
         <ol className="code-view__lines" aria-label={`Contents of ${name}`}>
           {lines.map((tokens, index) => (
-            // eslint-disable-next-line react/no-array-index-key
+             
             <li key={index}>
               <code>
                 {tokens.map((token, position) => (
                   <span
-                    // eslint-disable-next-line react/no-array-index-key
+                     
                     key={position}
                     className={token.type === 'plain' ? undefined : `tok tok--${token.type}`}
                   >

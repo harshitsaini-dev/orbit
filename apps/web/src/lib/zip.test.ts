@@ -6,7 +6,6 @@ import {
   readZipDirectory,
   readZipEntry,
   readZipText,
-  type ZipEntry,
 } from './zip.js';
 
 /**
@@ -227,7 +226,7 @@ describe('listArchiveFolder', () => {
         offset: 0,
         modifiedAt: null,
         ...partial,
-      }) as ZipEntry,
+      }),
   );
 
   it('infers folders from paths, since a ZIP need not list them', () => {

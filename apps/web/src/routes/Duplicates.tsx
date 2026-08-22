@@ -172,7 +172,7 @@ export function Duplicates() {
       </section>
 
       {report?.groups.map((group, index) => (
-        // eslint-disable-next-line react/no-array-index-key
+         
         <section key={index} className="clay dup-group">
           <header>
             <span className="dup-kind" data-kind={group.kind}>

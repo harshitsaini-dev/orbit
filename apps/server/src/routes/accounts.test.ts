@@ -203,7 +203,10 @@ describe('POST /api/accounts/connect', () => {
   function stubStore(status = 200) {
     outbound = [];
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = input instanceof URL ? input : new URL(String(input));
+      // `RequestInfo` is a string or a Request; String() on the latter gives
+      // "[object Request]" and the URL constructor then throws.
+      const url =
+        input instanceof URL ? input : new URL(typeof input === 'string' ? input : input.url);
       if (url.host.startsWith('127.0.0.1') || url.host.startsWith('localhost')) {
         return realFetch(input, init);
       }
@@ -214,7 +217,7 @@ describe('POST /api/accounts/connect', () => {
           : '<Error><Code>AccessDenied</Code><Message>no</Message></Error>',
         { status },
       );
-    }) as typeof fetch;
+    });
   }
 
   function restore() {

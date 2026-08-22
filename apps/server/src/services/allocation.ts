@@ -57,7 +57,7 @@ export async function chooseAccount(
     return { account: candidates[0]!, reason: 'the only account with room' };
   }
 
-  switch (user.allocationStrategy as AllocationStrategy) {
+  switch (user.allocationStrategy) {
     case 'most_free':
       return byMostFree(candidates);
     case 'least_used':

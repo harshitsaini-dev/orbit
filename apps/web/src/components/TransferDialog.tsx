@@ -124,9 +124,9 @@ export function TransferDialog({
               </p>
             )}
 
-            <label className="share-row">
+            <div className="share-row">
               <Checkbox checked={move} onChange={setMove} label="Delete the original afterwards" />
-            </label>
+            </div>
             <p className="share-hint">
               {move
                 ? 'The original is deleted only once the copy has landed. If the copy fails, nothing is removed.'

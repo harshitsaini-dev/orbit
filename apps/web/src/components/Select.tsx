@@ -134,6 +134,10 @@ export function Select<T extends string | number>({
           onKeyDown={onKeyDown}
         >
           {options.map((option, index) => (
+            /* The listbox owns the keyboard, which is the ARIA pattern: options
+               are not individually focusable, and arrows, Enter, Home, End and
+               Escape are handled on the <ul> above. */
+            /* eslint-disable-next-line jsx-a11y/click-events-have-key-events */
             <li
               key={String(option.value)}
               id={`${listId}-${index}`}

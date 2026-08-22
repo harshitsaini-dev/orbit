@@ -96,6 +96,9 @@ export function ContextMenu({
         click that dismisses the menu before that click also selects whatever
         happens to be underneath.
       */}
+      {/* No keyboard handler: a transparent dismiss sheet is not reachable by
+          keyboard, and Escape already closes the menu. */}
+      {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
       <div
         className="context-menu__catcher"
         onClick={onClose}

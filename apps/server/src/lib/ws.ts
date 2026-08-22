@@ -18,7 +18,17 @@ class Hub {
       socket.on('message', (raw) => {
         let event: ClientEvent;
         try {
-          event = JSON.parse(raw.toString()) as ClientEvent;
+          // `ws` hands over a Buffer, an ArrayBuffer, or an array of Buffers
+          // depending on how the frame arrived. Calling toString() on the last
+          // two yields "[object ArrayBuffer]" and the parse fails for a reason
+          // nothing would explain.
+          const text = Buffer.isBuffer(raw)
+            ? raw.toString('utf8')
+            : Array.isArray(raw)
+              ? Buffer.concat(raw).toString('utf8')
+              : Buffer.from(raw).toString('utf8');
+
+          event = JSON.parse(text) as ClientEvent;
         } catch {
           return;
         }

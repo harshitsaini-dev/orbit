@@ -125,7 +125,7 @@ export function CsvViewer({ text, name }: { text: string; name: string }) {
               <tr>
                 <th scope="col" className="csv-table__gutter" />
                 {header.map((cell, index) => (
-                  // eslint-disable-next-line react/no-array-index-key
+                   
                   <th key={index} scope="col">
                     {cell}
                   </th>
@@ -136,7 +136,7 @@ export function CsvViewer({ text, name }: { text: string; name: string }) {
 
           <tbody>
             {shown.map((cells, rowIndex) => (
-              // eslint-disable-next-line react/no-array-index-key
+               
               <tr key={rowIndex}>
                 {/* Row numbers match the file, header included, so a number here
                     is the number an editor would show for the same line. */}

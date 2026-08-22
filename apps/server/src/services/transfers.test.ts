@@ -56,7 +56,7 @@ function stubProvider(options: { size?: number; chunkSize?: number; failAtChunk?
     const end = Math.min(range?.end ?? size - 1, size - 1);
     calls.push(`read ${start}-${end}`);
     return {
-      stream: new Blob([sourceBytes.slice(start, end + 1) as unknown as BlobPart]).stream(),
+      stream: new Blob([sourceBytes.slice(start, end + 1)]).stream(),
       contentType: 'video/mp4',
       contentLength: end - start + 1,
     };

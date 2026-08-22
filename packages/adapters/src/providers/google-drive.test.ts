@@ -46,7 +46,10 @@ beforeEach(() => {
   process.env.GOOGLE_CLIENT_SECRET = 'test-client-secret';
 
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = input instanceof URL ? input : new URL(String(input));
+    // `RequestInfo` is a string or a Request; String() on the latter gives
+      // "[object Request]" and the URL constructor then throws.
+      const url =
+        input instanceof URL ? input : new URL(typeof input === 'string' ? input : input.url);
     const call: Call = {
       url,
       method: init?.method ?? 'GET',
@@ -56,7 +59,15 @@ beforeEach(() => {
           v,
         ]),
       ),
-      body: typeof init?.body === 'string' ? init.body : init?.body?.toString(),
+      // Narrowed rather than blanket-stringified: a URLSearchParams body is
+      // the OAuth token exchange and its toString() is exactly what was sent,
+      // while a stream or a Blob would only produce "[object …]".
+      body:
+        typeof init?.body === 'string'
+          ? init.body
+          : init?.body instanceof URLSearchParams
+            ? init.body.toString()
+            : undefined,
     };
     calls.push(call);
 
@@ -65,7 +76,7 @@ beforeEach(() => {
       if (response) return response;
     }
     return json({ error: { message: `unmatched ${call.method} ${url.pathname}` } }, { status: 500 });
-  }) as typeof fetch;
+  });
 });
 
 afterEach(() => {

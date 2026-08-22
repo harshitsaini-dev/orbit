@@ -65,6 +65,9 @@ export function FilePreview({ file, siblings, contentUrl, onSelect, onClose }: P
   }, [onClose, step]);
 
   return (
+    /* The backdrop click closes it; Escape does the same and the dialog takes
+       focus, so a keyboard user is never dependent on this. */
+    /* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions */
     <div
       role="dialog"
       aria-modal="true"
@@ -164,18 +167,6 @@ export function FilePreview({ file, siblings, contentUrl, onSelect, onClose }: P
     </div>
   );
 }
-
-const MEDIA_STYLE = {
-  // Fits the frame in both directions. `maxHeight` alone is not enough inside a
-  // grid track, which is what let a tall photo run off the bottom of the window.
-  maxWidth: '100%',
-  maxHeight: '100%',
-  width: 'auto',
-  height: 'auto',
-  objectFit: 'contain',
-  borderRadius: 'var(--radius-md)',
-  display: 'block',
-} as const;
 
 function PreviewBody({
   file,

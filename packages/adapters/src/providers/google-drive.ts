@@ -650,7 +650,7 @@ export class GoogleDriveAdapter extends BaseAdapter {
   // --- sync ---------------------------------------------------------------
 
   override async listChangesSince(tokens: AccountTokens, cursor: string | null): Promise<DeltaResult> {
-    let pageToken = cursor;
+    const pageToken = cursor;
 
     if (!pageToken) {
       const start = await providerJson<{ startPageToken: string }>(

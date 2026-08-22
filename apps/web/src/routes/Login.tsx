@@ -131,6 +131,9 @@ export function Login() {
               type="email"
               required
               autoComplete="email"
+              /* The page exists to collect this one field, which is the case
+                 autofocus is actually for. */
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
               value={email}
               onChange={(e) => setEmail(e.target.value)}

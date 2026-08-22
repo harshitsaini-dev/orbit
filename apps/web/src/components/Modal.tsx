@@ -64,6 +64,9 @@ export function Modal({
   }, [onClose]);
 
   return (
+    /* The backdrop click is a mouse convenience on top of Escape and the close
+       button, both of which a keyboard user has. */
+    /* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */
     <div
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();

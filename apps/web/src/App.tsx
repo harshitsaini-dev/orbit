@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import type { PublicAccount, ThemeMode } from '@orbit/shared-types';
+import type { PublicAccount } from '@orbit/shared-types';
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AccountMenu } from './components/AccountMenu.js';
 import { BrandMark } from './components/BrandMark.js';

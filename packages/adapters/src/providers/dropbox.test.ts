@@ -53,7 +53,10 @@ beforeEach(() => {
   process.env.DROPBOX_CLIENT_SECRET = 'test-client-secret';
 
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = input instanceof URL ? input : new URL(String(input));
+    // `RequestInfo` is a string or a Request; String() on the latter gives
+      // "[object Request]" and the URL constructor then throws.
+      const url =
+        input instanceof URL ? input : new URL(typeof input === 'string' ? input : input.url);
     const call: Call = {
       url,
       method: init?.method ?? 'GET',
@@ -72,7 +75,7 @@ beforeEach(() => {
       if (response) return response;
     }
     return json({ error_summary: 'not stubbed' }, { status: 409 });
-  }) as typeof fetch;
+  });
 });
 
 afterEach(() => {

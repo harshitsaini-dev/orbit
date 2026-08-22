@@ -69,7 +69,10 @@ beforeEach(() => {
   responders = [];
 
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = input instanceof URL ? input : new URL(String(input));
+    // `RequestInfo` is a string or a Request; String() on the latter gives
+      // "[object Request]" and the URL constructor then throws.
+      const url =
+        input instanceof URL ? input : new URL(typeof input === 'string' ? input : input.url);
     const call: Call = {
       url,
       method: init?.method ?? 'GET',
@@ -90,7 +93,7 @@ beforeEach(() => {
     return new Response('<Error><Code>NoSuchKey</Code><Message>not stubbed</Message></Error>', {
       status: 404,
     });
-  }) as typeof fetch;
+  });
 });
 
 afterEach(() => {

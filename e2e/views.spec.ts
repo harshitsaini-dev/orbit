@@ -20,7 +20,7 @@ test.describe('workspace views', () => {
   for (const view of VIEWS) {
     test(`${view.link} loads and reports its own empty state`, async ({ page }) => {
       await page.getByRole('navigation', { name: 'Workspace' }).getByRole('link', { name: view.link }).click();
-      await expect(page).toHaveURL(new RegExp(`${view.path.replace('/', '\/')}$`));
+      await expect(page).toHaveURL(new RegExp(`${view.path}$`));
 
       await expect(page.getByRole('heading', { name: view.heading })).toBeVisible();
       await expect(page.getByText(view.empty)).toBeVisible();

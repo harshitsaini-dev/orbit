@@ -24,8 +24,10 @@ export function ConnectDialog({
   // The default region is prefilled rather than left blank: it is right far
   // more often than not, and a wrong region signs a request that fails without
   // saying the region was the problem.
-  const [values, setValues] = useState<Record<string, string>>(() =>
-    entry.defaultRegion ? { region: entry.defaultRegion } : ({} as Record<string, string>),
+  // Annotated rather than asserted: a bare ternary infers a union of two object
+  // literals, neither of which has an index signature.
+  const [values, setValues] = useState<Record<string, string>>(
+    (): Record<string, string> => (entry.defaultRegion ? { region: entry.defaultRegion } : {}),
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

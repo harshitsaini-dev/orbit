@@ -128,13 +128,13 @@ export function ShareDialog({
 
         {existing === null && (
           <>
-            <label className="share-row">
+            <div className="share-row">
               <Checkbox
                 checked={allowDownload}
                 onChange={setAllowDownload}
                 label="Allow downloading"
               />
-            </label>
+            </div>
             <p className="share-hint">
               With this off, the file can be viewed in the page but not saved. It is a courtesy,
               not a lock: anything visible can be captured.
@@ -145,9 +145,9 @@ export function ShareDialog({
               <Select value={expiry} onChange={setExpiry} options={EXPIRY_OPTIONS} label="Expiry" />
             </label>
 
-            <label className="share-row">
+            <div className="share-row">
               <Checkbox checked={usePassword} onChange={setUsePassword} label="Require a password" />
-            </label>
+            </div>
 
             {usePassword && (
               <input

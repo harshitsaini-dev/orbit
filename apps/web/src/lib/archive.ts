@@ -78,7 +78,7 @@ export async function openArchive(
       readOnlyReason: null,
       read: async (entry) => {
         if (!entry.entry) throw new Error('This entry cannot be read.');
-        return readZipEntry(source, entry.entry as ZipEntry);
+        return readZipEntry(source, entry.entry);
       },
     };
   }

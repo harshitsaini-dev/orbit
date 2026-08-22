@@ -23,6 +23,7 @@ const pristine = {
 
 beforeEach(async () => {
   await useTestDatabase();
+  Object.assign(drive, pristine);
   (drive as unknown as Record<string, unknown>).listAllFiles = async () => ({ files: [] });
   (drive as unknown as Record<string, unknown>).listChangesSince = async () => ({
     changed: [],

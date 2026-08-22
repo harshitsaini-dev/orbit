@@ -672,7 +672,7 @@ function categoryMime(key: string): string {
     zip: 'application/zip',
   };
 
-  if (known[extension]) return known[extension]!;
+  if (known[extension]) return known[extension];
   if (category === 'code') return 'text/plain';
   return 'application/octet-stream';
 }
