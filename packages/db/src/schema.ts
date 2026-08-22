@@ -341,3 +341,48 @@ export const transfers = sqliteTable(
     index('transfer_state_idx').on(t.state),
   ],
 );
+
+/**
+ * A job that runs again: a sync, or a backup from one account to another.
+ *
+ * Stored as a preset and a time rather than a cron expression. Cron is a good
+ * machine format and a poor thing to ask a person to write, and "every Sunday
+ * at 2am" covers what anyone actually schedules.
+ *
+ * `nextRunAt` is computed and stored rather than derived, so a tick is one
+ * indexed read instead of parsing every schedule every minute.
+ */
+export const schedules = sqliteTable(
+  'schedules',
+  {
+    id: text('id').primaryKey(),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    /** `sync` or `backup`. */
+    action: text('action').notNull(),
+    /** Whatever the action needs, as JSON. */
+    config: text('config').notNull(),
+
+    /** `hourly` | `daily` | `weekly` | `monthly` */
+    every: text('every').notNull(),
+    hour: integer('hour').notNull().default(2),
+    minute: integer('minute').notNull().default(0),
+    /** 0 = Sunday. Weekly only. */
+    weekday: integer('weekday'),
+    dayOfMonth: integer('day_of_month'),
+
+    enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+    nextRunAt: text('next_run_at').notNull(),
+    lastRunAt: text('last_run_at'),
+    lastStatus: text('last_status'),
+    lastMessage: text('last_message'),
+    createdAt: text('created_at').notNull().default(now),
+  },
+  (t) => [
+    index('schedule_owner_idx').on(t.ownerId),
+    // The tick asks one question: what is enabled and due?
+    index('schedule_due_idx').on(t.enabled, t.nextRunAt),
+  ],
+);

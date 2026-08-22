@@ -64,6 +64,13 @@
       "when": 1787329387681,
       "tag": "0008_transfers",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1787329387682,
+      "tag": "0009_schedules",
+      "breakpoints": true
     }
   ]
 }
