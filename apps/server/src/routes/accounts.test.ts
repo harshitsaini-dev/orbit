@@ -18,6 +18,7 @@ const { getLocalUser } = await import('../services/users.js');
 const { decryptTokens } = await import('../lib/crypto.js');
 const { db } = await import('../lib/db.js');
 const { accounts } = await import('@orbit/db');
+const { hostLabel, resolveEndpoint } = await import('./accounts.js');
 
 let server: Server;
 let baseUrl: string;
@@ -337,5 +338,51 @@ describe('POST /api/accounts/connect', () => {
     } finally {
       restore();
     }
+  });
+});
+
+describe('building an endpoint from what someone pasted', () => {
+  it('accepts the whole S3 endpoint, which is what the provider shows you', async () => {
+    // Supabase's settings page shows the full URL, so pasting it into a field
+    // called "project reference" is the obvious move rather than a mistake.
+    // Left alone it produced https://https://ref.storage.supabase.co/... and
+    // failed at DNS with "fetch failed", which points at nothing.
+    assert.equal(
+      resolveEndpoint('https://{projectRef}.storage.supabase.co/storage/v1/s3', {
+        projectRef: 'https://fzvmqnupiqvlocwdvyxy.storage.supabase.co/storage/v1/s3',
+      }),
+      'https://fzvmqnupiqvlocwdvyxy.storage.supabase.co/storage/v1/s3',
+    );
+  });
+
+  it('accepts the bare reference too', async () => {
+    assert.equal(
+      resolveEndpoint('https://{projectRef}.storage.supabase.co/storage/v1/s3', {
+        projectRef: 'fzvmqnupiqvlocwdvyxy',
+      }),
+      'https://fzvmqnupiqvlocwdvyxy.storage.supabase.co/storage/v1/s3',
+    );
+  });
+
+  it('accepts a project URL, which is the other thing to hand', async () => {
+    assert.equal(
+      resolveEndpoint('https://{projectRef}.storage.supabase.co/storage/v1/s3', {
+        projectRef: 'https://fzvmqnupiqvlocwdvyxy.supabase.co',
+      }),
+      'https://fzvmqnupiqvlocwdvyxy.storage.supabase.co/storage/v1/s3',
+    );
+  });
+
+  it('leaves a value that is not a hostname alone', async () => {
+    // A region or an account id must survive untouched.
+    assert.equal(hostLabel('ap-south-1'), 'ap-south-1');
+    assert.equal(hostLabel('acct123'), 'acct123');
+  });
+
+  it('fills a Cloudflare account id the same way', async () => {
+    assert.equal(
+      resolveEndpoint('https://{accountId}.r2.cloudflarestorage.com', { accountId: 'acct123' }),
+      'https://acct123.r2.cloudflarestorage.com',
+    );
   });
 });

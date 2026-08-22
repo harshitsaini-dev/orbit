@@ -117,10 +117,16 @@ export const PROVIDER_CATALOGUE: CatalogueEntry[] = [
     label: 'Supabase Storage',
     provider: 's3',
     blurb: 'A Supabase storage bucket over its S3-compatible endpoint.',
-    endpointTemplate: 'https://{projectRef}.supabase.co/storage/v1/s3',
+    // Supabase moved S3 onto its own host; the older {ref}.supabase.co form no
+    // longer answers.
+    endpointTemplate: 'https://{projectRef}.storage.supabase.co/storage/v1/s3',
     forcePathStyle: true,
     fields: [
-      { name: 'projectRef', label: 'Project reference', help: 'The subdomain of your project URL.' },
+      {
+        name: 'projectRef',
+        label: 'Project reference',
+        help: 'Paste the whole S3 endpoint from Project Settings, Storage - or just the reference from your project URL. Either works.',
+      },
       { name: 'region', label: 'Region', placeholder: 'us-east-1' },
       ...ACCESS_KEY_FIELDS,
     ],

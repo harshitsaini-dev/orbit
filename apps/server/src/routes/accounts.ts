@@ -243,7 +243,34 @@ const connectSchema = z.object({
  * that a typo in the host is not something they can make.
  */
 export function resolveEndpoint(template: string, values: Record<string, string>): string {
-  return template.replace(/\{(\w+)\}/g, (whole, name: string) => values[name] ?? whole);
+  return template.replace(/\{(\w+)\}/g, (whole, name: string) => {
+    const value = values[name];
+    return value === undefined ? whole : hostLabel(value);
+  });
+}
+
+/**
+ * The bit of a hostname a template wants, from whatever was pasted.
+ *
+ * Supabase's own settings page shows the full S3 endpoint, so pasting that into
+ * a field labelled "project reference" is the obvious thing to do rather than a
+ * mistake. Left alone it produced
+ * `https://https://ref.storage.supabase.co/....supabase.co/storage/v1/s3`,
+ * which fails at DNS with "fetch failed" - a message that points at nothing.
+ *
+ * A value with no scheme, dot or slash is already a bare reference and is
+ * returned untouched, so this only ever fires on something that was a URL.
+ */
+export function hostLabel(value: string): string {
+  const trimmed = value.trim();
+  if (!/[./]/.test(trimmed)) return trimmed;
+
+  const withoutScheme = trimmed.replace(/^[a-z][a-z0-9+.-]*:\/\//i, '');
+  const host = withoutScheme.split('/')[0] ?? '';
+
+  // The first label: everything before the first dot is the project reference,
+  // whichever of Supabase's host forms was copied.
+  return host.split('.')[0] ?? trimmed;
 }
 
 /**
