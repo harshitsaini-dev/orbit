@@ -27,7 +27,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 11 | Developer platform (public API, tokens, OAuth apps, API docs tab) | ⚪ Designed, not started |
 | 12 | Instant directory cache + offline browsing | 🟢 Done |
 | 13 | Spotlight (Ctrl/Cmd + K) | 🟢 Done |
-| 14 | Unified storage dashboard | ⚪ Designed, not started |
+| 14 | Unified storage dashboard | 🟢 Done |
 | 15 | Collections (virtual folders) | ⚪ Designed, not started |
 | 16 | Metadata viewers + remaining previewers | 🟡 Code, CSV and PDF done · fonts, markdown, archives, 3D pending |
 | 17 | Cross-cloud transfer engine | ⚪ Designed, not started |

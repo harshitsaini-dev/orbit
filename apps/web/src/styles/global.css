@@ -2406,3 +2406,117 @@ body {
   font: inherit;
   font-size: 11.5px;
 }
+
+/* --- storage donut -------------------------------------------------------- */
+
+.donut {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: clamp(1rem, 4vw, 2.5rem);
+  align-items: center;
+}
+
+.donut__chart {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.donut__chart svg {
+  display: block;
+}
+
+.donut__centre {
+  position: absolute;
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  pointer-events: none;
+}
+
+.donut__centre strong {
+  font-size: 1.5rem;
+  letter-spacing: -0.02em;
+}
+
+.donut__centre span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.donut__legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.donut__legend li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.donut__swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.donut__swatch--none {
+  /* Hatched rather than coloured: this account contributes to what is used but
+     has no arc, because it reports no allowance to draw one against. */
+  background: repeating-linear-gradient(
+    45deg,
+    var(--text-muted),
+    var(--text-muted) 2px,
+    transparent 2px,
+    transparent 4px
+  );
+  opacity: 0.6;
+}
+
+.donut__name {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+
+.donut__name strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.donut__name > span {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.donut__figure {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.donut__figure span {
+  color: var(--text-muted);
+}
+
+@media (max-width: 620px) {
+  .donut {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .donut__legend {
+    width: 100%;
+  }
+}

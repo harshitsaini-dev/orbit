@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { PublicAccount } from '@orbit/shared-types';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { AccountCardsSkeleton, Skeleton } from '../components/Skeleton.js';
+import { StorageDonut } from '../components/StorageDonut.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { ApiError, api } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
@@ -78,28 +79,16 @@ export function Dashboard() {
         </p>
 
 
-        {accounts !== null && accounts.length > 0 && totalQuota > 0 && (
-          <div
-            className="clay-sunken"
-            style={{ height: 12, borderRadius: 'var(--radius-pill)', overflow: 'hidden', marginTop: '1rem' }}
-            role="img"
-            aria-label={`${formatBytes(totalUsed)} used of ${formatBytes(totalQuota)}`}
-          >
-            <div
-              style={{
-                width: `${Math.min(100, (totalUsed / totalQuota) * 100)}%`,
-                minWidth: totalUsed > 0 ? 3 : 0,
-                height: '100%',
-                background: 'var(--accent)',
-              }}
-            />
+        {accounts !== null && accounts.length > 0 && (
+          <div style={{ marginTop: '1.25rem' }}>
+            <StorageDonut accounts={accounts} />
           </div>
         )}
 
         {unmeasured > 0 && (
           <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: '0.6rem' }}>
             {unmeasured} {unmeasured === 1 ? 'account reports' : 'accounts report'} no allowance, so
-            {unmeasured === 1 ? ' it is' : ' they are'} not in the total.
+            {unmeasured === 1 ? ' it is' : ' they are'} counted in what is used but not in the total.
           </p>
         )}
 
