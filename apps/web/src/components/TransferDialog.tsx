@@ -3,6 +3,7 @@ import { catalogueEntry, type OrbitFile, type PublicAccount } from '@orbit/share
 import { ApiError, api } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
 import { Checkbox } from './Checkbox.js';
+import { Radio } from './Radio.js';
 import { Modal } from './Modal.js';
 import { ProviderIcon } from './ProviderIcon.js';
 
@@ -104,24 +105,29 @@ export function TransferDialog({
             <ul className="transfer-targets">
               {options.map((account) => (
                 <li key={account.id}>
-                  <label>
-                    <input
-                      type="radio"
-                      name="transfer-target"
-                      checked={target === account.id}
-                      onChange={() => setTarget(account.id)}
-                    />
-                    <ProviderIcon provider={account.catalogueKey ?? account.provider} size={18} />
-                    <span>
-                      <strong>{account.nickname}</strong>
-                      <span>
-                        {catalogueEntry(account.catalogueKey ?? '')?.label ?? account.provider}
-                        {account.quotaBytes > 0
-                          ? ` · ${formatBytes(account.quotaBytes - account.usedBytes)} free`
-                          : ' · no limit reported'}
-                      </span>
-                    </span>
-                  </label>
+                  <Radio
+                    name="transfer-target"
+                    value={account.id}
+                    checked={target === account.id}
+                    onChange={() => setTarget(account.id)}
+                    label={
+                      <>
+                        <ProviderIcon
+                          provider={account.catalogueKey ?? account.provider}
+                          size={18}
+                        />
+                        <span>
+                          <strong>{account.nickname}</strong>
+                          <span>
+                            {catalogueEntry(account.catalogueKey ?? '')?.label ?? account.provider}
+                            {account.quotaBytes > 0
+                              ? ` · ${formatBytes(account.quotaBytes - account.usedBytes)} free`
+                              : ' · no limit reported'}
+                          </span>
+                        </span>
+                      </>
+                    }
+                  />
                 </li>
               ))}
             </ul>

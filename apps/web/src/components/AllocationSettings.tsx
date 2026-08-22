@@ -3,6 +3,7 @@ import { catalogueEntry, type AllocationStrategy, type PublicAccount } from '@or
 import { api } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
 import { ProviderIcon } from './ProviderIcon.js';
+import { Radio } from './Radio.js';
 
 /**
  * Where an upload goes when the user has not picked an account.
@@ -87,20 +88,19 @@ export function AllocationSettings({
       <ul className="allocation">
         {STRATEGIES.map((option) => (
           <li key={option.value}>
-            <label>
-              <input
-                type="radio"
-                name="allocation"
-                value={option.value}
-                checked={current === option.value}
-                disabled={busy}
-                onChange={() => void choose(option.value)}
-              />
-              <span>
-                <strong>{option.label}</strong>
-                <span>{option.blurb}</span>
-              </span>
-            </label>
+            <Radio
+              name="allocation"
+              value={option.value}
+              checked={current === option.value}
+              disabled={busy}
+              onChange={() => void choose(option.value)}
+              label={
+                <>
+                  <strong>{option.label}</strong>
+                  <span>{option.blurb}</span>
+                </>
+              }
+            />
           </li>
         ))}
       </ul>
