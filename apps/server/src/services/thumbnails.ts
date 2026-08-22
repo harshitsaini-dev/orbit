@@ -1,5 +1,6 @@
 import sharp from 'sharp';
 import type { AccountTokens, ProviderAdapter } from '@orbit/shared-types';
+import { pdfFirstPage, renderers, videoFrame } from './renderers.js';
 
 /**
  * Thumbnails for providers that do not make their own.
@@ -21,6 +22,19 @@ const QUALITY = 72;
 
 /** Above this the source costs more to fetch and decode than a tile is worth. */
 export const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
+
+/**
+ * How much of a video to pull before giving up on it.
+ *
+ * A frame needs the header, the index, and enough of the first second to decode
+ * - not two gigabytes. An MP4 written with `faststart` has all of that at the
+ * front; one that does not simply returns no thumbnail, which is better than
+ * downloading the file to find out.
+ */
+const VIDEO_PREFIX_BYTES = 12 * 1024 * 1024;
+
+/** A PDF's first page is near the front, but the cross-reference table is not. */
+const PDF_MAX_BYTES = 40 * 1024 * 1024;
 
 /** Roughly a few hundred tiles. Bounded so a big folder cannot exhaust the heap. */
 const MAX_CACHE_BYTES = 32 * 1024 * 1024;
@@ -78,18 +92,39 @@ function remember(key: string, thumbnail: Thumbnail): void {
 /** What sharp can decode. Not a guess: these are the formats libvips reads. */
 const DECODABLE = /\.(jpe?g|png|gif|webp|avif|tiff?|heic|heif|bmp|svg)$/i;
 
-export function canRender(name: string, mimeType: string): boolean {
+const VIDEO = /\.(mp4|m4v|mov|webm|mkv|avi|mpe?g|3gp|ogv|ts|m2ts|wmv|flv)$/i;
+
+export type Source = 'image' | 'video' | 'pdf';
+
+/**
+ * What this file could be turned into a tile from, or null.
+ *
+ * Video and PDF depend on tools that may not be installed - see `renderers.ts`.
+ * Asking here rather than at the point of use means a machine without them
+ * never fetches a byte of a video it cannot decode.
+ */
+export function sourceKind(name: string, mimeType: string): Source | null {
   const type = mimeType.toLowerCase();
 
   // SVG is excluded deliberately. sharp renders it, but rendering an untrusted
   // SVG means running its references through a parser to make a picture nobody
   // asked to be safe.
-  if (type === 'image/svg+xml' || /\.svg$/i.test(name)) return false;
+  if (type === 'image/svg+xml' || /\.svg$/i.test(name)) return null;
 
-  if (type.startsWith('image/')) return true;
+  // Object stores label almost everything octet-stream, so the name decides
+  // whenever the type is not specific.
+  if (type.startsWith('image/') || DECODABLE.test(name)) return 'image';
 
-  // Object stores label almost everything octet-stream, so the name decides.
-  return DECODABLE.test(name);
+  const available = renderers();
+  if (available.video && (type.startsWith('video/') || VIDEO.test(name))) return 'video';
+  if (available.pdf && (type === 'application/pdf' || /\.pdf$/i.test(name))) return 'pdf';
+
+  return null;
+}
+
+/** Kept for the shape the callers read best. */
+export function canRender(name: string, mimeType: string): boolean {
+  return sourceKind(name, mimeType) !== null;
 }
 
 export interface RenderInput {
@@ -110,8 +145,14 @@ export interface RenderInput {
  * had no thumbnail either.
  */
 export async function renderThumbnail(input: RenderInput): Promise<Thumbnail | null> {
-  if (!canRender(input.name, input.mimeType)) return null;
-  if (input.sizeBytes > MAX_SOURCE_BYTES) return null;
+  const kind = sourceKind(input.name, input.mimeType);
+  if (!kind) return null;
+
+  // Images are read whole, so an enormous one is refused before it is fetched.
+  // A video is read as a prefix, so its own size does not matter; a PDF is read
+  // whole but tolerates more, because the page is worth more than a photo is.
+  if (kind === 'image' && input.sizeBytes > MAX_SOURCE_BYTES) return null;
+  if (kind === 'pdf' && input.sizeBytes > PDF_MAX_BYTES) return null;
 
   const key = `${input.remoteId}:${input.size}`;
 
@@ -127,8 +168,28 @@ export async function renderThumbnail(input: RenderInput): Promise<Thumbnail | n
   if (existing) return existing;
 
   const work = slot(async () => {
-    const stream = await input.adapter.getFileStream(input.tokens, input.remoteId);
-    const source = Buffer.from(await new Response(stream.stream as never).arrayBuffer());
+    // Only as much as the renderer needs. A two-gigabyte video must not be
+    // pulled through the server to draw a tile.
+    const range =
+      kind === 'video' && input.sizeBytes > VIDEO_PREFIX_BYTES
+        ? { start: 0, end: VIDEO_PREFIX_BYTES - 1 }
+        : undefined;
+
+    const stream = await input.adapter.getFileStream(input.tokens, input.remoteId, range);
+    const fetched = Buffer.from(await new Response(stream.stream as never).arrayBuffer());
+
+    // Video and PDF arrive as a PNG from an external renderer; an image is
+    // already one. From here all three are the same problem.
+    const source =
+      kind === 'video'
+        ? await videoFrame(fetched)
+        : kind === 'pdf'
+          ? await pdfFirstPage(fetched)
+          : fetched;
+
+    // The tool was there but could not read this file - a video whose index is
+    // at the end, an encrypted PDF. An icon is the honest answer.
+    if (!source) return null;
 
     const bytes = await sharp(source, { failOn: 'none' })
       // Inside, not cropped: a grid of photos with their edges cut off is worse

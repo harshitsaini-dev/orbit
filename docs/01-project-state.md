@@ -539,11 +539,23 @@ waiting on.
 Measured on the connected buckets: 994 KB JPEG → 4.9 KB; 151 KB PNG → 11 KB; 25 KB PNG → 4.2 KB.
 Cold ~0.3 s, cached ~0.1 s.
 
-**What this does not cover, and will not for free.** Drive also renders thumbnails for video, PDFs
-and documents. Matching that on S3, MEGA or Dropbox needs ffmpeg for a video frame and a document
-renderer for a first page — sustained CPU the free tier does not have, and both would compete with
-request serving on the single node (ADR 0003). Images work everywhere; the rest shows an icon.
-Raising it is a paid-compute decision for the owner, not something to attempt quietly.
+**Video and PDF: written, and on exactly when the machine can afford them.** Drive renders those
+too. Orbit can as well — a frame needs ffmpeg, a page needs poppler — but neither is CPU a free tier
+has to spare, and both would compete with request serving on the single node (ADR 0003).
+
+So neither is a dependency. `services/renderers.ts` looks for both once at start-up and the feature
+exists exactly when the tool does. On the free instance nothing is found, those files show an icon,
+and not a byte of a video is ever fetched. On a machine that has ffmpeg — a bigger instance, a
+container that installs it, somebody's own server — video thumbnails start appearing with no flag to
+set. The boot log says which of the two it found, so this is never something to infer from
+thumbnails that do or do not turn up.
+
+`ORBIT_FFMPEG` and `ORBIT_PDFTOPPM` name the binaries when they are not on PATH.
+
+Two limits worth knowing. A video is read as a 12 MB prefix rather than in full, so an MP4 whose
+index sits at the end returns no thumbnail — better than pulling two gigabytes through the server to
+be sure. And nothing is written to disk: the bytes go to the renderer on stdin, because a temp file
+would be storing a user's file, which is the one thing this product does not do.
 
 ## Known issues / open questions
 
