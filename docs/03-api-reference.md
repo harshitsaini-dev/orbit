@@ -267,6 +267,23 @@ bounded at 60 pages and its result cached for 30 minutes; `?refresh=1` forces a 
 `partial: true` means the scan stopped at its page limit, so the figures are a lower bound.
 `501 breakdown_unsupported` for a provider that cannot enumerate flat.
 
+### `GET /api/accounts/:id/shared-drives/:driveId`
+What is known about one Google shared drive, and whether a measurement is running right now.
+
+```json
+{ "drive": { "sizeBytes": 7651092122, "fileCount": 50718, "partial": false,
+  "totals": [], "measuredAt": "2026-08-22T20:55:05.752Z" }, "measuring": false }
+```
+
+`drive` is `null` until the drive has been measured once. A shared drive has no quota to ask
+for, so a size means listing every file in it; that runs in the background and this is the cheap
+read a page polls while it does. Opening the storage page starts one for any drive without a
+figure less than six hours old, so `measuring: true` is the ordinary answer just after that.
+
+### `POST /api/accounts/:id/shared-drives/:driveId/measure`
+`{ name }` → `200 { drive }` with the same shape. Starts the listing and waits for it, for
+somebody who does not want to wait for the background pass. `404` if the drive is not there.
+
 ### `GET /api/connectable`
 Only the catalogue entries with a working adapter behind them, so the connect UI never offers a
 dead end. The full intended list is `GET /api/catalogue`.

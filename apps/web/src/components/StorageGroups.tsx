@@ -52,6 +52,8 @@ interface SharedDrive {
   name: string;
   path: string;
   measured: Measurement | null;
+  /** True when the server is listing this drive right now. */
+  measuring: boolean;
 }
 
 interface Measurement {
@@ -74,20 +76,52 @@ function measuredAgo(iso: string): string {
  * One shared drive, with what was last worked out about it.
  *
  * Google reports no quota for a shared drive, so a size means listing every
- * file in it - over a minute on a real one. That happens on the sync pass with
+ * file in it - over a minute on a real one. That happens in the background with
  * nobody waiting, which is what lets it run to the end rather than stopping at
  * a cap; the page shows the last figure and when it was taken.
+ *
+ * Opening this page starts one for any drive without a recent figure, so the
+ * row polls while that runs: the alternative is "not measured yet" sitting
+ * there until somebody thinks to reload.
  *
  * The button is for impatience, not for the ordinary case: somebody who has
  * just changed something and does not want to wait for the next pass.
  */
 function SharedDriveRow({ drive }: { drive: SharedDrive }) {
   const [measurement, setMeasurement] = useState<Measurement | null>(drive.measured);
-  const [busy, setBusy] = useState(false);
+  const [pressed, setPressed] = useState(false);
+  const [running, setRunning] = useState(drive.measuring);
   const [failed, setFailed] = useState(false);
 
+  const busy = pressed || running;
+
+  /*
+   * Only while something is running, and stopped as soon as it is not. Ten
+   * seconds is short enough that a finished measurement appears while somebody
+   * is still looking at the page, and the request behind it is a single row
+   * read - it does not touch the provider.
+   */
+  useEffect(() => {
+    if (!running) return;
+
+    const timer = setInterval(() => {
+      void api<{ drive: Measurement | null; measuring: boolean }>(
+        `/api/accounts/${drive.accountId}/shared-drives/${encodeURIComponent(drive.driveId)}`,
+      )
+        .then((result) => {
+          if (result.drive) setMeasurement(result.drive);
+          setRunning(result.measuring);
+        })
+        .catch(() => {
+          // A failed poll is not a failed measurement; the next one will say.
+        });
+    }, 10_000);
+
+    return () => clearInterval(timer);
+  }, [drive.accountId, drive.driveId, running]);
+
   async function measure(): Promise<void> {
-    setBusy(true);
+    setPressed(true);
     setFailed(false);
 
     try {
@@ -96,10 +130,11 @@ function SharedDriveRow({ drive }: { drive: SharedDrive }) {
         { method: 'POST', body: { name: drive.name } },
       );
       setMeasurement(result);
+      setRunning(false);
     } catch {
       setFailed(true);
     } finally {
-      setBusy(false);
+      setPressed(false);
     }
   }
 
@@ -117,7 +152,7 @@ function SharedDriveRow({ drive }: { drive: SharedDrive }) {
           {measurement
             ? `${measurement.partial ? 'at least ' : ''}${formatBytes(measurement.sizeBytes)} · ${measurement.fileCount.toLocaleString()} files`
             : busy
-              ? 'Measuring…'
+              ? 'Measuring… this takes a few minutes'
               : 'Not measured yet'}
         </span>
 

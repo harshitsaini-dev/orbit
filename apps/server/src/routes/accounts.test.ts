@@ -17,7 +17,7 @@ const { createAccount } = await import('../services/accounts.js');
 const { getLocalUser } = await import('../services/users.js');
 const { decryptTokens } = await import('../lib/crypto.js');
 const { db } = await import('../lib/db.js');
-const { accounts } = await import('@orbit/db');
+const { accounts, sharedDriveStats } = await import('@orbit/db');
 const { PROVIDER_CATALOGUE } = await import('@orbit/shared-types');
 const { isImplemented } = await import('@orbit/adapters');
 const { hostLabel, resolveEndpoint } = await import('./accounts.js');
@@ -473,5 +473,52 @@ describe('catching a pasted value that cannot work', () => {
 
     assert.equal(res.status, 400);
     assert.match(((await res.json()) as { error: { message: string } }).error.message, /S3 access key/);
+  });
+});
+
+
+describe('GET /api/accounts/:id/shared-drives/:driveId', () => {
+  it('answers null for a drive nothing is known about', async () => {
+    const account = await seedAccount();
+
+    const res = await fetch(
+      `${baseUrl}/api/accounts/${account.id}/shared-drives/0ABCdefGHI`,
+    );
+
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as { drive: unknown; measuring: boolean };
+    assert.equal(body.drive, null);
+    assert.equal(body.measuring, false);
+  });
+
+  it('returns the stored measurement once there is one', async () => {
+    const account = await seedAccount();
+
+    await db()
+      .insert(sharedDriveStats)
+      .values({
+        id: 'stat-1',
+        accountId: account.id,
+        driveId: '0ABCdefGHI',
+        name: 'PO Data',
+        sizeBytes: 7_651_092_122,
+        fileCount: 50_718,
+        totals: JSON.stringify([]),
+        partial: false,
+        measuredAt: new Date().toISOString(),
+      });
+
+    const res = await fetch(
+      `${baseUrl}/api/accounts/${account.id}/shared-drives/0ABCdefGHI`,
+    );
+
+    const body = (await res.json()) as { drive: { sizeBytes: number; fileCount: number } | null };
+    assert.equal(body.drive?.sizeBytes, 7_651_092_122);
+    assert.equal(body.drive?.fileCount, 50_718);
+  });
+
+  it("refuses an account that is not the caller's", async () => {
+    const res = await fetch(`${baseUrl}/api/accounts/not-mine/shared-drives/0ABCdefGHI`);
+    assert.equal(res.status, 404);
   });
 });

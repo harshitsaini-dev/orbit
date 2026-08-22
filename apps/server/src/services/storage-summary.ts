@@ -4,6 +4,7 @@ import { summarise, type CategoryTotal } from '@orbit/shared-types';
 import { eq, inArray } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { db } from '../lib/db.js';
+import { log } from '../lib/log.js';
 import { useAccount } from './accounts.js';
 
 /**
@@ -65,6 +66,14 @@ export interface SharedDriveEntry {
    * wait for a fresh one.
    */
   measured: MeasuredDrive | null;
+  /**
+   * True while a measurement of this drive is running on the server.
+   *
+   * Worth saying out loud: "not measured yet" beside a drive that is being
+   * measured reads as broken, and is the reason somebody presses the button
+   * that starts a second listing of the same fifty thousand files.
+   */
+  measuring: boolean;
 }
 
 export interface StorageSummary {
@@ -102,7 +111,7 @@ export interface StorageSummary {
 async function sharedDrivesFor(
   userId: string,
   rows: Array<typeof accounts.$inferSelect>,
-): Promise<Array<Omit<SharedDriveEntry, 'measured'>>> {
+): Promise<Array<Omit<SharedDriveEntry, 'measured' | 'measuring'>>> {
   const found = await Promise.all(
     rows
       .filter((row) => row.provider === 'google_drive')
@@ -131,7 +140,19 @@ async function sharedDrivesFor(
   return found.flat();
 }
 
-/** The same list, with whatever has already been measured attached. */
+/**
+ * The same list, with whatever has already been measured attached - and a
+ * measurement started for anything without one.
+ *
+ * The scheduled pass alone was not enough. It runs at boot and on a cron tick,
+ * and a host that sleeps when nobody is using it gets few of either: the tick
+ * that would have measured the drive never fires, so the first person back
+ * finds "not measured yet" and no sign that anything intends to change it.
+ *
+ * So looking at the page is itself the trigger. Nobody waits for it - the
+ * response goes out with whatever is already known - and the guard below means
+ * ten refreshes still only list the drive once.
+ */
 async function sharedDrivesWithStats(
   userId: string,
   rows: Array<typeof accounts.$inferSelect>,
@@ -141,10 +162,53 @@ async function sharedDrivesWithStats(
 
   const known = await storedMeasurements([...new Set(drives.map((d) => d.accountId))]);
 
-  return drives.map((drive) => ({
-    ...drive,
-    measured: known.get(`${drive.accountId}:${drive.driveId}`) ?? null,
-  }));
+  return drives.map((drive) => {
+    const measured = known.get(`${drive.accountId}:${drive.driveId}`) ?? null;
+    if (!isFresh(measured)) measureInBackground(userId, drive);
+
+    return { ...drive, measured, measuring: isMeasuring(drive.accountId, drive.driveId) };
+  });
+}
+
+/**
+ * Which drives are being listed right now.
+ *
+ * In memory rather than in the database on purpose: it describes this process,
+ * and a row saying "measuring" that outlived the process that was doing it
+ * would be a lie no restart could clear.
+ */
+const inFlight = new Set<string>();
+
+function keyFor(accountId: string, driveId: string): string {
+  return `${accountId}:${driveId}`;
+}
+
+export function isMeasuring(accountId: string, driveId: string): boolean {
+  return inFlight.has(keyFor(accountId, driveId));
+}
+
+function isFresh(measured: MeasuredDrive | null): boolean {
+  return measured !== null && Date.now() - new Date(measured.measuredAt).getTime() < MEASURE_TTL_MS;
+}
+
+/**
+ * Starts a measurement and does not wait for it. Does nothing if one is
+ * already running for that drive, which is what stops a page that reloads
+ * every few seconds from starting a listing every few seconds.
+ */
+function measureInBackground(
+  userId: string,
+  drive: { accountId: string; driveId: string; name: string },
+): void {
+  const key = keyFor(drive.accountId, drive.driveId);
+  if (inFlight.has(key)) return;
+
+  inFlight.add(key);
+  void measureSharedDrive(userId, drive.accountId, drive.driveId, drive.name)
+    .catch((err: unknown) => {
+      log.error('shared drive measurement failed', { drive: drive.name, error: err });
+    })
+    .finally(() => inFlight.delete(key));
 }
 
 /** Orbit's own name for the folder it synthesises to hold them. */
@@ -300,16 +364,22 @@ export async function measureStaleSharedDrives(): Promise<number> {
     const known = await storedMeasurements(drives.map((drive) => drive.accountId));
 
     for (const drive of drives) {
-      const previous = known.get(`${drive.accountId}:${drive.driveId}`);
-      const fresh =
-        previous && Date.now() - new Date(previous.measuredAt).getTime() < MEASURE_TTL_MS;
+      const previous = known.get(`${drive.accountId}:${drive.driveId}`) ?? null;
+      if (isFresh(previous)) continue;
 
-      if (fresh) continue;
+      // Somebody looking at the storage page may already have started this one.
+      if (isMeasuring(drive.accountId, drive.driveId)) continue;
 
       // One at a time on purpose: this is a long listing against somebody's
       // provider, and running several at once is how an account gets rate
       // limited for something nobody asked for.
-      if (await measureSharedDrive(userId, drive.accountId, drive.driveId, drive.name)) done += 1;
+      const key = keyFor(drive.accountId, drive.driveId);
+      inFlight.add(key);
+      try {
+        if (await measureSharedDrive(userId, drive.accountId, drive.driveId, drive.name)) done += 1;
+      } finally {
+        inFlight.delete(key);
+      }
     }
   }
 

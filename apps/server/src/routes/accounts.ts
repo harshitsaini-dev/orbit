@@ -13,7 +13,12 @@ import {
 import { requireAuth } from '../middleware/auth.js';
 import { findDuplicates, ignoreGroup, unignoreGroup } from '../services/duplicates.js';
 import { record } from '../services/audit.js';
-import { measureSharedDrive, storageSummary } from '../services/storage-summary.js';
+import {
+  isMeasuring,
+  measureSharedDrive,
+  storageSummary,
+  storedMeasurements,
+} from '../services/storage-summary.js';
 import { mirrorSize, recentSyncs, syncAccount } from '../services/sync.js';
 import {
   setAccountPriority,
@@ -463,6 +468,43 @@ accountsRouter.post('/api/accounts/:id/shared-drives/:driveId/measure', requireA
     next(err);
   }
 });
+
+/**
+ * What is known about one shared drive, and whether a measurement is running.
+ *
+ * A cheap read next to the POST above, for a page that has been told a
+ * measurement started and wants to know when it finished without asking for the
+ * whole storage summary - which would list the drive folder at the provider
+ * every time it asked.
+ */
+accountsRouter.get(
+  '/api/accounts/:id/shared-drives/:driveId',
+  requireAuth,
+  async (req, res, next) => {
+    const accountId = req.params.id!;
+    const driveId = req.params.driveId!;
+
+    try {
+      // Checked against the caller's own accounts, so a guessed id reads
+      // nothing: the measurement is keyed by account, not by user.
+      const mine = await listAccounts(req.user!.id);
+
+      if (!mine.some((account) => account.id === accountId)) {
+        res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
+        return;
+      }
+
+      const known = await storedMeasurements([accountId]);
+
+      res.json({
+        drive: known.get(`${accountId}:${driveId}`) ?? null,
+        measuring: isMeasuring(accountId, driveId),
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
 
 accountsRouter.get('/api/duplicates', requireAuth, async (req, res, next) => {
   try {
