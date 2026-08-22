@@ -154,12 +154,26 @@ export function ImageViewer({ src, alt }: { src: string; alt: string }) {
             })
           }
           style={{
-            // Sized explicitly rather than with max-width: a percentage inside a
-            // grid track does not constrain reliably, which is what let a large
-            // photo overflow the window instead of fitting it.
+            /*
+             * Sized explicitly rather than with max-width: a percentage inside
+             * a grid track does not constrain reliably, which is what let a
+             * large photo overflow the window instead of fitting it.
+             *
+             * Until the new image reports its size there is nothing to compute
+             * a scale from, and drawing it at its natural size meanwhile is how
+             * stepping to the next photo flashed a 4000-pixel-wide receipt
+             * across the screen for a moment. So for that moment the browser
+             * fits it the ordinary way, and the explicit sizing takes over as
+             * soon as there is something to be explicit about.
+             */
             width: natural ? natural.width * scale : 'auto',
             height: natural ? natural.height * scale : 'auto',
-            maxWidth: 'none',
+            // In pixels, from the frame this viewer already measures: a
+            // percentage resolves against a grid area that has itself grown to
+            // fit the content, so it would not constrain the very thing it is
+            // there to constrain.
+            maxWidth: natural ? 'none' : (frame?.width ?? 0) || '100%',
+            maxHeight: natural ? 'none' : (frame?.height ?? 0) || '100%',
             transform: `translate(${offset.x}px, ${offset.y}px)`,
             borderRadius: 'var(--radius-md)',
             display: 'block',
