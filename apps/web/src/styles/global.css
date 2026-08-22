@@ -524,6 +524,35 @@ body {
 
 /* The tick only clutters a tile until it is needed, so it appears on hover,
    on focus, and whenever the tile is actually selected. */
+.file-grid {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.file-grid__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(130px, 22vw, 168px), 1fr));
+}
+
+/* Folders are half the height of a file tile and hold only a name, so they can
+   be narrower too - which fits more of them on a row. */
+.file-grid__list--folders {
+  grid-template-columns: repeat(auto-fill, minmax(clamp(148px, 15vw, 180px), 1fr));
+}
+
+.file-grid__heading {
+  margin: 0.2rem 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
 /*
  * A folder tile is a row, not a card.
  *
@@ -533,18 +562,27 @@ body {
  * the files, which is the shape a file manager is expected to have.
  */
 .file-tile--folder {
-  align-content: center;
-  min-height: 52px;
+  /*
+   * One row: the tick, then the folder.
+   *
+   * The tile is a grid, so leaving the tick in its own row gave it a full row
+   * of its own - invisible until hover, and always occupying the space, which
+   * pushed the name to the bottom edge of the tile and left a gap above it.
+   */
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+  padding: 10px !important;
 }
 
-/* The tick sits inside the row rather than floating over a preview. */
+/* The tick sits in the row rather than floating over a preview. */
 .file-tile--folder .file-tile__select {
   position: static !important;
-  order: -1;
-}
-
-.file-tile--folder button {
-  padding-left: 2px;
+  top: auto !important;
+  left: auto !important;
+  display: flex;
+  align-items: center;
 }
 
 .file-tile__select {

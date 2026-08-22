@@ -60,35 +60,51 @@ export function FileGrid({
   locationOf?: (file: OrbitFile) => ReactNode;
   onContextMenu?: (event: React.MouseEvent, file: OrbitFile) => void;
 }) {
-  return (
-    <ul
-      data-testid="file-grid"
-      style={{
-        listStyle: 'none',
-        padding: 0,
-        margin: 0,
-        display: 'grid',
-        gap: 12,
-        gridTemplateColumns: 'repeat(auto-fill, minmax(clamp(130px, 22vw, 168px), 1fr))',
-      }}
+  /*
+   * Folders and files are laid out separately.
+   *
+   * They are different heights - a folder is a row, a file is a card with a
+   * preview - and in one grid a row that mixes them takes the height of the
+   * tallest, leaving the folders in it floating over a hole. Two grids, each
+   * of one kind, and every row is the height it should be.
+   */
+  const folders = files.filter((file) => file.isFolder);
+  const rest = files.filter((file) => !file.isFolder);
+
+  const tile = (file: OrbitFile) => (
+    <li
+      key={selectionKey ? selectionKey(file) : file.remoteId}
+      {...(onContextMenu ? { onContextMenu: (event) => onContextMenu(event, file) } : {})}
     >
-      {files.map((file) => (
-        <li
-          key={file.remoteId}
-          {...(onContextMenu ? { onContextMenu: (event) => onContextMenu(event, file) } : {})}
-        >
-          <Tile
-            file={file}
-            accountId={accountIdFor(file)}
-            selectionKey={selectionKey ? selectionKey(file) : file.remoteId}
-            selected={selected.has(selectionKey ? selectionKey(file) : file.remoteId)}
-            onToggleSelect={() => onToggleSelect(file.remoteId)}
-            onOpen={(event) => onOpen(file, event)}
-            location={showLocation ? locationOf?.(file) : undefined}
-          />
-        </li>
-      ))}
-    </ul>
+      <Tile
+        file={file}
+        accountId={accountIdFor(file)}
+        selectionKey={selectionKey ? selectionKey(file) : file.remoteId}
+        selected={selected.has(selectionKey ? selectionKey(file) : file.remoteId)}
+        onToggleSelect={() => onToggleSelect(file.remoteId)}
+        onOpen={(event) => onOpen(file, event)}
+        location={showLocation ? locationOf?.(file) : undefined}
+      />
+    </li>
+  );
+
+  return (
+    <div data-testid="file-grid" className="file-grid">
+      {folders.length > 0 && (
+        <>
+          {/* Named only when there is something else to tell them apart from. */}
+          {rest.length > 0 && <h2 className="file-grid__heading">Folders</h2>}
+          <ul className="file-grid__list file-grid__list--folders">{folders.map(tile)}</ul>
+        </>
+      )}
+
+      {rest.length > 0 && (
+        <>
+          {folders.length > 0 && <h2 className="file-grid__heading">Files</h2>}
+          <ul className="file-grid__list">{rest.map(tile)}</ul>
+        </>
+      )}
+    </div>
   );
 }
 
