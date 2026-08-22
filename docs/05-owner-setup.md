@@ -288,6 +288,17 @@ verification both platforms run.
      `@orbit/shared-types`, which only resolves from an install done at the root.
    - Build command: `npm run build -w @orbit/web`
    - Output directory: `apps/web/dist`
+   Two things `vercel.json` says that are worth knowing, because the file itself cannot say
+   them - Vercel validates it against a schema that rejects unknown keys, so it carries no
+   comments:
+
+   - `installCommand` is `npm ci --include=dev`. A build environment that sets
+     `NODE_ENV=production` makes npm skip devDependencies, which is where Vite and TypeScript
+     live. Vercel does not set it today; Render did, and the build failed on exactly that.
+   - The rewrite sends every unknown path to `index.html`, and only unknown ones: Vercel checks
+     the filesystem first, so the service worker, the icons and the hashed bundles are still
+     served as themselves.
+
 4. **Environment Variables** → `VITE_API_URL` = `https://api.orbit.harshitsaini.in`
 
    The same file also sets the security headers the app is served with, including a
