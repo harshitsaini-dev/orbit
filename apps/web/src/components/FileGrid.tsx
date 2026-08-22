@@ -3,7 +3,7 @@ import type { OrbitFile } from '@orbit/shared-types';
 import { Checkbox } from './Checkbox.js';
 import { FileIcon } from './FileIcon.js';
 import { formatBytes } from '../lib/format.js';
-import { fetchThumbnail } from '../lib/thumbnails.js';
+import { fetchThumbnail, mightHaveThumbnail } from '../lib/thumbnails.js';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
@@ -138,7 +138,7 @@ function Tile({
             overflow: 'hidden',
           }}
         >
-          {file.isFolder || !near ? (
+          {!near || !mightHaveThumbnail(file) ? (
             <FileIcon name={file.name} mimeType={file.mimeType} isFolder={file.isFolder} size={44} />
           ) : (
             <Thumbnail file={file} accountId={accountId} />

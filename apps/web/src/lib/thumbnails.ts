@@ -1,3 +1,6 @@
+import type { OrbitFile } from '@orbit/shared-types';
+import { previewKindFor } from './preview.js';
+
 /**
  * A queue for thumbnail fetches.
  *
@@ -75,4 +78,31 @@ export function fetchThumbnail(url: string, signal: AbortSignal): Promise<string
 /** Test seam and a way to see the queue is behaving. */
 export function thumbnailQueueState(): { inFlight: number; queued: number } {
   return { inFlight, queued: queue.length };
+}
+
+/**
+ * Whether asking for a thumbnail is worth a request at all.
+ *
+ * Providers differ in what they render — Drive makes tiles for video, PDFs and
+ * documents; an object store gets images only, because Orbit renders those
+ * itself and nothing more. The grid cannot know which, so it asks for anything
+ * that some provider might have and shows an icon when the answer is no.
+ *
+ * What it does not ask about is the rest: a folder of five hundred text files
+ * or archives would otherwise spend five hundred requests learning that none of
+ * them has a picture.
+ */
+export function mightHaveThumbnail(
+  file: Pick<OrbitFile, 'mimeType' | 'name' | 'sizeBytes' | 'isFolder'>,
+): boolean {
+  if (file.isFolder) return false;
+
+  const kind = previewKindFor(file);
+  return (
+    kind === 'image' ||
+    kind === 'video' ||
+    kind === 'pdf' ||
+    kind === 'document' ||
+    kind === 'presentation'
+  );
 }

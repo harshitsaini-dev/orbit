@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
+import { renderThumbnail } from '../services/thumbnails.js';
 import { forgetBreakdown } from '../services/breakdown.js';
 import { searchWorkspace } from '../services/search.js';
 import { listWorkspaceView } from '../services/views.js';
@@ -244,27 +245,55 @@ filesRouter.get('/api/files/:id/thumbnail', requireAuth, async (req, res, next) 
       return;
     }
 
-    if (!active.adapter.capabilities.thumbnails) {
+    // A provider that renders its own is always preferred: it costs Orbit one
+    // proxied request instead of fetching, decoding and re-encoding the file.
+    if (active.adapter.capabilities.thumbnails) {
+      const result = await active.adapter.getThumbnail(active.tokens, req.params.id!, size);
+
+      if (!result) {
+        res.status(404).json({ error: { code: 'no_thumbnail', message: 'No preview available' } });
+        return;
+      }
+
+      res.setHeader('content-type', result.contentType);
+      if (result.contentLength !== undefined) {
+        res.setHeader('content-length', String(result.contentLength));
+      }
+      // Private, but worth holding briefly: a grid re-requests these on every
+      // scroll back, and the image is derived rather than the file itself.
+      res.setHeader('cache-control', 'private, max-age=900');
+
+      const stream = Readable.fromWeb(result.stream as Parameters<typeof Readable.fromWeb>[0]);
+      res.on('close', () => stream.destroy());
+      stream.on('error', () => res.destroy());
+      stream.pipe(res);
+      return;
+    }
+
+    // An object store makes none, so Orbit does - otherwise a bucket of photos
+    // is a grid of file icons.
+    const file = await active.adapter.getFileMeta(active.tokens, req.params.id!);
+    const rendered = await renderThumbnail({
+      adapter: active.adapter,
+      tokens: active.tokens,
+      remoteId: req.params.id!,
+      name: file.name,
+      mimeType: file.mimeType,
+      sizeBytes: file.sizeBytes,
+      size,
+    });
+
+    if (!rendered) {
       res.status(404).json({ error: { code: 'no_thumbnail', message: 'No preview available' } });
       return;
     }
 
-    const result = await active.adapter.getThumbnail(active.tokens, req.params.id!, size);
-    if (!result) {
-      res.status(404).json({ error: { code: 'no_thumbnail', message: 'No preview available' } });
-      return;
-    }
-
-    res.setHeader('content-type', result.contentType);
-    if (result.contentLength !== undefined) res.setHeader('content-length', String(result.contentLength));
-    // Private, but worth holding briefly: a grid re-requests these on every
-    // scroll back, and the image is derived rather than the file itself.
-    res.setHeader('cache-control', 'private, max-age=900');
-
-    const stream = Readable.fromWeb(result.stream as Parameters<typeof Readable.fromWeb>[0]);
-    res.on('close', () => stream.destroy());
-    stream.on('error', () => res.destroy());
-    stream.pipe(res);
+    res.setHeader('content-type', rendered.contentType);
+    res.setHeader('content-length', String(rendered.bytes.byteLength));
+    // Longer than a proxied one: this cost real work to produce, and the file
+    // it came from is addressed by an id that changes when the file does.
+    res.setHeader('cache-control', 'private, max-age=86400');
+    res.end(rendered.bytes);
   } catch (err) {
     // A thumbnail that cannot be fetched is not worth a 500 - the grid shows an
     // icon instead, which is what it would do anyway.
