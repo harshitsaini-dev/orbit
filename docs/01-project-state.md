@@ -24,7 +24,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 8 | RBAC + superadmin | 🟢 Done |
 | 9 | Design pass (Claymorphism, three.js, PWA) | ⚪ Not started |
 | 10 | Hardening + deploy | 🟡 Hardening done · deploy waits on the owner's sign-ups |
-| 11 | Developer platform (public API, tokens, OAuth apps, API docs tab) | 🟡 Tokens + `/v1` done · OpenAPI, Developer tab, OAuth apps and webhooks pending |
+| 11 | Developer platform (public API, tokens, OAuth apps, API docs tab) | 🟡 Tokens, `/v1`, Developer tab and API docs done · OAuth apps and webhooks pending |
 | 12 | Instant directory cache + offline browsing | 🟢 Done |
 | 13 | Spotlight (Ctrl/Cmd + K) | 🟢 Done |
 | 14 | Unified storage dashboard | 🟢 Done |
@@ -102,7 +102,7 @@ NULLs as distinct, so those never deduplicate: merging two connections that only
 | Check | Result |
 |---|---|
 | `npm run typecheck --workspaces` | clean |
-| `npm test --workspaces` | 839 pass, 0 fail |
+| `npm test --workspaces` | 844 pass, 0 fail |
 | `npm run lint` | 0 errors |
 | `npm run build --workspaces` | clean |
 | `npx playwright test` (headed) | 219 pass, 0 fail across desktop, tablet and mobile |

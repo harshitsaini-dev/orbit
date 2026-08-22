@@ -443,6 +443,12 @@ Server frames: `upload:progress`, `upload:complete`, `upload:error`, `sync:statu
 
 ## The public API — `/v1`
 
+> Rendered in the app at **`/developer/docs`**, from `packages/shared-types/src/api-spec.ts`.
+> A server test compares that description against the routes actually registered on the router,
+> in both directions, so an endpoint added without an entry fails and an entry describing
+> something that no longer exists fails too. This document repeats it for readers who are not
+> signed in; the page is the one that cannot drift.
+
 A separate surface from `/api`, for a program rather than for the app. `/api` ships with its
 only client and is free to change shape whenever the app needs it to; `/v1` is promised not to,
 and a breaking change means `/v2`.

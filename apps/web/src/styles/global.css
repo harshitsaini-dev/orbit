@@ -1266,6 +1266,396 @@ body {
   place-self: stretch;
 }
 
+/* --- the Developer tab ---------------------------------------------------- */
+
+/*
+ * min-width: 0 on both the page and its sections.
+ *
+ * A grid item's automatic minimum is its content, so the curl example - one
+ * long unbreakable line - widened the section, the section widened the page,
+ * and a phone got a sideways scrollbar. The `overflow-x: auto` on the example
+ * only takes effect once it is allowed to be narrower than its content.
+ */
+.developer-page {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.developer-page > section {
+  min-width: 0;
+}
+
+
+/*
+ * A form field with its label above and its explanation below. Used on the
+ * token dialog, where every choice needs a sentence: what a name is for, why a
+ * scope should be the least that works, why an expiry is worth setting.
+ */
+.field {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 1rem;
+}
+
+.field > span:first-child,
+.field > legend {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.field input {
+  border: 0;
+  padding: 0.65rem 0.9rem;
+  font: inherit;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  box-shadow: var(--shadow-clay-inset);
+}
+
+.field__help {
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.scope-grid {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+}
+
+.token-list {
+  list-style: none;
+  padding: 0;
+  margin: 1rem 0 0;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.token-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius-sm);
+}
+
+.token-scopes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.token-scopes span {
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+}
+
+.token-example {
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  box-shadow: var(--shadow-clay-inset);
+  font-size: 12.5px;
+  line-height: 1.7;
+  /* A command is one long line; wrapping the page instead would be worse. */
+  overflow-x: auto;
+}
+
+/*
+ * The token, the one time it is readable. Deliberately large and selectable:
+ * whoever is looking at it has one chance to take it, and half of them will
+ * select it by hand rather than press the button.
+ */
+.token-issued {
+  display: block;
+  margin: 0.9rem 0;
+  padding: 0.8rem 1rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  box-shadow: var(--shadow-clay-inset);
+  font-size: 13px;
+  word-break: break-all;
+  user-select: all;
+}
+
+@media (max-width: 40rem) {
+  .token-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  /* The dates wrap under the name rather than squeezing the button off. */
+  .token-row > span {
+    grid-column: 1 / -1;
+    text-align: left !important;
+  }
+}
+
+/* --- the API documentation ------------------------------------------------ */
+
+/*
+ * A contents rail beside the prose, and one column once there is no room for
+ * two. Reference documentation is read by jumping rather than by scrolling, so
+ * the rail sticks; on a phone it sits at the top and scrolls away, because a
+ * sticky rail there would eat half the screen.
+ */
+.doc-page {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
+  min-width: 0;
+}
+
+.doc-contents {
+  position: sticky;
+  top: 1rem;
+  padding: 1rem;
+  display: grid;
+  gap: 0.3rem;
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  font-size: 13px;
+}
+
+.doc-contents ul {
+  list-style: none;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.doc-contents a {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  padding: 0.25rem 0.4rem;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.doc-contents a:hover {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+.doc-contents__method {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  min-width: 38px;
+}
+
+.doc-body {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.doc-body > section {
+  padding: clamp(1.25rem, 3vw, 2rem);
+  min-width: 0;
+}
+
+.doc-body h1 {
+  font-size: 1.5rem;
+  margin: 0 0 0.6rem;
+}
+
+.doc-body h2 {
+  font-size: 1.15rem;
+  margin: 0 0 0.6rem;
+  /* Cleared past the sticky rail when jumped to from the contents. */
+  scroll-margin-top: 1rem;
+}
+
+.doc-body p {
+  margin: 0 0 0.7rem;
+  line-height: 1.65;
+}
+
+.doc-detail {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.doc-steps {
+  margin: 0 0 1rem;
+  padding-left: 1.2rem;
+  line-height: 1.7;
+}
+
+.doc-code {
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  box-shadow: var(--shadow-clay-inset);
+  overflow: hidden;
+  margin: 0 0 0.8rem;
+}
+
+.doc-code__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.35rem 0.5rem 0.35rem 0.9rem;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.doc-code__bar .clay-button {
+  padding: 0.2rem 0.7rem;
+  font-size: 12px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.doc-code pre {
+  margin: 0;
+  padding: 0 0.9rem 0.8rem;
+  /* The command is one long line; the page must not widen to fit it. */
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.65;
+}
+
+.doc-endpoints {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+/*
+ * The anchor wrapper around each endpoint is the grid item, and a grid item's
+ * automatic minimum is its content - so without this the widest curl example
+ * set the width of the page and a reader got a horizontal scrollbar over the
+ * whole document rather than over the one code block that needed it.
+ */
+.doc-endpoints > div {
+  min-width: 0;
+}
+
+.doc-endpoint {
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  min-width: 0;
+  scroll-margin-top: 1rem;
+}
+
+.doc-endpoint header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 0.6rem;
+}
+
+.doc-endpoint header code {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.doc-method {
+  padding: 2px 9px;
+  border-radius: var(--radius-pill);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-contrast);
+  background: var(--accent);
+}
+
+/* Colour by consequence: reading is neutral, writing is warmer, deleting is
+   the one that cannot be undone. */
+.doc-method--post {
+  background: var(--success);
+}
+
+.doc-method--patch {
+  background: var(--warning);
+}
+
+.doc-method--delete {
+  background: var(--danger);
+}
+
+.doc-scope {
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--text-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+}
+
+.doc-scope--any {
+  font-family: inherit;
+}
+
+.doc-summary {
+  font-weight: 600;
+  margin: 0 0 0.3rem;
+}
+
+.doc-params {
+  overflow-x: auto;
+  margin: 0 0 0.9rem;
+}
+
+.doc-params table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13.5px;
+}
+
+.doc-params th {
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.doc-params td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.doc-params tr:last-child td {
+  border-bottom: 0;
+}
+
+.doc-required {
+  margin-left: 6px;
+  color: var(--danger);
+  font-size: 11px;
+}
+
+@media (max-width: 62rem) {
+  .doc-page {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .doc-contents {
+    position: static;
+    max-height: none;
+  }
+}
+
 /* --- the byte view and the 3D viewer -------------------------------------- */
 
 /*

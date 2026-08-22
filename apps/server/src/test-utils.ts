@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createClient, type Client } from '@libsql/client';
@@ -26,16 +26,31 @@ let current: Client | null = null;
 /** Read once: the migrations do not change between tests in a run. */
 let migrations: string[] | null = null;
 
+/**
+ * The migrations, in the order the journal lists them.
+ *
+ * Deliberately the journal rather than a directory listing. drizzle-kit reads
+ * that file and nothing else, so a migration on disk with no entry in it is
+ * one that never runs on a real database - which is exactly what happened to
+ * `0016_api_tokens`: the tests passed against a table the deployed schema did
+ * not have, because the tests were globbing the directory.
+ *
+ * Reading the same list the migrator reads is what makes a test failure and a
+ * deploy failure the same failure.
+ */
 function loadMigrations(): string[] {
   if (migrations) return migrations;
 
   const here = dirname(fileURLToPath(import.meta.url));
   const directory = resolve(here, '../../../packages/db/migrations');
 
-  migrations = readdirSync(directory)
-    .filter((name) => name.endsWith('.sql'))
-    .sort()
-    .map((name) => readFileSync(join(directory, name), 'utf8'));
+  const journal = JSON.parse(
+    readFileSync(join(directory, 'meta', '_journal.json'), 'utf8'),
+  ) as { entries: Array<{ tag: string }> };
+
+  migrations = journal.entries.map((entry) =>
+    readFileSync(join(directory, `${entry.tag}.sql`), 'utf8'),
+  );
 
   return migrations;
 }

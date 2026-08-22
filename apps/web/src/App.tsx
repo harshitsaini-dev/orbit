@@ -32,7 +32,8 @@ import { Dashboard } from './routes/Dashboard.js';
 import { Landing } from './routes/Landing.js';
 import { Login } from './routes/Login.js';
 import { MyDrive } from './routes/MyDrive.js';
-import { Placeholder } from './routes/Placeholder.js';
+import { ApiDocs } from './routes/ApiDocs.js';
+import { Developer } from './routes/Developer.js';
 import { Collections } from './routes/Collections.js';
 import { Duplicates } from './routes/Duplicates.js';
 import { Quota } from './routes/Quota.js';
@@ -224,8 +225,8 @@ function Workspace({ online }: { online: boolean }) {
             <Route path="/quota" element={<Quota />} />
             <Route path="/uploads" element={<Uploads />} />
             <Route path="/account" element={<Account />} />
-            <Route path="/developer" element={<Placeholder title="Developer" phase="Phase 11" />} />
-            <Route path="/developer/docs" element={<Placeholder title="API docs" phase="Phase 11" />} />
+            <Route path="/developer" element={<Developer />} />
+            <Route path="/developer/docs" element={<ApiDocs />} />
             <Route
               path="/admin"
               element={
