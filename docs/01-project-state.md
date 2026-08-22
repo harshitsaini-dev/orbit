@@ -1,6 +1,6 @@
 # Project state
 
-_Last updated: 2026-08-22_
+_Last updated: 2026-08-23_
 
 ## Current phase
 
@@ -608,6 +608,17 @@ be sure. And nothing is written to disk: the bytes go to the renderer on stdin, 
 would be storing a user's file, which is the one thing this product does not do.
 
 ## Known issues / open questions
+
+- The API runs on a free Render instance that stops after 15 minutes idle. That is not just a
+  slow first visit: `node-cron` lives inside the process, so a sleeping instance misses the
+  sync tick, the shared drive measurements and every scheduled job. An UptimeRobot monitor
+  against `/health/ready` is the fix (`docs/05-owner-setup.md` §7); `.github/workflows/keepalive.yml`
+  is the backstop. 750 free instance-hours against a 730-hour month means exactly one service
+  can be kept awake.
+- Sharing a selection makes one link per file. There is no bundle, because Orbit holds no bytes
+  to build an archive from.
+- Bulk downloads go out as separate anchors 320ms apart. Chrome asks once for permission to
+  download several files; a browser that refuses that will only take the first.
 
 - `.claude/settings.json` is gitignored per the global no-agent-files rule, so the attribution
   suppression does not travel with the repo. `scripts/install-hooks.sh` installs a `commit-msg`
