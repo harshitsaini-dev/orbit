@@ -28,6 +28,12 @@ export const SHARE_ASSET_DIR = BUNDLE_DIR;
 export const SHARE_ASSET_PATH = '/s/asset';
 
 export interface ShareBundle {
+  /**
+   * An inline module the page must run before the scripts, if any. Only
+   * development has one: React Fast Refresh installs a hook that the entry
+   * refuses to start without.
+   */
+  preamble?: string;
   /** Module scripts the page must load, in order. */
   scripts: string[];
   /** Stylesheets to link, if the build emitted any. */
@@ -66,14 +72,22 @@ function readManifest(): ShareBundle | null {
 }
 
 /**
- * Vite serves the entry as a module, but its React plugin injects a preamble
- * that throws unless the client runtime loaded first - so both are asked for,
- * in that order.
+ * Vite normally rewrites the HTML it serves, and its React plugin puts a Fast
+ * Refresh preamble in there. This page is not Vite's HTML, so the preamble has
+ * to be written out - the entry throws with "can't detect preamble" without it,
+ * and the viewer never mounts.
  */
 function fromDevServer(): ShareBundle {
   const base = env.APP_URL.replace(/\/$/, '');
 
   return {
+    preamble: [
+      `import RefreshRuntime from '${base}/@react-refresh';`,
+      'RefreshRuntime.injectIntoGlobalHook(window);',
+      'window.$RefreshReg$ = () => {};',
+      'window.$RefreshSig$ = () => (type) => type;',
+      'window.__vite_plugin_react_preamble_installed__ = true;',
+    ].join(' '),
     scripts: [`${base}/@vite/client`, `${base}/src/share.tsx`],
     styles: [],
     origins: [base, base.replace(/^http/, 'ws')],

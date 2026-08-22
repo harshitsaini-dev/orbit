@@ -342,6 +342,10 @@ export function sharePage(input: SharePageInput): string {
 
   const tail = bundle
     ? `<script type="application/json" id="share-data">${bootstrap}</script>` +
+      // Development only, and on the same nonce as everything else inline here.
+      (bundle.preamble
+        ? `<script type="module" nonce="${escapeHtml(input.nonce)}">${bundle.preamble}</script>`
+        : '') +
       bundle.scripts
         .map((src) => `<script type="module" src="${escapeHtml(src)}"></script>`)
         .join('')
