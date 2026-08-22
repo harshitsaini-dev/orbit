@@ -100,6 +100,14 @@ and reconnecting weekly is the cost.
 
 ---
 
+## 1b. OneDrive and Dropbox OAuth — optional, for the newer adapters
+
+Both adapters are written and tested but have not run against a real account.
+Registering their apps is free and needs no card. Step by step in
+`05-onedrive-dropbox.md`; nothing else waits on it.
+
+---
+
 ## 2. Resend — sending the sign-in codes
 
 Only needed for hosted mode. Local development prints the code to the server console instead.

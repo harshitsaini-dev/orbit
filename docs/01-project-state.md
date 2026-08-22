@@ -399,6 +399,12 @@ rather than claiming a history it does not have.
 
 ## Blocked on the owner
 
+OneDrive and Dropbox are written and unit-tested but have never run against a
+real account. Each needs a free OAuth app registered - `05-onedrive-dropbox.md`
+has the steps. Until then those two adapters are verified only against mocked
+provider responses, which is not the same as verified.
+
+
 Step-by-step instructions for all of these are in **`docs/05-owner-setup.md`**.
 
 - **Google OAuth client** — this is the one blocking Phase 2. Nothing else is urgent.
