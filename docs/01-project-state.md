@@ -59,9 +59,10 @@ already works.
 - Playwright (headed locally, headless in CI) and GitHub Actions `ci.yml` / `e2e.yml`.
 
 ### Provider coverage
-- Nine adapters, one per distinct provider API: Google Drive, OneDrive, Dropbox, MEGA, pCloud,
-  Google Cloud Storage, Azure Blob Storage, Bunny Storage, and a generic S3 adapter.
-- A **provider catalogue** of fourteen entries — what the user actually picks from — mapping onto
+- Seven adapters, one per distinct provider API: Google Drive, OneDrive, Dropbox, pCloud,
+  Azure Blob Storage, Bunny Storage, and a generic S3 adapter that every S3-compatible service
+  routes through, Google Cloud Storage included.
+- A **provider catalogue** of thirteen entries — what the user actually picks from — mapping onto
   those adapters. Amazon S3, Cloudflare R2, Supabase Storage, DigitalOcean Spaces and Backblaze
   B2 all route to the `s3` adapter with their own endpoint template and field list, so adding an
   S3-compatible service is a data change rather than new code (ADR 0007).
@@ -392,8 +393,9 @@ telling someone a file is missing when Orbit has not looked.
 1. GCS and Azure Blob, which are object stores like S3 but with their own
    protocols rather than the S3 API.
 2. Bunny Edge Storage, which is a simple HTTP API.
-3. MEGA and pCloud, which need their own account/password flows rather than
-   OAuth.
+3. pCloud, which is OAuth but names its own API host at sign-in - the account
+   lives in either the US or the EU region and only the token response says
+   which.
 
 ### What each provider can and cannot do
 
@@ -609,7 +611,8 @@ would be storing a user's file, which is the one thing this product does not do.
   human click rates but would need per-material updates if it ever animated.
 - The landing copy currently sits behind the auth gate. Phase 9 should split a public marketing
   page from the authenticated workspace.
-- MEGA has no official Node SDK with delta support, so its adapter declares `delta: false` and
-  Phase 3 will fall back to full re-listing.
+- Only Google Drive and Dropbox have a delta feed. Every other adapter declares `delta: false`
+  and re-lists instead, which is why a large object store is measured in the background rather
+  than on request.
 - Local mode trusts the machine it runs on: it has no sign-in at all. Do not expose an
   `AUTH_MODE=local` instance to a network.

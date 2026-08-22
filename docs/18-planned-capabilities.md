@@ -54,7 +54,7 @@ storage have to be shown separately.
 ## 4. Collections (virtual folders)
 
 A "Tax Documents 2026" holding a PDF from S3, a spreadsheet from Drive and an
-image from MEGA, without moving or copying anything. Two tables — `collections`
+image from Dropbox, without moving or copying anything. Two tables — `collections`
 and `collection_items` — holding `(accountId, remoteId)` references and nothing
 else.
 
@@ -84,7 +84,7 @@ guarantee.
 
 ## 6. Duplicate finder
 
-The same photo in MEGA and in S3, found by comparing checksums rather than
+The same photo in Dropbox and in S3, found by comparing checksums rather than
 names.
 
 *Constraint:* the checksum is not always present and not always comparable.
@@ -178,7 +178,7 @@ leaving the user watching a transfer that will never start.
 
 ## 12. Scheduled jobs
 
-"Every Sunday at 2am, back up Drive photos to MEGA." node-cron is already in
+"Every Sunday at 2am, back up Drive photos to R2." node-cron is already in
 the stack for the sync engine (§8), and the transfer engine above is the thing
 being scheduled, so this is a schedule table and a UI once both exist.
 

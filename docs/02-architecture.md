@@ -32,7 +32,7 @@ This one decision is why you don't need S3, R2, B2, or any paid bulk-storage ser
 
 **Where a debit card is actually fine to use:** nothing above strictly requires payment info. The one common gotcha is **Cloudflare R2** (object storage) — it asks for a card even on its free tier, purely for identity verification, and won't charge unless you exceed 10GB/1M ops. Since Orbit doesn't need bulk storage at all (see §0), you can just skip R2 entirely and never hit this.
 
-**About the OAuth apps** (Google Drive, OneDrive, Dropbox, Mega, pCloud): registering a developer/OAuth app on each of these platforms is free and does not require billing — you're not calling paid quota tiers, just the standard free API allowance every developer gets.
+**About the OAuth apps** (Google Drive, OneDrive, Dropbox, pCloud): registering a developer/OAuth app on each of these platforms is free and does not require billing — you're not calling paid quota tiers, just the standard free API allowance every developer gets.
 
 ---
 
@@ -64,7 +64,7 @@ flowchart TB
         OD[OneDrive]
         DB2[Dropbox]
         S3P[S3 / R2 / B2 / Spaces / Bunny]
-        MEGA[Mega / pCloud]
+        PC[pCloud]
     end
 
     Resend[Resend — OTP email]
@@ -75,7 +75,7 @@ flowchart TB
     API --> ADAPT
     WS --> ADAPT
     CRON --> ADAPT
-    ADAPT <--> GD & OD & DB2 & S3P & MEGA
+    ADAPT <--> GD & OD & DB2 & S3P & PC
     API <--> DB
     CRON <--> DB
     API -->|send OTP| Resend
@@ -118,7 +118,7 @@ erDiagram
     ACCOUNTS {
         text id PK
         text user_id FK
-        text provider "google_drive|onedrive|dropbox|mega|pcloud|s3"
+        text provider "google_drive|onedrive|dropbox|pcloud|azure_blob|bunny|s3"
         text nickname
         text encrypted_tokens
         text s3_endpoint "nullable, for S3-compatible"
@@ -192,7 +192,7 @@ Every provider — however different its native API — gets normalized to this 
 
 ```ts
 interface ProviderAdapter {
-  id: ProviderId; // 'google_drive' | 'onedrive' | 'dropbox' | 'mega' | 'pcloud' | 's3'
+  id: ProviderId; // 'google_drive' | 'onedrive' | 'dropbox' | 'pcloud' | 'azure_blob' | 'bunny' | 's3'
   authType: 'oauth' | 'account_password' | 'access_key';
 
   connect(input: OAuthCode | Credentials): Promise<AccountTokens>;
@@ -235,9 +235,7 @@ distinct provider API:
 | `google-drive.ts` | Google Drive |
 | `onedrive.ts` | OneDrive personal and business |
 | `dropbox.ts` | Dropbox |
-| `mega.ts` | MEGA |
-| `pcloud.ts` | pCloud |
-| `gcs.ts` | Google Cloud Storage (native JSON API) |
+| `pcloud.ts` | pCloud, US and EU regions |
 | `azure-blob.ts` | Azure Blob Storage |
 | `bunny.ts` | Bunny Edge Storage (own REST API, not S3) |
 | `s3-compatible.ts` | Amazon S3, Cloudflare R2, Supabase Storage, DigitalOcean Spaces, Backblaze B2, and anything else speaking the S3 API |
@@ -423,7 +421,7 @@ orbit/
 
 ## What this project is
 Orbit is a multi-cloud drive aggregation platform (Google Drive, OneDrive, Dropbox,
-Mega, pCloud, and any S3-compatible provider) presented through one
+pCloud, and any S3-compatible provider) presented through one
 unified workspace. Full spec lives in docs/02-architecture.md — read it before
 starting any feature work.
 
@@ -521,7 +519,7 @@ chmod +x .git/hooks/commit-msg
 | **0 — Foundation** | Monorepo scaffold, CLAUDE.md, .claude/settings.json, CI skeleton, docs/ folder, Turso + Render + Vercel projects created | `npm run dev` boots both apps locally; empty CI passes |
 | **1 — Auth** | Email OTP multi-step auth (hosted mode), local-mode bypass, session cookies | Can register/login via OTP; Playwright test covers happy + invalid-code path |
 | **2 — First adapter (Google Drive)** | OAuth connect flow, listFolder, upload, download, delete, rename, star | One provider fully working end-to-end through the unified UI |
-| **3 — Remaining adapters** | OneDrive, Dropbox, Mega, pCloud, generic S3-compatible | All 6 adapters pass the shared adapter contract test suite |
+| **3 — Remaining adapters** | OneDrive, Dropbox, pCloud, Azure Blob, Bunny, generic S3-compatible | All 7 adapters pass the shared adapter contract test suite |
 | **4 — Unified workspace views** | Home, My Drive, Recent, Starred, Shared-with-Me, Quota | Virtual-path navigation merges files from every connected account correctly |
 | **5 — Upload system + WS** | Drag/drop, folder upload, chunked upload, live WS progress, allocation strategies | All 5 strategies selectable and verifiably route uploads correctly (test: connect 2 dummy accounts, confirm round-robin alternates) |
 | **6 — Sync engine** | node-cron scheduled delta sync, manual trigger, health/sync endpoint | Metadata mirror stays fresh within one cron interval; sync log visible |

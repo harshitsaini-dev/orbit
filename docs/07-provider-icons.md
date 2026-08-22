@@ -20,7 +20,6 @@ integration. The obligations differ, so read each before shipping:
 | Google Drive | Google Workspace / Drive brand guidelines, in the Google brand resource centre |
 | OneDrive | Microsoft brand and trademark guidelines |
 | Dropbox | Dropbox brand guidelines |
-| MEGA | MEGA press and brand resources |
 | pCloud | pCloud press kit |
 | Amazon S3 | AWS architecture icons, published as an official icon set |
 | Cloudflare R2 | Cloudflare brand and logo page |

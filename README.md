@@ -2,7 +2,7 @@
 
 One workspace for every cloud drive you own.
 
-Orbit aggregates Google Drive, OneDrive, Dropbox, MEGA, pCloud, and any S3-compatible
+Orbit aggregates Google Drive, OneDrive, Dropbox, pCloud, and any S3-compatible
 bucket behind a single, consistent interface — browse, upload, download, share,
 and manage files across every connected account without switching tabs.
 
