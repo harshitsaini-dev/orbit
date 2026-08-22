@@ -18,7 +18,7 @@ export type SharePageInput =
   | { kind: 'missing' }
   | { kind: 'expired' }
   | { kind: 'locked'; shortId: string; wrong?: boolean }
-  | { kind: 'file'; shortId: string; share: PublicShare };
+  | { kind: 'file'; shortId: string; share: PublicShare; nonce: string };
 
 /** Everything interpolated goes through this; a file name is not trusted markup. */
 function escapeHtml(value: string): string {
@@ -124,6 +124,35 @@ const STYLES = `
     overflow: hidden;
   }
   .stage img, .stage video { max-width: 100%; max-height: 70dvh; display: block; }
+  .stage[data-zoom] { position: relative; touch-action: none; }
+  .stage[data-zoom] img {
+    transform-origin: center;
+    transition: transform 90ms ease-out;
+    cursor: zoom-in;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  /* Grab, not zoom-in, once there is somewhere to drag to. */
+  .stage[data-zoom][data-zoomed] img { cursor: grab; transition: none; }
+  .stage[data-zoom][data-zoomed] img:active { cursor: grabbing; }
+  /* Fullscreen paints its own black behind the image, so the stage has to
+     fill it rather than sit in the middle at its old size. */
+  .stage[data-zoom]:fullscreen { background: #05070c; }
+  .stage[data-zoom]:fullscreen img { max-height: 100dvh; max-width: 100vw; }
+  .zoom-controls {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    display: flex;
+    gap: 4px;
+    opacity: 0.85;
+  }
+  .zoom-controls button {
+    min-width: 34px;
+    padding: 0.25rem 0.5rem;
+    font-size: 13px;
+    line-height: 1.4;
+  }
   .stage audio { width: 100%; padding: 1.5rem; }
   .stage object { width: 100%; height: 70dvh; border: 0; }
   .actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 1.1rem; }
@@ -240,7 +269,24 @@ export function sharePage(input: SharePageInput): string {
 
   const stage =
     preview === 'image'
-      ? `<div class="stage"><img src="${src}" alt="${name}"></div>`
+      ? /*
+         * A real viewer rather than an <img> on a page.
+         *
+         * Somebody opening a shared photo wants what the owner has: to zoom
+         * into a corner, drag around it, and fill the screen. A page that
+         * shows a shrunk-to-fit picture and a Download button pushes them to
+         * download it just to look at it properly - which is the opposite of
+         * what a link is for.
+         */
+        `<div class="stage" data-zoom>
+           <img src="${src}" alt="${name}" draggable="false">
+           <div class="zoom-controls">
+             <button type="button" data-act="out" aria-label="Zoom out">&minus;</button>
+             <button type="button" data-act="reset" aria-label="Fit to the window">Fit</button>
+             <button type="button" data-act="in" aria-label="Zoom in">+</button>
+             <button type="button" data-act="full" aria-label="Fill the screen">&#x26F6;</button>
+           </div>
+         </div>`
       : preview === 'video'
         ? // preload="metadata": the duration and first frame, not the whole
           // file, so opening a link to a 4GB video costs almost nothing.
@@ -272,6 +318,94 @@ export function sharePage(input: SharePageInput): string {
      <div class="qr" style="margin-top:1.5rem">
        <img src="/s/${escapeHtml(shortId)}/qr" alt="QR code for this link" width="168" height="168">
        <span class="meta">Scan to open on a phone</span>
-     </div>`,
+     </div>
+     ${preview === 'image' ? viewerScript(input.nonce) : ''}`,
   );
+}
+
+/**
+ * Zoom and pan for a shared image.
+ *
+ * Vanilla and inline, on a nonce. This page has no bundle and no framework by
+ * design - it is the one thing here a stranger opens - and adding either for a
+ * zoom control would be a poor trade.
+ */
+function viewerScript(nonce: string): string {
+  return `<script nonce="${escapeHtml(nonce)}">
+(function () {
+  var stage = document.querySelector('[data-zoom]');
+  if (!stage) return;
+
+  var img = stage.querySelector('img');
+  var scale = 1, x = 0, y = 0, dragging = false, lastX = 0, lastY = 0;
+
+  function apply() {
+    img.style.transform = 'translate(' + x + 'px,' + y + 'px) scale(' + scale + ')';
+    stage.dataset.zoomed = scale > 1 ? '1' : '';
+  }
+
+  function zoom(next, originX, originY) {
+    next = Math.min(8, Math.max(1, next));
+    if (next === scale) return;
+
+    // Keep whatever is under the pointer under the pointer, which is what
+    // makes wheel zoom feel like magnifying rather than jumping.
+    var rect = stage.getBoundingClientRect();
+    var cx = (originX === undefined ? rect.width / 2 : originX - rect.left) - rect.width / 2;
+    var cy = (originY === undefined ? rect.height / 2 : originY - rect.top) - rect.height / 2;
+
+    x = cx - ((cx - x) * next) / scale;
+    y = cy - ((cy - y) * next) / scale;
+    scale = next;
+
+    if (scale === 1) { x = 0; y = 0; }
+    apply();
+  }
+
+  stage.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    zoom(scale * (e.deltaY < 0 ? 1.15 : 1 / 1.15), e.clientX, e.clientY);
+  }, { passive: false });
+
+  img.addEventListener('dblclick', function (e) {
+    zoom(scale > 1 ? 1 : 2.5, e.clientX, e.clientY);
+  });
+
+  img.addEventListener('pointerdown', function (e) {
+    if (scale === 1) return;
+    dragging = true; lastX = e.clientX; lastY = e.clientY;
+    img.setPointerCapture(e.pointerId);
+  });
+
+  img.addEventListener('pointermove', function (e) {
+    if (!dragging) return;
+    x += e.clientX - lastX; y += e.clientY - lastY;
+    lastX = e.clientX; lastY = e.clientY;
+    apply();
+  });
+
+  ['pointerup', 'pointercancel'].forEach(function (name) {
+    img.addEventListener(name, function () { dragging = false; });
+  });
+
+  stage.addEventListener('click', function (e) {
+    var act = e.target.getAttribute && e.target.getAttribute('data-act');
+    if (!act) return;
+
+    if (act === 'in') zoom(scale * 1.4);
+    else if (act === 'out') zoom(scale / 1.4);
+    else if (act === 'reset') { scale = 1; x = 0; y = 0; apply(); }
+    else if (act === 'full') {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else if (stage.requestFullscreen) stage.requestFullscreen();
+    }
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === '+' || e.key === '=') zoom(scale * 1.4);
+    else if (e.key === '-') zoom(scale / 1.4);
+    else if (e.key === '0' || e.key === 'Escape') { scale = 1; x = 0; y = 0; apply(); }
+  });
+})();
+</script>`;
 }

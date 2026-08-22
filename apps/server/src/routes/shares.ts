@@ -1,5 +1,5 @@
 import { Readable } from 'node:stream';
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { Router } from 'express';
 import QRCode from 'qrcode';
 import { z } from 'zod';
@@ -155,16 +155,33 @@ function hasUnlocked(req: { cookies?: Record<string, unknown> }, shortId: string
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
-/** Nothing shared should end up in a search index. */
-function publicHeaders(res: {
-  setHeader: (name: string, value: string) => void;
-}): void {
+/**
+ * Nothing shared should end up in a search index, and nothing on the page
+ * should be able to reach anywhere else.
+ *
+ * `nonce` allows exactly one inline script - the viewer's zoom and pan - and
+ * nothing more. A nonce rather than `'unsafe-inline'`: this is the one page an
+ * attacker gets to point a stranger at, so the policy should permit the script
+ * that is there rather than the class of scripts it belongs to.
+ */
+function publicHeaders(
+  res: { setHeader: (name: string, value: string) => void },
+  nonce?: string,
+): void {
   res.setHeader('x-robots-tag', 'noindex, nofollow, noarchive');
   res.setHeader('referrer-policy', 'no-referrer');
-  // The page runs no scripts at all, so the policy can say exactly that.
   res.setHeader(
     'content-security-policy',
-    "default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+    [
+      "default-src 'none'",
+      "img-src 'self' data:",
+      "media-src 'self'",
+      "style-src 'unsafe-inline'",
+      nonce ? `script-src 'nonce-${nonce}'` : "script-src 'none'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+      "base-uri 'none'",
+    ].join('; '),
   );
 }
 
@@ -173,7 +190,10 @@ sharesRouter.get('/s/:shortId', async (req, res, next) => {
 
   try {
     const found = await lookupShare(shortId);
-    publicHeaders(res);
+
+    // One per response, so a nonce lifted from a cached page is worthless.
+    const nonce = randomBytes(16).toString('base64');
+    publicHeaders(res, nonce);
 
     if (found.state === 'missing') {
       res.status(404).type('html').send(sharePage({ kind: 'missing' }));
@@ -190,7 +210,7 @@ sharesRouter.get('/s/:shortId', async (req, res, next) => {
 
     res
       .type('html')
-      .send(sharePage({ kind: 'file', shortId, share: found.share }));
+      .send(sharePage({ kind: 'file', shortId, share: found.share, nonce }));
   } catch (err) {
     next(err);
   }

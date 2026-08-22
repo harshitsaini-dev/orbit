@@ -176,15 +176,49 @@ describe('GET /s/:shortId', () => {
     assert.match(html, /<img src="\/s\/[a-z2-9]+\/content"/);
   });
 
-  it('runs no scripts, and says so in the policy', async () => {
+  it('permits the one script it ships, and nothing else', async () => {
+    /*
+     * The image viewer runs inline, so the policy cannot say `script-src
+     * 'none'` any more - but it must not say `'unsafe-inline'` either. This is
+     * the one page an attacker gets to point a stranger at, so the policy
+     * names the script that is there rather than the class it belongs to.
+     */
     const { res } = await makeShare();
     const { share } = (await res.json()) as { share: { shortId: string } };
 
     const page = await fetch(`${baseUrl}/s/${share.shortId}`);
     const html = await page.text();
+    const csp = page.headers.get('content-security-policy') ?? '';
 
-    assert.doesNotMatch(html, /<script/i);
-    assert.match(page.headers.get('content-security-policy') ?? '', /default-src 'none'/);
+    assert.match(csp, /default-src 'none'/);
+    assert.doesNotMatch(csp, /unsafe-inline'[^;]*script/);
+    assert.doesNotMatch(csp, /script-src[^;]*unsafe-inline/);
+
+    const inHeader = /script-src 'nonce-([^']+)'/.exec(csp);
+    assert.ok(inHeader, `no nonce in the policy: ${csp}`);
+
+    // Every script tag on the page carries that nonce; one without it would be
+    // blocked, and one the policy did not name is one nobody vouched for.
+    const expected = `nonce="${inHeader[1]!}"`;
+    for (const [, attributes] of html.matchAll(/<script([^>]*)>/gi)) {
+      assert.ok(attributes?.includes(expected), `a script tag carries no nonce: ${attributes}`);
+    }
+  });
+
+  it('gives a different nonce every time, so a cached one is worthless', async () => {
+    const { res } = await makeShare();
+    const { share } = (await res.json()) as { share: { shortId: string } };
+
+    const nonces = new Set<string>();
+    for (let i = 0; i < 3; i += 1) {
+      const page = await fetch(`${baseUrl}/s/${share.shortId}`);
+      const match = /script-src 'nonce-([^']+)'/.exec(
+        page.headers.get('content-security-policy') ?? '',
+      );
+      if (match) nonces.add(match[1]!);
+    }
+
+    assert.equal(nonces.size, 3);
   });
 
   it('keeps the page out of search indexes', async () => {
