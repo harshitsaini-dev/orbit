@@ -123,7 +123,7 @@ export function Quota() {
       )}
 
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
-        <h1 style={{ fontSize: '1.4rem' }}>Connect an account</h1>
+        <h1 className="page-title">Connect an account</h1>
         <ul
           style={{
             listStyle: 'none',

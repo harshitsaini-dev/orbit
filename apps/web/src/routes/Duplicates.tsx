@@ -254,8 +254,8 @@ export function Duplicates() {
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'grid', gap: 4 }}>
-            <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Duplicates</h1>
-            <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: 14 }}>
+            <h1 className="page-title">Duplicates</h1>
+            <p className="page-subtitle">
               {report === null
                 ? 'Comparing every file Orbit has indexed…'
                 : report.groups.length === 0

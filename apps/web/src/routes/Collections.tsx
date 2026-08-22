@@ -184,8 +184,8 @@ export function Collections() {
             }}
           >
             <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
-              <h1 style={{ fontSize: '1.4rem', margin: 0 }}>{open.collection.name}</h1>
-              <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: 14 }}>
+              <h1 className="page-title">{open.collection.name}</h1>
+              <p className="page-subtitle">
                 {open.collection.itemCount} {open.collection.itemCount === 1 ? 'file' : 'files'} ·{' '}
                 {formatBytes(open.collection.totalBytes)} · across{' '}
                 {open.collection.services.length}{' '}
@@ -374,8 +374,8 @@ export function Collections() {
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'grid', gap: 4 }}>
-            <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Collections</h1>
-            <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: 14 }}>
+            <h1 className="page-title">Collections</h1>
+            <p className="page-subtitle">
               Group files from any of your accounts. Nothing is moved or copied — a collection
               points at files where they already are.
             </p>

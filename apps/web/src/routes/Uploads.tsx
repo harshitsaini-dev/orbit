@@ -110,8 +110,8 @@ export function Uploads() {
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'grid', gap: 4 }}>
-            <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Uploads</h1>
-            <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: 14 }}>
+            <h1 className="page-title">Uploads</h1>
+            <p className="page-subtitle">
               {jobs.length === 0
                 ? 'Nothing has been uploaded this session.'
                 : `${active} in progress, ${finished.length - failed} finished, ${failed} failed.`}

@@ -206,8 +206,8 @@ export function Schedules() {
   return (
     <div style={{ display: 'grid', gap: '1rem' }}>
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
-        <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Schedules</h1>
-        <p style={{ color: 'var(--text-muted)', margin: '0.4rem 0 0', lineHeight: 1.6 }}>
+        <h1 className="page-title">Schedules</h1>
+        <p className="page-subtitle">
           Keep a drive’s index up to date without opening Orbit. Jobs run{' '}
           <strong>late rather than not at all</strong> — this instance sleeps when nobody is using
           it, so a two o’clock job whose moment passes while nothing is awake runs on the next

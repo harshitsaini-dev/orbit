@@ -124,8 +124,8 @@ export function Links() {
   return (
     <div style={{ display: 'grid', gap: '1rem' }}>
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
-        <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Links</h1>
-        <p style={{ color: 'var(--text-muted)', margin: '0.4rem 0 0', lineHeight: 1.6 }}>
+        <h1 className="page-title">Links</h1>
+        <p className="page-subtitle">
           {shares === null
             ? 'Reading what you have published…'
             : shares.length === 0

@@ -74,8 +74,8 @@ export function SharedDrives() {
   return (
     <div style={{ display: 'grid', gap: '1rem' }}>
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
-        <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Shared drives</h1>
-        <p style={{ color: 'var(--text-muted)', margin: '0.4rem 0 0', lineHeight: 1.6 }}>
+        <h1 className="page-title">Shared drives</h1>
+        <p className="page-subtitle">
           Drives that belong to an organisation rather than to you. They are{' '}
           <strong>not part of your own storage</strong> — the organisation is billed for them and
           they have a quota of their own, so nothing here counts against the allowance on your

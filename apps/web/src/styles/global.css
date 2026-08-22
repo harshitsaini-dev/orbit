@@ -278,6 +278,29 @@ h3 {
   line-height: 1.6;
 }
 
+/*
+ * One definition of what a page title looks like.
+ *
+ * Thirteen pages each carried their own inline copy of it, and four of them
+ * had left off `margin: 0` - so half the workspace had an extra twenty pixels
+ * above and below its heading and the other half did not, which is the sort of
+ * difference nobody can name and everybody can feel when moving between pages.
+ */
+.page-title {
+  margin: 0;
+  font-size: 1.4rem;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+/* The line under a title: what this page is, or what state it is in. */
+.page-subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 /* Nothing may push the page sideways on a phone. */
 body {
   overflow-x: hidden;
@@ -4882,9 +4905,10 @@ body {
   gap: 2px;
 }
 
+/* Checkbox, icon, what it is, and what can be done with it. */
 .trash-list > li {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.65rem;
   padding: 0.5rem 0.6rem;
@@ -4931,12 +4955,18 @@ body {
 }
 
 @media (max-width: 40rem) {
+  /*
+   * On a phone the buttons drop under the row they belong to. Restore and
+   * Delete for ever are words rather than icons deliberately - one of them
+   * cannot be undone - and words do not fit beside a file name at 393px.
+   */
   .trash-list > li {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto auto minmax(0, 1fr);
   }
 
   .trash-list__actions {
-    grid-column: 1 / -1;
+    grid-column: 2 / -1;
+    padding-top: 0.15rem;
   }
 }
 
@@ -4954,15 +4984,6 @@ body {
   font-size: 13px;
 }
 
-.trash-list > li {
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
-}
-
-@media (max-width: 40rem) {
-  .trash-list > li {
-    grid-template-columns: auto auto minmax(0, 1fr);
-  }
-}
 
 /* How long is left. Plain until it is nearly gone, then not. */
 .trash-list__deadline[data-urgent] {

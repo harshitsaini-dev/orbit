@@ -653,8 +653,8 @@ export function MyDrive() {
   if (accounts?.length === 0) {
     return (
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
-        <h1 style={{ fontSize: '1.4rem' }}>My Drive</h1>
-        <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+        <h1 className="page-title">My Drive</h1>
+        <p className="page-subtitle">
           No accounts connected yet. Open Quota to connect one.
         </p>
       </section>

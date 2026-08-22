@@ -176,7 +176,7 @@ export function WorkspaceViewPage({ view }: { view: ViewName }) {
     <div style={{ display: 'grid', gap: '1rem' }}>
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)', display: 'grid', gap: '0.5rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <h1 style={{ fontSize: '1.4rem' }}>{copy.title}</h1>
+          <h1 className="page-title">{copy.title}</h1>
 
           <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
             <SortControl

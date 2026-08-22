@@ -68,7 +68,7 @@ export function Account() {
     <div style={{ display: 'grid', gap: '1.5rem' }}>
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)', display: 'grid', gap: '1.25rem' }}>
         <div>
-          <h1 style={{ fontSize: '1.4rem' }}>Your profile</h1>
+          <h1 className="page-title">Your profile</h1>
           <p style={{ color: 'var(--text-muted)', marginTop: '0.4rem' }}>
             How you appear inside Orbit. None of this is shared with any provider.
           </p>

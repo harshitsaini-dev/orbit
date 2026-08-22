@@ -251,8 +251,8 @@ export function Trash() {
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
-            <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Bin</h1>
-            <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: 14 }}>
+            <h1 className="page-title">Bin</h1>
+            <p className="page-subtitle">
               {data === null
                 ? 'Looking through every drive that keeps a bin…'
                 : all.length === 0

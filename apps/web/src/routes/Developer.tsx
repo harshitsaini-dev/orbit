@@ -101,8 +101,8 @@ export function Developer() {
   return (
     <div className="developer-page">
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
-        <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Developer</h1>
-        <p style={{ color: 'var(--text-muted)', margin: '0.4rem 0 0', lineHeight: 1.6 }}>
+        <h1 className="page-title">Developer</h1>
+        <p className="page-subtitle">
           A personal access token lets a script reach your drives through Orbit&apos;s API — every
           provider you have connected, behind one interface. Orbit proxies the bytes, so a token
           never exposes the Google or Dropbox credentials underneath.

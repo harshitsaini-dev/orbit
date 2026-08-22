@@ -117,8 +117,8 @@ export function Admin() {
   return (
     <div style={{ display: 'grid', gap: '1rem' }}>
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
-        <h1 style={{ fontSize: '1.4rem', margin: 0 }}>Admin</h1>
-        <p style={{ color: 'var(--text-muted)', margin: '0.4rem 0 0', lineHeight: 1.6 }}>
+        <h1 className="page-title">Admin</h1>
+        <p className="page-subtitle">
           This instance, not anybody’s files. You can see how many drives somebody has connected
           and what each provider reports is in them — <strong>not what is in them</strong>. Orbit
           holds no files, and this console does not get an exception.
