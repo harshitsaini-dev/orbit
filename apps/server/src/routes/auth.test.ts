@@ -111,7 +111,21 @@ describe('POST /auth/verify-otp', () => {
 
     const header = res.headers.get('set-cookie') ?? '';
     assert.match(header, /HttpOnly/i);
-    assert.match(header, /SameSite=Strict/i);
+
+    /*
+     * Lax, and this is the case that forces it.
+     *
+     * A provider finishes its consent screen by sending the browser to
+     * /auth/callback/:provider - a top-level navigation from another site. A
+     * strict cookie is withheld on exactly that, so connecting a drive told
+     * somebody who was signed in to sign in. It could not be seen in
+     * development, where local mode authenticates every request without a
+     * cookie at all.
+     *
+     * Lax still withholds the cookie on a cross-site POST, which is the case
+     * CSRF actually needs.
+     */
+    assert.match(header, /SameSite=Lax/i);
 
     const body = (await res.json()) as { user: { email: string; role: string } };
     assert.equal(body.user.email, EMAIL);

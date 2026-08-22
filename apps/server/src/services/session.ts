@@ -20,9 +20,21 @@ function cookieOptions(expires: Date): CookieOptions {
   return {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
-    // Frontend and API share the registrable domain in production, so strict
-    // still allows the SPA's own fetches while blocking cross-site requests.
-    sameSite: 'strict',
+    /*
+     * lax, not strict.
+     *
+     * The frontend and the API share a registrable domain, so the SPA's own
+     * fetches are same-site either way. What strict also refuses is a
+     * *top-level navigation* arriving from another site - and that is exactly
+     * how an OAuth callback comes back: Google sends the browser to
+     * /auth/callback/:provider, the cookie is withheld, and connecting a drive
+     * ends at "Sign in to continue" for somebody who is signed in.
+     *
+     * lax sends the cookie on a top-level GET and still withholds it on a
+     * cross-site POST, which is the case CSRF actually needs. The OAuth state
+     * cookie has been lax for this same reason since it was written.
+     */
+    sameSite: 'lax',
     domain: env.COOKIE_DOMAIN,
     path: '/',
     expires,
