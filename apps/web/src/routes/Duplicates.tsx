@@ -66,6 +66,20 @@ interface Report {
 
 type View = 'list' | 'grid';
 
+/**
+ * The end of a path, which is the part that tells two copies apart.
+ *
+ * Shortened here rather than with `direction: rtl` and an ellipsis, which was
+ * how this was done and which renders a path's leading slash at the *right*
+ * hand end - so `/a/b/photo.jpg` came out as `…b/photo.jpg/`, a path that does
+ * not exist. Bidirectional text reordering is not a truncation tool.
+ */
+function tailOf(path: string): string {
+  const parts = path.split('/').filter(Boolean);
+  if (parts.length <= 2) return `/${parts.join('/')}`;
+  return `…/${parts.slice(-2).join('/')}`;
+}
+
 /** The viewer wants a whole file; a duplicate row carries most of one. */
 function asOrbitFile(file: DuplicateFile): OrbitFile {
   return {
@@ -252,7 +266,10 @@ export function Duplicates() {
       <DragSelectBox box={box} />
 
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+        <div
+          className="dup-toolbar"
+          style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}
+        >
           <div style={{ display: 'grid', gap: 4 }}>
             <h1 className="page-title">Duplicates</h1>
             <p className="page-subtitle">
@@ -264,7 +281,9 @@ export function Duplicates() {
             </p>
           </div>
 
-          <span style={{ flex: 1 }} />
+          {/* Pushes the controls to the far edge on a desk. On a phone it would
+              push them off it, so the class turns the gap off there. */}
+          <span className="dup-toolbar-gap" style={{ flex: 1 }} />
 
           <div className="view-toggle" role="group" aria-label="How to show each set">
             <button
@@ -438,7 +457,7 @@ export function Duplicates() {
 
                   <span className="dup-file">
                     <strong>{file.name}</strong>
-                    <span>{file.virtualPath}</span>
+                    <span title={file.virtualPath}>{tailOf(file.virtualPath)}</span>
                   </span>
                   <span className="dup-where">
                     <ProviderIcon provider={file.catalogueKey ?? file.provider} size={15} />
@@ -480,7 +499,7 @@ export function Duplicates() {
                     <span>{file.accountNickname}</span>
                   </span>
                   <span className="dup-grid__path" title={file.virtualPath}>
-                    {file.virtualPath}
+                    {tailOf(file.virtualPath)}
                   </span>
                 </li>
               ))}

@@ -4368,9 +4368,6 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  /* Reads from the end: the folder matters more than the root it hangs off. */
-  direction: rtl;
-  text-align: left;
 }
 
 /* Grouped at the end of a duplicate set's header: select, unselect, dismiss. */
@@ -5415,4 +5412,105 @@ body {
   margin-top: 1.25rem !important;
   padding-top: 1rem;
   border-top: 1px solid var(--border);
+}
+
+/* -------------------------------------------------------------------------
+   Duplicates on a phone.
+
+   The desk layout puts three things on one header line and pushes two of them
+   right with `margin-left: auto`. Wrapped onto a narrow screen that becomes
+   three ragged right-aligned rows with no common edge to read down.
+
+   And the list rows had it backwards. Every copy in a set has the *same name* -
+   that is what makes it a set - so the name is the one thing that identifies
+   nothing, and the path is the only thing that tells two copies apart. The
+   name was given the room and the path was truncated.
+   ------------------------------------------------------------------------- */
+
+@media (max-width: 700px) {
+  .dup-toolbar-gap {
+    display: none;
+  }
+
+  .dup-toolbar {
+    gap: 0.75rem !important;
+  }
+
+  .dup-group header {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 6px 8px;
+    align-items: center;
+  }
+
+  .dup-group header strong {
+    grid-column: 1 / -1;
+    /* Room to be read rather than a hard cut at the edge. */
+    white-space: normal;
+    overflow: visible;
+    overflow-wrap: anywhere;
+  }
+
+  .dup-meta {
+    margin-left: 0;
+    justify-self: start;
+    white-space: normal;
+  }
+
+  .dup-actions {
+    margin-left: 0;
+    grid-column: 1 / -1;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+  }
+
+  /* Two rows beside the thumbnail: where it is, and which drive it is on. */
+  .dup-group li {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    column-gap: 10px;
+    row-gap: 2px;
+    align-items: center;
+  }
+
+  .dup-group li > .checkbox,
+  .dup-group li > .dup-open {
+    grid-row: 1 / 3;
+  }
+
+  .dup-open {
+    width: 40px;
+    height: 40px;
+  }
+
+  .dup-file {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  /* The set's name is already the heading above; repeating it in every row
+     spends the only line that could have carried the path. */
+  .dup-file strong {
+    display: none;
+  }
+
+  .dup-file > span {
+    font-size: 12px;
+  }
+
+  .dup-where {
+    grid-column: 3;
+    grid-row: 2;
+    min-width: 0;
+  }
+
+  /* Which drive a copy is on is the whole question when the copies are on two
+     different clouds, so it comes back rather than being hidden for width. */
+  .dup-where span {
+    display: inline;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
