@@ -152,7 +152,22 @@ export interface BulkResult {
 }
 
 export interface Quota {
+  /**
+   * Everything the allowance covers.
+   *
+   * For Google that is Drive, Gmail and Photos together - which is the right
+   * answer to "how full is this account" and the wrong one to "how big are the
+   * files Orbit can see". The two differ by however much mail and how many
+   * photos there are, and without saying so the gap looks like a miscount.
+   */
   usedBytes: number;
+  /**
+   * Just the part Orbit can browse, where the provider separates it. Undefined
+   * where the provider has nothing else in the same allowance to separate from.
+   */
+  usedInDriveBytes?: number;
+  /** Deleted but not yet purged, which still counts against the allowance. */
+  trashedBytes?: number;
   totalBytes: number;
 }
 
@@ -239,6 +254,22 @@ export interface ProviderAdapter {
   getAccountIdentity?(
     tokens: AccountTokens,
   ): Promise<{ email?: string; displayName?: string; photoUrl?: string }>;
+
+  /**
+   * Everything beneath one folder, flat, where the provider can answer that in
+   * one pass rather than by walking the tree.
+   *
+   * Only Google Drive implements it, and only for a shared drive - which is a
+   * root of its own and so is not covered by `listAllFiles`, which asks for the
+   * account's own corpus. Optional because walking a folder tree a request at a
+   * time is not a reasonable fallback: for anything worth asking about it is
+   * hundreds of requests, and a caller is better off knowing it cannot be done.
+   */
+  listAllUnder?(
+    tokens: AccountTokens,
+    rootId: string,
+    pageToken?: string,
+  ): Promise<OrbitFilePage>;
 
   createFolder(tokens: AccountTokens, path: string, name: string): Promise<OrbitFile>;
   rename(tokens: AccountTokens, remoteId: string, newName: string): Promise<void>;

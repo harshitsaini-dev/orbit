@@ -12,7 +12,7 @@ import {
 import { requireAuth } from '../middleware/auth.js';
 import { findDuplicates, ignoreGroup, unignoreGroup } from '../services/duplicates.js';
 import { record } from '../services/audit.js';
-import { storageSummary } from '../services/storage-summary.js';
+import { measureSharedDrive, storageSummary } from '../services/storage-summary.js';
 import { mirrorSize, recentSyncs, syncAccount } from '../services/sync.js';
 import {
   setAccountPriority,
@@ -430,6 +430,27 @@ accountsRouter.post('/api/accounts/connect', requireAuth, async (req, res, next)
 accountsRouter.get('/api/storage/summary', requireAuth, async (req, res, next) => {
   try {
     res.json(await storageSummary(req.user!.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * How much is in one shared drive, and what it is.
+ *
+ * A separate request because it is a separate cost: Google reports no quota for
+ * a shared drive, so the only way to a number is listing the whole thing. Asked
+ * for when somebody wants it rather than paid for on every dashboard load.
+ */
+accountsRouter.get('/api/accounts/:id/shared-drives/:driveId', requireAuth, async (req, res, next) => {
+  try {
+    const measurement = await measureSharedDrive(req.user!.id, req.params.id!, req.params.driveId!);
+    if (!measurement) {
+      res.status(404).json({ error: { code: 'not_found', message: 'No such shared drive' } });
+      return;
+    }
+
+    res.json({ drive: measurement });
   } catch (err) {
     next(err);
   }

@@ -48,8 +48,108 @@ interface StorageGroup {
 interface SharedDrive {
   accountId: string;
   accountNickname: string;
+  driveId: string;
   name: string;
   path: string;
+}
+
+interface Measurement {
+  sizeBytes: number;
+  fileCount: number;
+  totals: CategoryTotal[];
+  /** True when the listing was capped, so the figures are a floor. */
+  partial: boolean;
+}
+
+/**
+ * One shared drive, measured only if asked.
+ *
+ * Google reports no quota for a shared drive, so the only way to a size is
+ * listing every file in it. Measured against a real one that took over a
+ * minute, which is why this is a button somebody presses rather than something
+ * that happens when the page opens.
+ */
+function SharedDriveRow({ drive }: { drive: SharedDrive }) {
+  const [measurement, setMeasurement] = useState<Measurement | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  async function measure(): Promise<void> {
+    setBusy(true);
+    setFailed(false);
+
+    try {
+      const { drive: result } = await api<{ drive: Measurement }>(
+        `/api/accounts/${drive.accountId}/shared-drives/${encodeURIComponent(drive.driveId)}`,
+      );
+      setMeasurement(result);
+    } catch {
+      setFailed(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <li className="shared-drive">
+      <div className="shared-drive__head">
+        <ProviderIcon provider="google_drive" size={17} />
+
+        <span className="storage-group__name">
+          <strong>{drive.name}</strong>
+          <span>via {drive.accountNickname}</span>
+        </span>
+
+        <span className="storage-group__figure">
+          {measurement
+            ? `${measurement.partial ? 'at least ' : ''}${formatBytes(measurement.sizeBytes)} · ${measurement.fileCount.toLocaleString()}${measurement.partial ? '+' : ''} files`
+            : 'Size not reported'}
+        </span>
+
+        <span className="shared-drive__actions">
+          {!measurement && (
+            <button
+              type="button"
+              className="clay-button"
+              // Said before it is pressed: on a drive of any size this is a
+              // minute of listing, not an instant answer.
+              title="Lists every file in the drive to work out its size. Can take a minute."
+              disabled={busy}
+              onClick={() => void measure()}
+            >
+              {busy ? 'Measuring…' : 'Measure'}
+            </button>
+          )}
+
+          <a
+            className="clay-button"
+            href={`/my-drive?account=${encodeURIComponent(drive.accountId)}&path=${encodeURIComponent(drive.path)}`}
+          >
+            Open
+          </a>
+        </span>
+      </div>
+
+      {failed && (
+        <p className="share-hint" style={{ margin: 0 }}>
+          Could not measure that drive.
+        </p>
+      )}
+
+      {measurement && (
+        <>
+          <CategoryBar totals={measurement.totals} />
+          <CategoryLegend totals={measurement.totals} />
+          {measurement.partial && (
+            <p className="share-hint" style={{ margin: 0 }}>
+              The drive is large enough that the listing stopped early, so these are a floor rather
+              than a total — there is at least this much, and probably more.
+            </p>
+          )}
+        </>
+      )}
+    </li>
+  );
 }
 
 interface Summary {
@@ -168,27 +268,15 @@ export function StorageGroups() {
           </header>
 
           <p className="share-hint" style={{ margin: 0 }}>
-            These belong to an organisation. Google pools their storage and reports no quota per
-            drive, so Orbit does not show a size for one — measuring it would mean listing the
-            whole drive. Nothing here counts against your own allowance.
+            These belong to an organisation, and none of it counts against your own allowance.
+            Google pools their storage and reports no quota per drive, so a size has to be worked
+            out by listing the whole drive — which is what <strong>Measure</strong> does, and why
+            it is not done for you.
           </p>
 
-          <ul className="storage-group__accounts">
+          <ul className="shared-drive-list">
             {summary.sharedDrives.map((drive) => (
-              <li key={`${drive.accountId}:${drive.name}`}>
-                <ProviderIcon provider="google_drive" size={17} />
-                <span className="storage-group__name">
-                  <strong>{drive.name}</strong>
-                  <span>via {drive.accountNickname}</span>
-                </span>
-                <span />
-                <a
-                  className="link-button"
-                  href={`/my-drive?account=${encodeURIComponent(drive.accountId)}&path=${encodeURIComponent(drive.path)}`}
-                >
-                  Open
-                </a>
-              </li>
+              <SharedDriveRow key={`${drive.accountId}:${drive.driveId}`} drive={drive} />
             ))}
           </ul>
         </section>

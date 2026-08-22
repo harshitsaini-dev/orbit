@@ -3921,3 +3921,52 @@ body {
   color: var(--text-muted);
   font-size: 11.5px;
 }
+
+/* --- one shared drive, measured or not ------------------------------------ */
+
+.shared-drive-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.shared-drive {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.shared-drive__head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.shared-drive__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.shared-drive__actions button,
+.shared-drive__actions a {
+  padding: 0.3rem 0.8rem;
+  font-size: 12.5px;
+  text-decoration: none;
+  /* A link styled as a button still has to sit on the same baseline as one. */
+  display: inline-flex;
+  align-items: center;
+}
+
+@media (max-width: 40rem) {
+  /* The figure wraps under the name rather than squeezing the buttons out. */
+  .shared-drive__head {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .shared-drive__head > .storage-group__figure {
+    grid-column: 2 / -1;
+    grid-row: 2;
+  }
+}

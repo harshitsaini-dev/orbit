@@ -329,6 +329,38 @@ export class GoogleDriveAdapter extends BaseAdapter {
    * drive of any size. Folders are excluded: they hold no bytes and would
    * double-count against their contents.
    */
+  /**
+   * Everything in one shared drive.
+   *
+   * A shared drive is a root of its own, so `listAllFiles` - which asks for the
+   * account's own corpus on purpose - does not reach it. `corpora: 'drive'`
+   * with the drive's id does, in one flat pass rather than by walking folders.
+   */
+  async listAllUnder(
+    tokens: AccountTokens,
+    rootId: string,
+    pageToken?: string,
+  ): Promise<OrbitFilePage> {
+    const page = await providerJson<DriveList>(this.id, `${API}/files`, {
+      headers: this.auth(tokens),
+      query: {
+        q: `trashed = false and mimeType != '${GOOGLE_DRIVE_FOLDER_MIME}'`,
+        fields: 'nextPageToken,files(id,name,mimeType,size,modifiedTime,md5Checksum)',
+        pageSize: 1000,
+        pageToken,
+        corpora: 'drive',
+        driveId: rootId,
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      },
+    });
+
+    return {
+      files: (page.files ?? []).map((file) => toOrbitFile(file, `/${file.name ?? ''}`)),
+      nextPageToken: page.nextPageToken,
+    };
+  }
+
   override async listAllFiles(tokens: AccountTokens, pageToken?: string): Promise<OrbitFilePage> {
     const page = await providerJson<DriveList>(this.id, `${API}/files`, {
       headers: this.auth(tokens),
@@ -601,14 +633,31 @@ export class GoogleDriveAdapter extends BaseAdapter {
 
   override async getQuota(tokens: AccountTokens): Promise<Quota> {
     const about = await providerJson<{
-      storageQuota?: { limit?: string; usage?: string };
+      storageQuota?: {
+        limit?: string;
+        usage?: string;
+        usageInDrive?: string;
+        usageInDriveTrash?: string;
+      };
     }>(this.id, `${API}/about`, {
       headers: this.auth(tokens),
       query: { fields: 'storageQuota' },
     });
 
     return {
+      /*
+       * Google's `usage` is the whole account: Drive, Gmail and Photos.
+       *
+       * It is the right figure for "how full is this account", because that is
+       * what the allowance covers - but it is not the size of what Orbit can
+       * see, which is Drive alone. `usageInDrive` is reported alongside so the
+       * gap can be explained rather than looking like a miscount.
+       *
+       * Shared drives appear in neither: they are billed to the organisation.
+       */
       usedBytes: Number(about.storageQuota?.usage ?? 0),
+      usedInDriveBytes: Number(about.storageQuota?.usageInDrive ?? 0),
+      trashedBytes: Number(about.storageQuota?.usageInDriveTrash ?? 0),
       // A Workspace account with pooled storage reports no limit at all.
       totalBytes: Number(about.storageQuota?.limit ?? 0),
     };

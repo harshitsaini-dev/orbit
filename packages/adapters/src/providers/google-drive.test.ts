@@ -394,12 +394,47 @@ describe('listChangesSince', () => {
 describe('getQuota', () => {
   it('reads usage and limit', async () => {
     respondWith(() => json({ storageQuota: { usage: '1024', limit: '4096' } }));
-    assert.deepEqual(await adapter.getQuota(TOKENS), { usedBytes: 1024, totalBytes: 4096 });
+    assert.deepEqual(await adapter.getQuota(TOKENS), {
+      usedBytes: 1024,
+      usedInDriveBytes: 0,
+      trashedBytes: 0,
+      totalBytes: 4096,
+    });
+  });
+
+  it('separates what is in Drive from what the allowance covers', async () => {
+    /*
+     * Google's `usage` is the whole account - Drive, Gmail and Photos.
+     *
+     * It is the right figure for "how full is this account" and the wrong one
+     * for "how big are the files Orbit can see". Reporting both is what lets
+     * the gap be explained rather than looking like a miscount.
+     */
+    respondWith(() =>
+      json({
+        storageQuota: {
+          usage: '4000',
+          usageInDrive: '3000',
+          usageInDriveTrash: '500',
+          limit: '16000',
+        },
+      }),
+    );
+
+    const quota = await adapter.getQuota(TOKENS);
+    assert.equal(quota.usedBytes, 4000);
+    assert.equal(quota.usedInDriveBytes, 3000);
+    assert.equal(quota.trashedBytes, 500, 'deleted but not purged still fills the allowance');
   });
 
   it('reports zero total for a pooled Workspace account, rather than failing', async () => {
     respondWith(() => json({ storageQuota: { usage: '1024' } }));
-    assert.deepEqual(await adapter.getQuota(TOKENS), { usedBytes: 1024, totalBytes: 0 });
+    assert.deepEqual(await adapter.getQuota(TOKENS), {
+      usedBytes: 1024,
+      usedInDriveBytes: 0,
+      trashedBytes: 0,
+      totalBytes: 0,
+    });
   });
 });
 

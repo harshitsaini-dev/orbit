@@ -52,6 +52,8 @@ export interface StorageGroup {
 export interface SharedDriveEntry {
   accountId: string;
   accountNickname: string;
+  /** The drive's own id, which is also its root folder id. */
+  driveId: string;
   name: string;
   path: string;
 }
@@ -105,6 +107,7 @@ async function sharedDrivesFor(
           return page.files.map((file) => ({
             accountId: row.id,
             accountNickname: row.nickname,
+            driveId: file.remoteId,
             name: file.name,
             path: file.virtualPath,
           }));
@@ -121,6 +124,80 @@ async function sharedDrivesFor(
 
 /** Orbit's own name for the folder it synthesises to hold them. */
 const SHARED_DRIVES_PATH = '/Shared drives';
+
+/**
+ * A measured shared drive, remembered.
+ *
+ * Measuring one means listing every file in it, which is the reason it is not
+ * done on every dashboard load. Once done it is worth keeping: a shared drive
+ * does not change size between one look and the next in any way that matters
+ * for a breakdown.
+ */
+const measured = new Map<string, MeasuredDrive>();
+
+/** Long enough that browsing back does not re-measure, short enough to be true. */
+const MEASURE_TTL_MS = 30 * 60 * 1000;
+
+/** A page cap, so one enormous drive cannot run for minutes. */
+const MAX_PAGES = 25;
+
+export interface MeasuredDrive {
+  sizeBytes: number;
+  fileCount: number;
+  totals: CategoryTotal[];
+  /** True when the cap was hit, so the figures are a floor rather than a total. */
+  partial: boolean;
+  measuredAt: number;
+}
+
+/**
+ * Measures one shared drive by listing it, or returns what was measured before.
+ *
+ * Asked for explicitly rather than computed with the summary. Google reports no
+ * quota for a shared drive - the organisation's storage is pooled - so there is
+ * no cheap number to read, and enumerating is the only way to one.
+ */
+export async function measureSharedDrive(
+  userId: string,
+  accountId: string,
+  driveId: string,
+): Promise<MeasuredDrive | null> {
+  const key = `${accountId}:${driveId}`;
+  const cached = measured.get(key);
+  if (cached && Date.now() - cached.measuredAt < MEASURE_TTL_MS) return cached;
+
+  const active = await useAccount(userId, accountId, 'read');
+  if (!active?.adapter.listAllUnder) return null;
+
+  const files: Array<{ name: string; mimeType: string; sizeBytes: number; isFolder: boolean }> = [];
+  let pageToken: string | undefined;
+  let pages = 0;
+  let partial = false;
+
+  do {
+    const page = await active.adapter.listAllUnder(active.tokens, driveId, pageToken);
+    files.push(...page.files);
+    pageToken = page.nextPageToken;
+
+    if (++pages >= MAX_PAGES && pageToken) {
+      // Said rather than silently stopped: a truncated total that looks whole
+      // is worse than one that admits it.
+      partial = true;
+      break;
+    }
+  } while (pageToken);
+
+  const result: MeasuredDrive = {
+    sizeBytes: files.reduce((sum, file) => sum + (file.isFolder ? 0 : file.sizeBytes), 0),
+    fileCount: files.filter((file) => !file.isFolder).length,
+    totals: summarise(files),
+    partial,
+    measuredAt: Date.now(),
+  };
+
+  measured.set(key, result);
+  return result;
+}
 
 export async function storageSummary(userId: string): Promise<StorageSummary> {
   const rows = await db().select().from(accounts).where(eq(accounts.userId, userId));
