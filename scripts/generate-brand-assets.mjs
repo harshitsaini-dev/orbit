@@ -20,6 +20,10 @@ const mark = readFileSync(join(publicDir, 'favicon.svg'), 'utf8');
  * the middle 80%. The plain icons keep their own rounded corners instead.
  */
 const ICONS = [
+  // 64 and 256 exist for the app directories that ask for exactly those two -
+  // Dropbox's is one - rather than for anything Orbit itself loads.
+  { file: 'icon-64.png', size: 64, inset: 0 },
+  { file: 'icon-256.png', size: 256, inset: 0 },
   { file: 'icon-192.png', size: 192, inset: 0 },
   { file: 'icon-512.png', size: 512, inset: 0 },
   { file: 'icon-maskable-512.png', size: 512, inset: 0.12 },
