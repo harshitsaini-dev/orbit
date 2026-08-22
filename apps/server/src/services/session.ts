@@ -62,6 +62,10 @@ export async function createSession(
     createdAt: now.toISOString(),
   });
 
+  // Signing in is what turns an invited address into a person who has actually
+  // turned up, which is the difference a member list has to show.
+  await db().update(users).set({ lastSeenAt: now.toISOString() }).where(eq(users.id, userId));
+
   return { token, expiresAt };
 }
 

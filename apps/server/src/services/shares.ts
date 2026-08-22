@@ -74,7 +74,7 @@ export interface CreateShareInput {
  * unrevokable from the UI, since only one can be shown per file.
  */
 export async function createShare(input: CreateShareInput): Promise<PublicShare | null> {
-  const active = await useAccount(input.userId, input.accountId);
+  const active = await useAccount(input.userId, input.accountId, 'share');
   if (!active) return null;
 
   // The snapshot has to come from the provider: it is what the public page

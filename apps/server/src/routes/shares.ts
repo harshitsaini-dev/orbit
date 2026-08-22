@@ -216,7 +216,7 @@ sharesRouter.get('/s/:shortId/content', async (req, res, next) => {
       return;
     }
 
-    const active = await useAccount(target.ownerId, target.accountId);
+    const active = await useAccount(target.ownerId, target.accountId, 'read');
     if (!active) {
       res.status(404).end();
       return;

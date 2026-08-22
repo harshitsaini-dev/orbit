@@ -10,6 +10,7 @@ import { accountsRouter } from './routes/accounts.js';
 import { authRouter } from './routes/auth.js';
 import { collectionsRouter } from './routes/collections.js';
 import { filesRouter } from './routes/files.js';
+import { membersRouter } from './routes/members.js';
 import { profileRouter } from './routes/profile.js';
 import { sharesRouter } from './routes/shares.js';
 import { transfersRouter } from './routes/transfers.js';
@@ -136,6 +137,7 @@ export function createApp(): Express {
   app.use(attachUser);
   app.use(authRouter);
   app.use(accountsRouter);
+  app.use(membersRouter);
   app.use(filesRouter);
   app.use(profileRouter);
   app.use(sharesRouter);

@@ -115,22 +115,62 @@ adding a second one.
 Each account carries `catalogueKey` alongside `provider`. Five catalogue entries run on the `s3`
 adapter, so the adapter id alone cannot tell an R2 bucket from a Backblaze one.
 
+The caller's own drives come first in the order they chose, then any granted to them, oldest
+grant first. `isOwner` and `accessLevel` describe the caller's relationship to each drive rather
+than the drive itself — the same connection is `admin` to its owner and `read` to a guest — so the
+client can decline to offer an upload button that would only ever 403.
+
 ### `POST /api/accounts/:id/refresh-quota`
 Re-reads usage from the provider and caches it. `409 needs_reauth` when the grant has expired.
 
 ### `DELETE /api/accounts/:id`
-Disconnects. `204`. Files in the provider account are untouched.
+Disconnects. `204`. Files in the provider account are untouched. **Owner only** — a guest with
+`admin` on the drive may hand it to other people but not sever the connection itself.
+
+## Who may use a drive
+
+Access is granted per drive, not per Orbit account — see ADR 0011. Levels are ordered and each
+contains the ones before it:
+
+| Level | Adds |
+| --- | --- |
+| `read` | list, open, download, search |
+| `write` | upload, rename, move, create folders |
+| `full` | delete, and publish share links |
+| `admin` | grant this drive to other people |
+
+Every route below needs `admin`, and answers `404` to anybody without it — telling a reader
+"you may not manage this" would confirm there is a member list to see.
+
+### `GET /api/accounts/:id/members`
+`{ members: DriveMember[], owner: boolean }`. `joinedAt` is null for somebody who has been named
+but has never signed in.
+
+### `POST /api/accounts/:id/members`
+`{ email, level }` → `201 { member }`. Creates the user row if that address is new to Orbit;
+there is no accept step, because signing in with a code sent to that address is what proves the
+invitation reached the right inbox. Naming somebody already on the drive changes their level
+rather than failing. `409` if the address owns the drive already.
+
+### `PATCH /api/accounts/:id/members/:userId`
+`{ level }` → `204`. `403` when the caller is the member being changed: an admin guest must not be
+able to promote themselves past whoever invited them.
+
+### `DELETE /api/accounts/:id/members/:userId`
+`204`. The grant goes; nothing of theirs is touched. Removing yourself is allowed — leaving a
+drive is not the same as promoting yourself.
 
 ### `GET /api/files?accountId=&path=&pageToken=`
 Note the asymmetry: the request takes `pageToken`, the response returns the next one as
 `nextCursor`. Passing it back as `cursor` is silently ignored and re-fetches the first page.
 
-Lists one folder from one account.
+Lists one folder from one account. Needs `read` on it.
 `{ accountId, provider, path, files, nextCursor, capabilities }`. The capabilities travel with
 the listing so the UI can hide actions the provider cannot perform.
 
 ### `GET /api/views/:view`
-`recent`, `starred`, or `shared`, **merged across every connected account** — which is the point
+`recent`, `starred`, or `shared`, **merged across every readable account** — the caller's own and
+any granted to them — which is the point
 of the product: "recent" should mean recent everywhere, not recent in whichever account happens
 to be selected. Accounts are queried in parallel.
 

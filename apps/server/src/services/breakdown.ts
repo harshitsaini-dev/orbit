@@ -26,7 +26,7 @@ export async function computeBreakdown(
   accountId: string,
   options: ScanOptions = {},
 ): Promise<StorageBreakdown | null> {
-  const active = await useAccount(userId, accountId);
+  const active = await useAccount(userId, accountId, 'read');
   if (!active) return null;
 
   if (!active.adapter.capabilities.flatEnumeration) {

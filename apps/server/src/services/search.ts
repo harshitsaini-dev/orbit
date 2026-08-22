@@ -2,9 +2,10 @@ import { getAdapter } from '@orbit/adapters';
 import { accounts } from '@orbit/db';
 import type { FileCategory, SearchQuery } from '@orbit/shared-types';
 import { categorise } from '@orbit/shared-types';
-import { eq } from 'drizzle-orm';
+import { inArray } from 'drizzle-orm';
 import { db } from '../lib/db.js';
 import { useAccount } from './accounts.js';
+import { readableAccountIds } from './sharing.js';
 import type { ViewResult, WorkspaceFile } from './views.js';
 
 export interface SearchRequest extends SearchQuery {
@@ -60,7 +61,12 @@ export async function searchWorkspace(
   request: SearchRequest,
   options: { cursor?: string } = {},
 ): Promise<SearchResult> {
-  const rows = await db().select().from(accounts).where(eq(accounts.userId, userId));
+  // Every drive they may read, not only the ones they connected: a drive
+  // shared with somebody is a drive they should be able to find things in.
+  const readable = await readableAccountIds(userId);
+  const rows = readable.length
+    ? await db().select().from(accounts).where(inArray(accounts.id, readable))
+    : [];
   const all = request.accountId ? rows.filter((row) => row.id === request.accountId) : rows;
 
   const cursor = decodeCursor(options.cursor);
@@ -77,7 +83,7 @@ export async function searchWorkspace(
         return { unsupported: true as const };
       }
 
-      const active = await useAccount(userId, row.id);
+      const active = await useAccount(userId, row.id, 'read');
       if (!active) return { unsupported: false as const, files: [], nextPageToken: undefined };
 
       const page = await active.adapter.search(active.tokens, request, cursor?.[row.id]);

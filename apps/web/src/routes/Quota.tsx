@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { catalogueEntry } from '@orbit/shared-types';
 import type { CatalogueEntry, PublicAccount } from '@orbit/shared-types';
+import { DriveMembers, levelLabel } from '../components/DriveMembers.js';
 import { ConnectDialog } from '../components/ConnectDialog.js';
 import { forgetAccount } from '../lib/cache.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
@@ -157,6 +158,10 @@ export function Quota() {
                         {catalogueEntry(account.catalogueKey ?? '')?.label ??
                           account.provider.replace(/_/g, ' ')}
                         {account.status === 'needs_reauth' && ' · needs reconnecting'}
+                        {/* Whose drive this is, and how far they may go with it -
+                            the difference between an upload button that works and
+                            one that always fails. */}
+                        {!account.isOwner && ` · shared with you · ${levelLabel(account.accessLevel)}`}
                       </span>
                     </div>
                   </div>
@@ -170,6 +175,9 @@ export function Quota() {
                     >
                       Refresh
                     </button>
+                    {/* Somebody else's connection is not theirs to sever, however
+                        far their access on it goes. */}
+                    {account.isOwner && (
                     <button
                       type="button"
                       className="clay-button"
@@ -179,9 +187,16 @@ export function Quota() {
                     >
                       Disconnect
                     </button>
+                    )}
                   </div>
                 </div>
                 <StorageBar account={account} />
+
+                {/* Only where there is anybody to manage: an admin guest sees
+                    this too, an ordinary guest is not told it exists. */}
+                {(account.isOwner || account.accessLevel === 'admin') && (
+                  <DriveMembers account={account} />
+                )}
               </li>
             ))}
           </ul>

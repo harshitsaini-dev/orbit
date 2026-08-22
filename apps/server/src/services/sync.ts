@@ -123,7 +123,7 @@ export async function syncAccount(userId: string, accountId: string): Promise<Sy
   };
 
   try {
-    const active = await useAccount(userId, accountId);
+    const active = await useAccount(userId, accountId, 'read');
     if (!active) {
       return await finish({
         status: 'error',

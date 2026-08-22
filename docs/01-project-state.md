@@ -1,6 +1,6 @@
 # Project state
 
-_Last updated: 2026-08-21_
+_Last updated: 2026-08-22_
 
 ## Current phase
 
@@ -21,7 +21,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 5 | Upload system + WebSocket progress + allocation | 🟢 Done |
 | 6 | Sync engine | 🟢 Done |
 | 7 | Sharing + QR | 🟢 Done |
-| 8 | RBAC + superadmin | ⚪ Not started |
+| 8 | RBAC + superadmin | 🟡 Per-drive grants done · superadmin console pending |
 | 9 | Design pass (Claymorphism, three.js, PWA) | ⚪ Not started |
 | 10 | Hardening + deploy | ⚪ Not started |
 | 11 | Developer platform (public API, tokens, OAuth apps, API docs tab) | ⚪ Designed, not started |
@@ -32,7 +32,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 16 | Metadata viewers + remaining previewers | 🟡 Code, CSV, PDF, Office, archives, fonts, markdown done · EXIF, hex, 3D pending |
 | 17 | Cross-cloud transfer engine | 🟢 Done |
 | 18 | Cross-cloud duplicate finder | 🟢 Done |
-| 19 | Scheduled jobs | ⚪ Designed, not started |
+| 19 | Scheduled jobs | 🟡 Service + tests done · routes and UI pending |
 | 20 | Automatic tagging by OCR | ⚪ Designed, not started |
 | 21 | Peer-to-peer direct transfer | ⚪ Designed, not started |
 | 22 | Share analytics | ⚪ Designed, not started |
@@ -482,6 +482,55 @@ Step-by-step instructions for all of these are in **`docs/05-owner-setup.md`**.
 - **Google OAuth client** — this is the one blocking Phase 2. Nothing else is urgent.
 - Turso, Render, Vercel, Resend, and Cloudflare DNS sign-ups (all card-free).
 - Generating production values for `TOKEN_ENCRYPTION_KEY` and `SESSION_SECRET`.
+
+## Phase 8 — sharing a drive with other people
+
+Access is granted **per drive**, not per Orbit account (ADR 0011). A grant joins a person to one
+drive at one of four ordered levels — `read`, `write`, `full`, `admin` — and somebody with no
+grants sees nothing.
+
+The reason it is not a workspace role: somebody brought in for the team bucket would then also see
+the personal Drive connected beside it, and the only way out would be a second Orbit account per
+audience, which defeats the aggregation the product exists for.
+
+Members sign in as themselves — own address, own code, own session. Naming an address creates the
+user row; nothing happens until that person signs in and proves the address is theirs. There is no
+accept-link, because a link proves only that somebody has the link.
+
+What is enforced, and where:
+
+- `useAccount(userId, accountId, need)` takes the permission as a **required** argument, so every
+  one of the twenty-six call sites had to state its intent rather than inherit a default.
+- Refusal and non-existence both answer `404`. A reader asking for the member list is told the
+  drive does not exist; being told "you may not manage this" would confirm there is a list.
+- The owner holds no grant row, so no grant bug can lock them out of their own connection.
+- Disconnecting stays owner-only at any level — somebody else's tokens are not a guest's to sever.
+- Search and the smart views span every readable drive. **Allocation deliberately does not**:
+  automatic upload placement picks among your own drives, so Orbit never quietly puts your files
+  into somebody else's storage.
+
+Still to do: a superadmin console, and an audit trail of who did what on a shared drive
+(`audit_log` exists and is unwritten).
+
+## Thumbnails on stores that make none
+
+Drive, OneDrive and Dropbox render previews and Orbit proxies them. Object stores render none, so
+a bucket of photos was a grid of file icons.
+
+They are generated server-side now (`services/thumbnails.ts`, sharp): fetched once, resized to
+fit, re-encoded as WebP at quality 72, kept in a 32 MB in-memory LRU with an in-flight map so
+forty tiles of one image decode once. Never written to disk — a derived image is still bytes.
+Decoding is capped at two at a time, because this process also serves requests somebody is
+waiting on.
+
+Measured on the connected buckets: 994 KB JPEG → 4.9 KB; 151 KB PNG → 11 KB; 25 KB PNG → 4.2 KB.
+Cold ~0.3 s, cached ~0.1 s.
+
+**What this does not cover, and will not for free.** Drive also renders thumbnails for video, PDFs
+and documents. Matching that on S3, MEGA or Dropbox needs ffmpeg for a video frame and a document
+renderer for a first page — sustained CPU the free tier does not have, and both would compete with
+request serving on the single node (ADR 0003). Images work everywhere; the rest shows an icon.
+Raising it is a paid-compute decision for the owner, not something to attempt quietly.
 
 ## Known issues / open questions
 

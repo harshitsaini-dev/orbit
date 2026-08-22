@@ -3094,3 +3094,110 @@ body {
   color: var(--text);
   border-radius: var(--radius-sm);
 }
+
+/* --- who else may use a drive ------------------------------------------- */
+
+.drive-members {
+  display: grid;
+  gap: 0.7rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+
+.drive-members__head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.drive-members__head span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.drive-members__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.drive-members__list li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+/* The name takes the slack so the level and the remove button stay put down
+   the list rather than shifting with the length of each address. */
+.drive-members__who {
+  display: grid;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+
+.drive-members__who strong {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drive-members__who > span {
+  color: var(--text-muted);
+  font-size: 12px;
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.drive-members__pending {
+  font-style: normal;
+  color: var(--warning, var(--text-muted));
+}
+
+.drive-members__level,
+.drive-members__add select {
+  padding: 0.3rem 0.5rem;
+  font-size: 13px;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+
+.drive-members__list button {
+  padding: 0.25rem 0.7rem;
+  font-size: 12px;
+}
+
+.drive-members__add {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.drive-members__add input {
+  flex: 1;
+  min-width: 12rem;
+  padding: 0.4rem 0.7rem;
+  font-size: 13px;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+}
+
+.drive-members__add button {
+  padding: 0.4rem 1rem;
+  font-size: 13px;
+}
+
+.drive-members__hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}

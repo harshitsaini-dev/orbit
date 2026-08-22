@@ -41,7 +41,7 @@ filesRouter.get('/api/files', requireAuth, async (req, res, next) => {
   }
 
   try {
-    const active = await useAccount(req.user!.id, parsed.data.accountId);
+    const active = await useAccount(req.user!.id, parsed.data.accountId, 'read');
     if (!active) {
       res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
       return;
@@ -184,7 +184,7 @@ filesRouter.get('/api/files/:id/content', requireAuth, async (req, res, next) =>
   }
 
   try {
-    const active = await useAccount(req.user!.id, accountId);
+    const active = await useAccount(req.user!.id, accountId, 'read');
     if (!active) {
       res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
       return;
@@ -239,7 +239,7 @@ filesRouter.get('/api/files/:id/thumbnail', requireAuth, async (req, res, next) 
   const size = Math.min(Math.max(Number(req.query.size) || 400, 64), 1024);
 
   try {
-    const active = await useAccount(req.user!.id, accountId);
+    const active = await useAccount(req.user!.id, accountId, 'read');
     if (!active) {
       res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
       return;
@@ -321,7 +321,7 @@ filesRouter.post('/api/files/folder', requireAuth, async (req, res, next) => {
   }
 
   try {
-    const active = await useAccount(req.user!.id, parsed.data.accountId);
+    const active = await useAccount(req.user!.id, parsed.data.accountId, 'write');
     if (!active) {
       res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
       return;
@@ -352,7 +352,7 @@ filesRouter.patch('/api/files/:id', requireAuth, async (req, res, next) => {
   }
 
   try {
-    const active = await useAccount(req.user!.id, parsed.data.accountId);
+    const active = await useAccount(req.user!.id, parsed.data.accountId, 'write');
     if (!active) {
       res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
       return;
@@ -392,7 +392,7 @@ filesRouter.delete('/api/files', requireAuth, async (req, res, next) => {
   }
 
   try {
-    const active = await useAccount(req.user!.id, parsed.data.accountId);
+    const active = await useAccount(req.user!.id, parsed.data.accountId, 'delete');
     if (!active) {
       res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
       return;

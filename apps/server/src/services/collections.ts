@@ -236,7 +236,7 @@ export async function addToCollection(
 
   if (!owned) return null;
 
-  const active = await useAccount(userId, accountId);
+  const active = await useAccount(userId, accountId, 'read');
   if (!active) return null;
 
   const file = await active.adapter.getFileMeta(active.tokens, remoteId);

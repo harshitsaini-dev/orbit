@@ -67,8 +67,8 @@ export interface QueueInput {
 }
 
 export async function queueTransfer(input: QueueInput): Promise<PublicTransfer | null> {
-  const source = await useAccount(input.userId, input.sourceAccountId);
-  const target = await useAccount(input.userId, input.targetAccountId);
+  const source = await useAccount(input.userId, input.sourceAccountId, 'read');
+  const target = await useAccount(input.userId, input.targetAccountId, 'write');
   if (!source || !target) return null;
 
   // Both ends are checked before anything is queued: a transfer that cannot
@@ -161,8 +161,8 @@ export async function runTransfer(
   await update(id, { state: 'running', error: null });
 
   try {
-    const source = await useAccount(row.ownerId, row.sourceAccountId);
-    const target = await useAccount(row.ownerId, row.targetAccountId);
+    const source = await useAccount(row.ownerId, row.sourceAccountId, 'read');
+    const target = await useAccount(row.ownerId, row.targetAccountId, 'write');
     if (!source || !target) throw new Error('An account in this transfer is no longer connected');
 
     const session: UploadSession = row.uploadState

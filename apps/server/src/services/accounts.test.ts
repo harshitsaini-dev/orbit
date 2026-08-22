@@ -64,7 +64,7 @@ describe('useAccount', () => {
     stubRefresh(async () => ({ accessToken: 'fresh', refreshToken: 'rt', expiresAt: Date.now() + 3_600_000 }));
 
     const { userId, accountId } = await seed(EXPIRED);
-    const active = await useAccount(userId, accountId);
+    const active = await useAccount(userId, accountId, 'read');
 
     assert.equal(active!.tokens.accessToken, 'fresh');
 
@@ -82,7 +82,7 @@ describe('useAccount', () => {
     });
 
     const { userId, accountId } = await seed(Date.now() + 3_600_000);
-    await useAccount(userId, accountId);
+    await useAccount(userId, accountId, 'read');
 
     assert.equal(called, false, 'a valid token must not be refreshed for no reason');
   });
@@ -96,7 +96,7 @@ describe('useAccount', () => {
 
     const { userId, accountId } = await seed(EXPIRED);
 
-    await assert.rejects(useAccount(userId, accountId), /provider_unavailable/);
+    await assert.rejects(useAccount(userId, accountId, 'read'), /provider_unavailable/);
 
     const [row] = await db().select().from(accounts);
     assert.notEqual(row!.status, 'needs_reauth', 'a transient failure must not kill the account');
@@ -104,7 +104,7 @@ describe('useAccount', () => {
 
     // And it recovers on its own once the provider is back.
     stubRefresh(async () => ({ accessToken: 'fresh', refreshToken: 'rt', expiresAt: Date.now() + 3_600_000 }));
-    const active = await useAccount(userId, accountId);
+    const active = await useAccount(userId, accountId, 'read');
     assert.equal(active!.tokens.accessToken, 'fresh');
     assert.equal((await db().select().from(accounts))[0]!.status, 'ok');
   });
@@ -115,7 +115,7 @@ describe('useAccount', () => {
     });
 
     const { userId, accountId } = await seed(EXPIRED);
-    await assert.rejects(useAccount(userId, accountId), /needs_reauth/);
+    await assert.rejects(useAccount(userId, accountId, 'read'), /needs_reauth/);
 
     assert.equal((await db().select().from(accounts))[0]!.status, 'needs_reauth');
   });

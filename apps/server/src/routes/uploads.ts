@@ -75,7 +75,7 @@ uploadsRouter.post('/api/uploads', requireAuth, async (req, res, next) => {
       accountId = chosen.account.id;
     }
 
-    const active = await useAccount(req.user!.id, accountId);
+    const active = await useAccount(req.user!.id, accountId, 'write');
     if (!active) {
       res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
       return;
@@ -160,7 +160,7 @@ uploadsRouter.put(
     }
 
     try {
-      const active = await useAccount(upload.userId, upload.accountId);
+      const active = await useAccount(upload.userId, upload.accountId, 'write');
       if (!active) {
         pending.delete(uploadId);
         res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });

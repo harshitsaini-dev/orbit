@@ -1,9 +1,10 @@
 import { getAdapter } from '@orbit/adapters';
 import { accounts } from '@orbit/db';
 import type { OrbitFile, WorkspaceView } from '@orbit/shared-types';
-import { eq } from 'drizzle-orm';
+import { inArray } from 'drizzle-orm';
 import { db } from '../lib/db.js';
 import { useAccount } from './accounts.js';
+import { readableAccountIds } from './sharing.js';
 
 /** A file with the account it came from, which is what makes a merged view readable. */
 export interface WorkspaceFile extends OrbitFile {
@@ -40,7 +41,12 @@ export async function listWorkspaceView(
   view: WorkspaceView,
   limit = 100,
 ): Promise<ViewResult> {
-  const rows = await db().select().from(accounts).where(eq(accounts.userId, userId));
+  // Every drive they may read, not only the ones they connected: a drive
+  // shared with somebody is a drive they should be able to find things in.
+  const readable = await readableAccountIds(userId);
+  const rows = readable.length
+    ? await db().select().from(accounts).where(inArray(accounts.id, readable))
+    : [];
 
   const result: ViewResult = { files: [], problems: [], unsupported: [] };
 
@@ -51,7 +57,7 @@ export async function listWorkspaceView(
         return { row, unsupported: true as const };
       }
 
-      const active = await useAccount(userId, row.id);
+      const active = await useAccount(userId, row.id, 'read');
       if (!active) return { row, unsupported: false as const, files: [] };
 
       const page = await active.adapter.listView(active.tokens, view);

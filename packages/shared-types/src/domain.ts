@@ -46,6 +46,31 @@ export interface PublicAccount {
   /** When the access token was last renewed. Null until the first refresh. */
   lastRefreshedAt: string | null;
   connectedAt: string;
+  /**
+   * Whether this drive belongs to the person asking, or was granted to them.
+   * An owner always has full say over their own connection.
+   */
+  isOwner: boolean;
+  /**
+   * How far the caller may go with it. Describes the relationship, not the
+   * drive - the same connection is `admin` to its owner and `read` to a guest.
+   */
+  accessLevel: AccessLevel;
+}
+
+/** Ordered, least to most. Each level contains the ones before it. */
+export type AccessLevel = 'read' | 'write' | 'full' | 'admin';
+
+/** Somebody who has been given access to one drive. */
+export interface DriveMember {
+  userId: string;
+  email: string;
+  displayName: string | null;
+  avatar: string | null;
+  level: AccessLevel;
+  /** Null until they have signed in for the first time. */
+  joinedAt: string | null;
+  invitedAt: string;
 }
 
 export interface ShareLink {

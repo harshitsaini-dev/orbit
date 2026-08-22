@@ -3,11 +3,16 @@ import { createServer, type Server } from 'node:http';
 import { after, before, describe, it } from 'node:test';
 import { PROVIDER_CATALOGUE, PROVIDER_IDS, UNAVAILABLE_PROVIDERS } from '@orbit/shared-types';
 import { createApp } from './app.js';
+import { useTestDatabase } from './test-utils.js';
 
 let server: Server;
 let baseUrl: string;
 
 before(async () => {
+  // Against a throwaway database like every other route test. Without this the
+  // suite ran on the developer's own orbit.db, and a schema change that had not
+  // been applied there yet failed here rather than where it belonged.
+  await useTestDatabase();
   server = createServer(createApp());
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const address = server.address();

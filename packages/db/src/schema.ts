@@ -22,6 +22,12 @@ export const users = sqliteTable(
       .default('round_robin'),
     /** Rotation cursor for round_robin / weighted_round_robin. */
     allocationCursor: integer('allocation_cursor').notNull().default(0),
+    /**
+     * Set when a session is created. Null means the row exists because somebody
+     * was invited to a drive and has not signed in yet - which is exactly what
+     * the member list needs to show as pending.
+     */
+    lastSeenAt: text('last_seen_at'),
     createdAt: text('created_at').notNull().default(now),
   },
   (t) => [uniqueIndex('users_email_uq').on(t.email)],
@@ -384,5 +390,53 @@ export const schedules = sqliteTable(
     index('schedule_owner_idx').on(t.ownerId),
     // The tick asks one question: what is enabled and due?
     index('schedule_due_idx').on(t.enabled, t.nextRunAt),
+  ],
+);
+
+/**
+ * Who else may use one connected drive, and how far.
+ *
+ * The unit is the drive rather than the whole Orbit account: someone brought in
+ * to work on the shared team bucket has no business seeing the personal Drive
+ * connected alongside it. A person with no grants sees nothing, which is what
+ * makes an account that is merely known-about harmless.
+ *
+ * Levels are ordered, not a set of flags. "Write but not delete" is a real
+ * position and the common one; "delete but not write" is not, and offering it
+ * as a checkbox only invites the mistake.
+ */
+export const accountGrants = sqliteTable(
+  'account_grants',
+  {
+    id: text('id').primaryKey(),
+    accountId: text('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    /**
+     * The user row is created when they are invited, before they have ever
+     * signed in - the grant needs something to point at, and signing in with
+     * that address is what proves the invitation reached the right person.
+     */
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /**
+     * `read`  - list, open, download, search
+     * `write` - and upload, create folders, rename, move, copy
+     * `full`  - and delete, and share externally
+     * `admin` - and grant this same drive to other people
+     */
+    level: text('level', { enum: ['read', 'write', 'full', 'admin'] })
+      .notNull()
+      .default('read'),
+    /** Who granted it, for the audit trail and for showing "invited by". */
+    grantedBy: text('granted_by')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: text('created_at').notNull().default(now),
+  },
+  (t) => [
+    uniqueIndex('account_grant_uq').on(t.accountId, t.userId),
+    index('account_grant_user_idx').on(t.userId),
   ],
 );
