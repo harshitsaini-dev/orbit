@@ -499,12 +499,18 @@ done from the codebase. Step-by-step instructions are in
    or sign up for Azure (free, but asks for card details). `05-onedrive-dropbox.md`
    has the detail. OneDrive is otherwise in the same position pCloud is:
    written, tested against mocked responses, never run for real.
-3. **Google verification** — **now unblocked and the most urgent thing on this
-   list.** The consent screen is still in *testing*, which caps it at 100 users
-   and, worse for a live service, expires every refresh token after seven days:
-   the connected Drive will simply stop working about a week after it was
-   connected, and keep doing so. Verification needed a reachable homepage and
-   privacy policy, which the deploy now provides.
+3. ~~**Google verification**~~ — resolved 2026-08-23. The app is **In
+   production**, published without going through verification: Google accepted
+   the homepage, `/privacy` and `/terms`, and the branding is verified. The
+   seven-day refresh token expiry is gone.
+
+   Two things carry forward. The app is published but *unverified*, so anyone
+   connecting sees "Google hasn't verified this app" and has to choose Advanced
+   → Continue. And an unverified app on a restricted scope has a **100-user
+   lifetime cap** that cannot be reset - fine for a personal deployment, and
+   the wall to go through before opening Orbit to a crowd. Full verification of
+   the `drive` scope still means an annual third-party security assessment that
+   is not free.
 4. **Dropbox production mode** — connected and working, but the app is in
    development mode, which is capped at 50 linked accounts. Fine for now;
    needed before anyone else uses it.

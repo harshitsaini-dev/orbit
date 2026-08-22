@@ -98,6 +98,15 @@ public, outside the sign-in gate:
 schedule and will not drop a connection over a network blip, but nothing on this side can extend
 a refresh token that Google itself expired after seven days.
 
+**This was done on 2026-08-23 and it worked.** Google Auth Platform → Audience → Publish app,
+with the three addresses above filled in under Branding and `harshitsaini.in` as the single
+authorised domain. Google published it without demanding verification; the status reads *In
+production*. Anything below about being stuck in Testing is kept for the record.
+
+**One step people miss.** A refresh token issued while the app was in Testing keeps its seven-day
+expiry - publishing does not repair it. Disconnect the drive in Orbit and connect it again, so
+Google issues a fresh one.
+
 The fix worth trying: **OAuth consent screen → Publishing status → Publish app**. Moving out of
 Testing removes the seven-day expiry. The app stays unverified until you go through Google's
 review, so users still see the "Google hasn't verified this app" screen and there is a cap on how
