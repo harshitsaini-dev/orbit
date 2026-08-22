@@ -10,6 +10,7 @@ import {
   redirectUriFor,
 } from '../lib/oauth.js';
 import { requireAuth } from '../middleware/auth.js';
+import { findDuplicates } from '../services/duplicates.js';
 import { mirrorSize, recentSyncs, syncAccount } from '../services/sync.js';
 import {
   setAccountPriority,
@@ -354,6 +355,30 @@ accountsRouter.post('/api/accounts/connect', requireAuth, async (req, res, next)
       });
       return;
     }
+    next(err);
+  }
+});
+
+// --- duplicates -----------------------------------------------------------
+
+/**
+ * Reads the mirror rather than the providers.
+ *
+ * Comparing every file in every account against every other over the network
+ * would be thousands of requests; the mirror already holds the three things a
+ * comparison needs.
+ */
+accountsRouter.get('/api/duplicates', requireAuth, async (req, res, next) => {
+  try {
+    const minSizeBytes =
+      typeof req.query.minSize === 'string' ? Number(req.query.minSize) : undefined;
+
+    res.json(
+      await findDuplicates(req.user!.id, {
+        ...(Number.isFinite(minSizeBytes) ? { minSizeBytes } : {}),
+      }),
+    );
+  } catch (err) {
     next(err);
   }
 });

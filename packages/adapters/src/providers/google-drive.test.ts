@@ -557,3 +557,26 @@ describe('listView', () => {
     assert.equal(page.files[0]!.shortcutTargetId, 'folder-1');
   });
 });
+
+const drive = new GoogleDriveAdapter();
+
+describe('what a flat enumeration asks for', () => {
+  it('asks for the checksum, which is what proves two files are the same', async () => {
+    // Left out, every duplicate in the account is downgraded from certain to a
+    // guess about size and name - and a guess is not something to delete on.
+    respondWith(() => json({ files: [] }));
+    await drive.listAllFiles(TOKENS);
+
+    assert.match(calls[0]!.url.searchParams.get('fields') ?? '', /md5Checksum/);
+  });
+
+  it('still asks for less than a full listing does', async () => {
+    // A hundred thousand files makes every extra field expensive.
+    respondWith(() => json({ files: [] }));
+    await drive.listAllFiles(TOKENS);
+
+    const fields = calls[0]!.url.searchParams.get('fields') ?? '';
+    assert.doesNotMatch(fields, /parents/);
+    assert.doesNotMatch(fields, /trashed/);
+  });
+});

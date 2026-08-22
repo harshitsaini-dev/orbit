@@ -31,7 +31,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 15 | Collections (virtual folders) | 🟢 Done |
 | 16 | Metadata viewers + remaining previewers | 🟡 Code, CSV, PDF, Office, archives, fonts, markdown done · EXIF, hex, 3D pending |
 | 17 | Cross-cloud transfer engine | 🟢 Done |
-| 18 | Cross-cloud duplicate finder | ⚪ Designed, not started |
+| 18 | Cross-cloud duplicate finder | 🟢 Done |
 | 19 | Scheduled jobs | ⚪ Designed, not started |
 | 20 | Automatic tagging by OCR | ⚪ Designed, not started |
 | 21 | Peer-to-peer direct transfer | ⚪ Designed, not started |
@@ -258,6 +258,24 @@ a restart resumes instead of enumerating everything again. A pass that stops at
 its page cap reports `partial` rather than pretending to be complete. A dead
 grant marks the account for reconnection instead of retrying every hour forever;
 a 5xx does not, because that is the provider having a bad afternoon.
+
+## Finding duplicates
+
+Reads the mirror rather than the providers: comparing every file against every
+other over the network would be thousands of requests, and the mirror already
+holds the three things a comparison needs.
+
+Two tiers, kept visibly apart. **Identical** means both sides published a
+checksum and they agree. **Possibly the same** means a matching size and name
+and nothing more - which is a guess, and presenting a guess as proof is how
+somebody deletes their only copy. Only the certain groups can be bulk-selected.
+
+A multipart S3 ETag is never treated as a checksum. It is built from the hashes
+of the parts with the count appended, so two identical files uploaded with
+different part sizes get different ETags. Files under 64KB are excluded
+entirely: a hundred identical small configs would bury the ones worth acting on.
+
+Against the connected Drive: 757 files, 35 identical sets, 82MB reclaimable.
 
 ## The directory cache
 

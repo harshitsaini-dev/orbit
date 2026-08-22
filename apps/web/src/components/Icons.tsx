@@ -142,3 +142,13 @@ export function CollectionsIcon({ size = 18 }: { size?: number }) {
     </svg>
   );
 }
+
+export function DuplicatesIcon({ size = 18 }: { size?: number }) {
+  return (
+    <svg {...base} width={size} height={size}>
+      {/* Two overlapping sheets: the same thing, twice. */}
+      <rect x="8.6" y="8.6" width="11" height="11" rx="2.2" />
+      <path d="M15.4 5.4H6.6a2.2 2.2 0 0 0-2.2 2.2v8.8" />
+    </svg>
+  );
+}

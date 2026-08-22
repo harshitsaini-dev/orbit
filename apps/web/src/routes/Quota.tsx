@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { catalogueEntry } from '@orbit/shared-types';
 import type { CatalogueEntry, PublicAccount } from '@orbit/shared-types';
 import { ConnectDialog } from '../components/ConnectDialog.js';
 import { forgetAccount } from '../lib/cache.js';
@@ -150,7 +151,11 @@ export function Quota() {
                         {account.nickname}
                       </strong>
                       <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-                        {account.provider.replace(/_/g, ' ')}
+                        {/* The catalogue's name, not the adapter's id: five entries run on
+                            the s3 adapter, so "s3" names a Supabase bucket and a
+                            Backblaze one identically. */}
+                        {catalogueEntry(account.catalogueKey ?? '')?.label ??
+                          account.provider.replace(/_/g, ' ')}
                         {account.status === 'needs_reauth' && ' · needs reconnecting'}
                       </span>
                     </div>

@@ -251,9 +251,13 @@ export class GoogleDriveAdapter extends BaseAdapter {
       headers: this.auth(tokens),
       query: {
         q: `trashed = false and mimeType != '${GOOGLE_DRIVE_FOLDER_MIME}'`,
-        // Only what the breakdown actually needs; asking for less makes each
-        // page markedly cheaper on an account with a hundred thousand files.
-        fields: 'nextPageToken,files(id,name,mimeType,size,modifiedTime,shortcutDetails(targetMimeType))',
+        // Less than the full set, because asking for less makes each page
+        // markedly cheaper on an account with a hundred thousand files - but
+        // md5Checksum stays. It is what lets the mirror say two files are
+        // definitely the same rather than probably, and leaving it out
+        // downgraded every duplicate in an account to a guess.
+        fields:
+          'nextPageToken,files(id,name,mimeType,size,modifiedTime,md5Checksum,shortcutDetails(targetMimeType))',
         pageSize: 1000,
         pageToken,
         supportsAllDrives: true,
