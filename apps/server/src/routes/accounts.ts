@@ -11,6 +11,7 @@ import {
 } from '../lib/oauth.js';
 import { requireAuth } from '../middleware/auth.js';
 import { findDuplicates, ignoreGroup, unignoreGroup } from '../services/duplicates.js';
+import { storageSummary } from '../services/storage-summary.js';
 import { mirrorSize, recentSyncs, syncAccount } from '../services/sync.js';
 import {
   setAccountPriority,
@@ -388,6 +389,21 @@ accountsRouter.post('/api/accounts/connect', requireAuth, async (req, res, next)
  * would be thousands of requests; the mirror already holds the three things a
  * comparison needs.
  */
+/**
+ * What is stored, grouped by whether the storage has an allowance or a bill.
+ *
+ * One request rather than one per account: the figures come from the mirror,
+ * which is what makes a category breakdown across every drive affordable at
+ * all.
+ */
+accountsRouter.get('/api/storage/summary', requireAuth, async (req, res, next) => {
+  try {
+    res.json(await storageSummary(req.user!.id));
+  } catch (err) {
+    next(err);
+  }
+});
+
 accountsRouter.get('/api/duplicates', requireAuth, async (req, res, next) => {
   try {
     const minSizeBytes =

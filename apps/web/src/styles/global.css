@@ -3640,3 +3640,143 @@ body {
   font-size: 13px;
   line-height: 1;
 }
+
+/* --- storage, grouped by what kind of storage it is ----------------------- */
+
+.storage-group {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.storage-group header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.storage-group header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.storage-group header span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* One bar, segments in proportion. Rounded as a whole rather than per segment,
+   so it reads as a single quantity divided up. */
+.cat-bar {
+  display: flex;
+  height: 12px;
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  background: var(--surface-sunken);
+}
+
+.cat-bar span {
+  height: 100%;
+}
+
+.cat-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.3rem 1rem;
+}
+
+.cat-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  min-width: 0;
+}
+
+.cat-legend li > span:first-child {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.cat-legend strong {
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* The file count is the least important of the three, so it goes last and
+   takes whatever room is left. */
+.cat-legend li > span:last-child {
+  margin-left: auto;
+  opacity: 0.75;
+}
+
+.storage-group__accounts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.storage-group__accounts li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1.2fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.storage-group__name {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.storage-group__name strong {
+  font-size: 13.5px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.storage-group__name > span {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.storage-group__meter {
+  display: block;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  overflow: hidden;
+}
+
+.storage-group__meter span {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+}
+
+.storage-group__figure {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 34rem) {
+  /* The meter is the first thing to go: the figure beside it says the same. */
+  .storage-group__accounts li {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .storage-group__meter {
+    display: none;
+  }
+}

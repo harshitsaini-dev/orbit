@@ -4,6 +4,7 @@ import type { PublicAccount } from '@orbit/shared-types';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { AccountCardsSkeleton, Skeleton } from '../components/Skeleton.js';
 import { StorageDonut } from '../components/StorageDonut.js';
+import { StorageGroups } from '../components/StorageGroups.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { ApiError, api } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
@@ -130,6 +131,8 @@ export function Dashboard() {
           </Link>
         </section>
       )}
+
+      {accounts !== null && accounts.length > 0 && <StorageGroups />}
 
       {accounts === null && (
         <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
