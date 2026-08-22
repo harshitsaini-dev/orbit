@@ -140,4 +140,76 @@ test.describe('right-clicking a selection', () => {
     await expect(page.getByRole('menuitem', { name: 'Rename' })).toBeDisabled();
     await expect(page.getByRole('menuitem', { name: 'Details' })).toBeDisabled();
   });
+
+  test('starts a download for every selected file, not just one', async ({ page }) => {
+    // The content requests are answered here so nothing is actually saved to
+    // the runner's disk; what is being checked is that four were started.
+    const asked: string[] = [];
+
+    await page.route('**/api/files/*/content**', (route) => {
+      asked.push(new URL(route.request().url()).searchParams.get('name') ?? '');
+      return route.fulfill({
+        status: 200,
+        headers: { 'content-disposition': 'attachment; filename="x"' },
+        body: 'x',
+      });
+    });
+
+    await page.getByText('alpha.txt').first().click({ modifiers: ['Control'] });
+    await page.getByText('gamma.txt').first().click({ modifiers: ['Shift'] });
+    await page.getByText('gamma.txt').first().click({ button: 'right' });
+
+    await page.getByRole('menuitem', { name: 'Download 3 files' }).click();
+
+    /*
+     * A frame each, spaced out. An anchor each is what this replaced: the
+     * download attribute is ignored cross-origin, so every click was a
+     * top-level navigation and each one aborted the last - four files asked
+     * for, one file downloaded.
+     */
+    await expect.poll(() => asked.length, { timeout: 10_000 }).toBe(3);
+    expect(asked.sort()).toEqual(['alpha.txt', 'beta.txt', 'gamma.txt']);
+  });
+});
+
+test.describe('dragging inside the grid', () => {
+  test.beforeEach(async ({ page }) => {
+    await signIn(page);
+    await stubDrive(page);
+    await page.goto('/my-drive');
+    await expect(page.getByText('alpha.txt')).toBeVisible();
+  });
+
+  test('does not offer to upload what is already in the drive', async ({ page }) => {
+    /*
+     * Chrome puts `Files` in the transfer when an image is dragged, so nudging
+     * a thumbnail across the grid offered to upload the file that thumbnail was
+     * of - and letting go did it, uploading a second copy of something already
+     * there.
+     */
+    await page.evaluate(() => {
+      const transfer = new DataTransfer();
+      transfer.items.add(new File(['x'], 'alpha.txt', { type: 'text/plain' }));
+
+      const tile = document.body;
+      tile.dispatchEvent(new DragEvent('dragstart', { bubbles: true, dataTransfer: transfer }));
+      window.dispatchEvent(
+        new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer: transfer }),
+      );
+    });
+
+    await expect(page.locator('.dropzone')).toBeHidden();
+  });
+
+  test('still offers to upload something dragged in from outside', async ({ page }) => {
+    await page.evaluate(() => {
+      const transfer = new DataTransfer();
+      transfer.items.add(new File(['x'], 'note.txt', { type: 'text/plain' }));
+      window.dispatchEvent(
+        new DragEvent('dragenter', { bubbles: true, cancelable: true, dataTransfer: transfer }),
+      );
+    });
+
+    await expect(page.locator('.dropzone')).toBeVisible();
+  });
 });

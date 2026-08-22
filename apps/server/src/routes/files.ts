@@ -1,6 +1,7 @@
 import { Readable } from 'node:stream';
 import { Router } from 'express';
 import { z } from 'zod';
+import { env } from '../lib/env.js';
 import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
 import { record } from '../services/audit.js';
@@ -209,6 +210,23 @@ filesRouter.get('/api/files/:id/content', requireAuth, async (req, res, next) =>
     if (req.query.download === '1') {
       const name = typeof req.query.name === 'string' ? req.query.name : 'download';
       res.setHeader('content-disposition', `attachment; filename*=UTF-8''${encodeURIComponent(name)}`);
+
+      /*
+       * Framing allowed for the app, and only on this response.
+       *
+       * Downloading several files at once means one hidden frame each: the
+       * `download` attribute on a link is ignored cross-origin, so a link per
+       * file is a top-level navigation per file, and the second one aborts the
+       * first before the provider has answered. Frames do not cancel each
+       * other.
+       *
+       * The blanket SAMEORIGIN would refuse those frames. Relaxing it here
+       * gives nothing away - the response is an attachment, so the browser
+       * downloads it and never renders anything to be clickjacked - and it is
+       * scoped to the app's own origin rather than to anyone.
+       */
+      res.removeHeader('x-frame-options');
+      res.setHeader('content-security-policy', `frame-ancestors 'self' ${env.APP_URL}`);
     }
 
     const stream = Readable.fromWeb(result.stream as Parameters<typeof Readable.fromWeb>[0]);

@@ -388,19 +388,35 @@ export function MyDrive() {
   const [detailing, setDetailing] = useState<OrbitFile | null>(null);
 
   /**
-   * Downloading several things at once.
+   * Downloading one file, or twenty.
    *
-   * One anchor per file, spaced out: browsers treat a burst of clicks as a
-   * popup and drop all but the first, and there is no archive to offer instead
-   * because Orbit never holds the bytes to build one from.
+   * A hidden iframe each, rather than a hidden anchor each. The anchor works
+   * for one file and quietly loses the rest: the content URL is on the API's
+   * own origin, and the `download` attribute is ignored cross-origin - so each
+   * click is a top-level navigation, and starting the second one aborts the
+   * first before the server has answered it. Four files asked for, one file
+   * downloaded.
+   *
+   * An iframe is its own browsing context, so four of them do not cancel each
+   * other; the response says `content-disposition: attachment`, so nothing is
+   * ever rendered in one. They are still spaced out, because a burst reads as a
+   * popup, and removed after long enough for the download to have started -
+   * the transfer belongs to the browser by then, not to the frame.
+   *
+   * There is no archive to offer instead: Orbit never holds the bytes to build
+   * one from. Chrome asks once whether the site may download several files;
+   * refusing that permission stops everything after the first, and no code here
+   * can work around it.
    */
   function downloadAll(files: OrbitFile[]): void {
     files.forEach((file, index) => {
       setTimeout(() => {
-        const link = document.createElement('a');
-        link.href = contentUrl(file, true);
-        link.download = file.name;
-        link.click();
+        const frame = document.createElement('iframe');
+        frame.hidden = true;
+        frame.src = contentUrl(file, true);
+        document.body.append(frame);
+
+        setTimeout(() => frame.remove(), 60_000);
       }, index * 320);
     });
   }

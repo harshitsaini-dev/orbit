@@ -12,6 +12,11 @@ import { useEffect, useState, type ReactNode } from 'react';
  * A file dropped anywhere outside a drop target also makes the browser navigate
  * away to that file, abandoning the page - so `dragover` is cancelled window-
  * wide whether or not this component is showing anything.
+ *
+ * Drags that began inside the page are ignored entirely. Chrome puts `Files` in
+ * the transfer when an `<img>` is dragged, so nudging a thumbnail across the
+ * grid offered to upload the file that thumbnail was already of - and letting
+ * go did it, uploading a second copy of something already in the drive.
  */
 
 /** Whether a drag carries files, as opposed to selected text or a link. */
@@ -34,6 +39,17 @@ export function DropZone({
   const [over, setOver] = useState(false);
 
   useEffect(() => {
+    /*
+     * Set the moment anything in the page starts being dragged, and cleared
+     * when that drag ends. An upload comes from outside the browser, where no
+     * `dragstart` of ours ever fires.
+     */
+    let internal = false;
+
+    function onStart() {
+      internal = true;
+    }
+
     /**
      * Counted rather than toggled: dragging across a child fires `dragleave`
      * for the element being left before `dragenter` for the one being entered,
@@ -42,13 +58,13 @@ export function DropZone({
     let depth = 0;
 
     function onEnter(event: DragEvent) {
-      if (!carriesFiles(event.dataTransfer)) return;
+      if (internal || !carriesFiles(event.dataTransfer)) return;
       depth += 1;
       if (!disabled) setOver(true);
     }
 
     function onOver(event: DragEvent) {
-      if (!carriesFiles(event.dataTransfer)) return;
+      if (internal || !carriesFiles(event.dataTransfer)) return;
       // Without this the browser treats the drop as "open this file", replacing
       // the page with the file's contents and losing whatever was in progress.
       event.preventDefault();
@@ -58,7 +74,7 @@ export function DropZone({
     }
 
     function onLeave(event: DragEvent) {
-      if (!carriesFiles(event.dataTransfer)) return;
+      if (internal || !carriesFiles(event.dataTransfer)) return;
       depth = Math.max(0, depth - 1);
       if (depth === 0) setOver(false);
     }
@@ -66,6 +82,16 @@ export function DropZone({
     function onDrop(event: DragEvent) {
       depth = 0;
       setOver(false);
+
+      // Dropping what the page itself was dragging is not an upload. The
+      // default is still cancelled: without it the browser navigates to the
+      // dropped file and abandons the page either way.
+      if (internal) {
+        event.preventDefault();
+        internal = false;
+        return;
+      }
+
       if (!carriesFiles(event.dataTransfer)) return;
 
       event.preventDefault();
@@ -79,9 +105,12 @@ export function DropZone({
     // would stay up over a page nobody is dragging onto any more.
     const reset = () => {
       depth = 0;
+      internal = false;
       setOver(false);
     };
 
+    // Capture, so it is seen before anything in the page can stop it.
+    window.addEventListener('dragstart', onStart, true);
     window.addEventListener('dragenter', onEnter);
     window.addEventListener('dragover', onOver);
     window.addEventListener('dragleave', onLeave);
@@ -90,6 +119,7 @@ export function DropZone({
     window.addEventListener('blur', reset);
 
     return () => {
+      window.removeEventListener('dragstart', onStart, true);
       window.removeEventListener('dragenter', onEnter);
       window.removeEventListener('dragover', onOver);
       window.removeEventListener('dragleave', onLeave);

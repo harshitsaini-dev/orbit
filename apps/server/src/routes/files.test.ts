@@ -196,6 +196,29 @@ describe('GET /api/files/:id/content', () => {
     assert.match(download.headers.get('content-disposition') ?? '', /attachment/);
     assert.match(download.headers.get('content-disposition') ?? '', /my%20report\.pdf/);
   });
+
+  it('lets the app frame a download, and nothing else', async () => {
+    stub('getFileStream', streamOf('data'));
+
+    // Several files at once means one hidden frame each, and the blanket
+    // SAMEORIGIN would refuse every one of them.
+    const download = await fetch(
+      `${baseUrl}/api/files/f1/content?accountId=${accountId}&download=1&name=a.txt`,
+    );
+
+    assert.equal(download.headers.get('x-frame-options'), null);
+    assert.match(
+      download.headers.get('content-security-policy') ?? '',
+      /frame-ancestors 'self' http:\/\/localhost:5173/,
+    );
+  });
+
+  it('still refuses to be framed when it is not a download', async () => {
+    stub('getFileStream', streamOf('data'));
+
+    const plain = await fetch(`${baseUrl}/api/files/f1/content?accountId=${accountId}`);
+    assert.equal(plain.headers.get('x-frame-options'), 'SAMEORIGIN');
+  });
 });
 
 describe('POST /api/files/folder', () => {

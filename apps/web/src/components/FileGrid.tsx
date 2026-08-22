@@ -302,6 +302,9 @@ function Thumbnail({ file, accountId }: { file: OrbitFile; accountId: string }) 
       src={blobUrl}
       alt=""
       decoding="async"
+      // Nothing in Orbit accepts a dragged thumbnail, and a tile that lifts off
+      // under the pointer fights the rubber-band selection over the same grid.
+      draggable={false}
       style={{
         width: '100%',
         height: '100%',

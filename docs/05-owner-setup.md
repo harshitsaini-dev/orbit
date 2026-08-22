@@ -354,4 +354,4 @@ narrower ping window.
 - [ ] Render service deployed with all environment variables
 - [ ] Cloudflare nameservers active and both CNAMEs added
 - [ ] Vercel project deployed with the custom domain
-- [ ] UptimeRobot monitor running against `/health/ready`
+- [x] UptimeRobot monitor running against `/health/ready` — set up 2026-08-23
