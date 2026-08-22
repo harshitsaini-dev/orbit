@@ -87,6 +87,13 @@ assessment that is not free. Two ways out, neither of which needs verification:
 Start in Testing with the full `drive` scope. Revisit this before opening Orbit up to anyone
 beyond the test-user list.
 
+The consent screen wants two addresses before it will let you publish. Both exist now and are
+public, outside the sign-in gate:
+
+- Homepage: `https://orbit.harshitsaini.in`
+- Privacy policy: `https://orbit.harshitsaini.in/privacy`
+- Terms of use: `https://orbit.harshitsaini.in/terms`
+
 **If you are being asked to reconnect every week, this is why.** Orbit refreshes tokens on a
 schedule and will not drop a connection over a network blip, but nothing on this side can extend
 a refresh token that Google itself expired after seven days.
