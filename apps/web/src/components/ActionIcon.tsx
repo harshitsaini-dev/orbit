@@ -67,3 +67,13 @@ export function ShareIcon({ size = 16 }: { size?: number }) {
     </svg>
   );
 }
+
+export function TransferIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg {...base} width={size} height={size}>
+      {/* Two clouds and an arrow between them. */}
+      <path d="M3.4 9.4a2.8 2.8 0 0 1 2.8-2.6 3.4 3.4 0 0 1 6.4-1 2.6 2.6 0 0 1 .5 5.1H6.2a2.8 2.8 0 0 1-2.8-2.6z" />
+      <path d="M10.4 17.4h8.2M15.8 14.6l2.8 2.8-2.8 2.8" />
+    </svg>
+  );
+}

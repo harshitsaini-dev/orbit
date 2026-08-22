@@ -2,13 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { catalogueEntry } from '@orbit/shared-types';
 import type { OrbitFile, ProviderCapabilities, PublicAccount } from '@orbit/shared-types';
-import { DownloadIcon, OpenIcon, RenameIcon, ShareIcon, StarIcon } from '../components/ActionIcon.js';
+import { DownloadIcon, OpenIcon, RenameIcon, ShareIcon, StarIcon, TransferIcon } from '../components/ActionIcon.js';
 import { FileIcon } from '../components/FileIcon.js';
 import { FilePreview } from '../components/FilePreview.js';
 import { Checkbox } from '../components/Checkbox.js';
 import { ContextMenu, useContextMenu, type MenuItem } from '../components/ContextMenu.js';
 import { DropZone } from '../components/DropZone.js';
 import { AddToCollection } from '../components/AddToCollection.js';
+import { TransferDialog } from '../components/TransferDialog.js';
 import { ShareDialog } from '../components/ShareDialog.js';
 import { FileGrid } from '../components/FileGrid.js';
 import {
@@ -358,6 +359,7 @@ export function MyDrive() {
   const menu = useContextMenu<OrbitFile>();
   const [sharing, setSharing] = useState<OrbitFile | null>(null);
   const [collecting, setCollecting] = useState<OrbitFile | null>(null);
+  const [transferring, setTransferring] = useState<OrbitFile | null>(null);
 
   /**
    * What the right-click menu offers for one file. Built here rather than in
@@ -398,6 +400,13 @@ export function MyDrive() {
         onSelect: () => setSharing(file),
         // A folder has no single stream to serve, so there is nothing to share.
         disabled: file.isFolder,
+      },
+      {
+        label: 'Send to another cloud',
+        icon: <TransferIcon />,
+        onSelect: () => setTransferring(file),
+        // A folder has no single stream to move; the files inside it do.
+        disabled: file.isFolder || (accounts?.length ?? 0) < 2,
       },
       {
         label: 'Add to collection',
@@ -1035,6 +1044,16 @@ export function MyDrive() {
           </p>
         )}
       </section>
+
+      {transferring && (
+        <TransferDialog
+          file={transferring}
+          fromAccountId={accountId}
+          accounts={accounts ?? []}
+          onClose={() => setTransferring(null)}
+          onQueued={() => undefined}
+        />
+      )}
 
       {collecting && (
         <AddToCollection file={collecting} accountId={accountId} onClose={() => setCollecting(null)} />

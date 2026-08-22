@@ -30,7 +30,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 14 | Unified storage dashboard | 🟢 Done |
 | 15 | Collections (virtual folders) | 🟢 Done |
 | 16 | Metadata viewers + remaining previewers | 🟡 Code, CSV, PDF, Office, archives, fonts, markdown done · EXIF, hex, 3D pending |
-| 17 | Cross-cloud transfer engine | 🟡 Engine and API done · UI pending |
+| 17 | Cross-cloud transfer engine | 🟢 Done |
 | 18 | Cross-cloud duplicate finder | ⚪ Designed, not started |
 | 19 | Scheduled jobs | ⚪ Designed, not started |
 | 20 | Automatic tagging by OCR | ⚪ Designed, not started |
