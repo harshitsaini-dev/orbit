@@ -298,6 +298,12 @@ verification both platforms run.
    - The rewrite sends every unknown path to `index.html`, and only unknown ones: Vercel checks
      the filesystem first, so the service worker, the icons and the hashed bundles are still
      served as themselves.
+   - The content-security-policy names the API origin in **three** directives, not one.
+     `connect-src` covers everything fetched - listings, thumbnails, text, archives - but a
+     preview points an `<img src>` and a `<video src>` straight at `/api/files/:id/content`,
+     and those are `img-src` and `media-src`. Naming only `connect-src` produced a grid full of
+     working thumbnails (fetched, then shown from a `blob:` URL) around a preview that would
+     not load, which reads as a broken file rather than a blocked request.
 
 4. **Environment Variables** → `VITE_API_URL` = `https://api.orbit.harshitsaini.in`
 

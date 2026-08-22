@@ -16,7 +16,7 @@
       "headers": [
         {
           "key": "content-security-policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:; connect-src 'self' https://api.orbit.harshitsaini.in wss://api.orbit.harshitsaini.in; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://api.orbit.harshitsaini.in; font-src 'self' data:; media-src 'self' blob: https://api.orbit.harshitsaini.in; worker-src 'self' blob:; connect-src 'self' https://api.orbit.harshitsaini.in wss://api.orbit.harshitsaini.in; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
         },
         {
           "key": "x-content-type-options",
