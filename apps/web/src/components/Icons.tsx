@@ -86,6 +86,14 @@ export const PersonIcon = ({ size }: IconProps) => (
   </Icon>
 );
 
+/** A shield: the admin surface, which only a superadmin ever sees. */
+export const ShieldIcon = ({ size }: IconProps) => (
+  <Icon size={size}>
+    <path d="M12 3.2 5.4 6v5.4c0 4 2.7 7.7 6.6 9.4 3.9-1.7 6.6-5.4 6.6-9.4V6z" />
+    <path d="M9.4 12.2 11.3 14l3.3-3.6" />
+  </Icon>
+);
+
 export const UploadFileIcon = ({ size }: IconProps) => (
   <Icon size={size}>
     <path d="M13.4 3.4H7a1.8 1.8 0 0 0-1.8 1.8v13.6A1.8 1.8 0 0 0 7 20.6h10a1.8 1.8 0 0 0 1.8-1.8V8.8z" />

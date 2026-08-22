@@ -16,6 +16,7 @@ import {
   UploadFileIcon,
   SharedDrivesIcon,
   SharedIcon,
+  ShieldIcon,
   StarOutlineIcon,
   LinkIcon,
   TrashBinIcon,
@@ -132,6 +133,8 @@ const PATHS = new Set([
 
 function Workspace({ online }: { online: boolean }) {
   const { pathname } = useLocation();
+  // Only for deciding whether the admin surface is offered at all.
+  const { user } = useAuth();
   const [spotlight, setSpotlight] = useState(false);
   const [accounts, setAccounts] = useState<PublicAccount[]>([]);
 
@@ -207,6 +210,22 @@ function Workspace({ online }: { online: boolean }) {
               {label}
             </NavLink>
           ))}
+
+          {/*
+            * Shown to a superadmin and to nobody else.
+            *
+            * The page has always been there and nothing linked to it, so the
+            * only way in was typing the address - which is a poor way to reach
+            * a page somebody is meant to use. Hiding it from everyone else
+            * matches the API, which answers 404 rather than 403 so the admin
+            * surface is not confirmed to exist.
+            */}
+          {user?.role === 'superadmin' && (
+            <NavLink to="/admin" className="app-nav__link">
+              <ShieldIcon />
+              Admin
+            </NavLink>
+          )}
         </nav>
 
         <main className="app-main">
