@@ -22,7 +22,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 6 | Sync engine | 🟢 Done |
 | 7 | Sharing + QR | 🟢 Done |
 | 8 | RBAC + superadmin | 🟢 Done |
-| 9 | Design pass (Claymorphism, three.js, PWA) | ⚪ Not started |
+| 9 | Design pass (Claymorphism, three.js, PWA) | 🟡 Five parts done · motion pass and the My Drive toolbar remain |
 | 10 | Hardening + deploy | 🟡 Hardening done · deploy waits on the owner's sign-ups |
 | 11 | Developer platform (public API, tokens, OAuth apps, API docs tab) | 🟡 Tokens, `/v1`, Developer tab and API docs done · OAuth apps and webhooks pending |
 | 12 | Instant directory cache + offline browsing | 🟢 Done |
@@ -102,10 +102,10 @@ NULLs as distinct, so those never deduplicate: merging two connections that only
 | Check | Result |
 |---|---|
 | `npm run typecheck --workspaces` | clean |
-| `npm test --workspaces` | 857 pass, 0 fail |
+| `npm test --workspaces` | 863 pass, 0 fail |
 | `npm run lint` | 0 errors |
 | `npm run build --workspaces` | clean |
-| `npx playwright test` (headed) | 219 pass, 0 fail across desktop, tablet and mobile |
+| `npx playwright test` (headed) | 222 pass, 0 fail across desktop, tablet and mobile |
 
 Verified against the live account: 842 files, 11.9 GB scanned, categories summing exactly to the
 provider's own usage figure once the trash allowance is included. The EXIF reader was checked
