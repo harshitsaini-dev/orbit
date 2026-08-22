@@ -316,13 +316,31 @@ verification both platforms run.
 
 ---
 
-## 7. UptimeRobot — keeping the backend warm (optional)
+## 7. UptimeRobot — keeping the backend awake
 
-Render's free instance sleeps after 15 minutes idle, so the first visit of the day is slow.
+Not optional in practice. Render's free instance stops after 15 minutes with no requests, and
+that costs more than a slow first visit:
+
+- A cold start is 30–60 seconds, which reads as a broken site rather than a waking one.
+- The background passes only run while the process is alive. The sync tick, the shared drive
+  measurements and the scheduled jobs are all `node-cron` inside the API, so a sleeping
+  instance simply misses them — a drive that should have been measured hours ago still says
+  "not measured yet".
 
 1. Sign up at <https://uptimerobot.com/> (free, no card).
-2. **Add New Monitor** → type *HTTP(s)*, URL `https://api.orbit.harshitsaini.in/health`,
-   interval 5 minutes.
+2. **Add New Monitor** → type *HTTP(s)*, URL `https://api.orbit.harshitsaini.in/health/ready`,
+   interval 5 minutes. `/health/ready` checks the database and returns; it touches no provider.
+3. Leave alerts on and put the address in — a monitor nobody hears from is a monitor that has
+   been failing for a week.
+
+`.github/workflows/keepalive.yml` does the same thing every ten minutes as a backstop. It is
+second best on purpose: GitHub delays scheduled runs when it is busy, and turns the schedule
+off on a repository with no commits for sixty days.
+
+**The cost.** Render's free plan is 750 instance-hours a month and a month is about 730, so one
+service kept awake around the clock fits — with nothing left over for a second one. Orbit only
+runs the API there, so this is fine; anything else added later needs a different plan or a
+narrower ping window.
 
 ---
 
@@ -336,4 +354,4 @@ Render's free instance sleeps after 15 minutes idle, so the first visit of the d
 - [ ] Render service deployed with all environment variables
 - [ ] Cloudflare nameservers active and both CNAMEs added
 - [ ] Vercel project deployed with the custom domain
-- [ ] UptimeRobot monitor running
+- [ ] UptimeRobot monitor running against `/health/ready`

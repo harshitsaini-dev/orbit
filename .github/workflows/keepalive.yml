@@ -1,0 +1,47 @@
+# Keeps the API awake.
+#
+# The API runs on a free host that stops the instance after fifteen minutes with
+# no requests, and a cold start is somewhere between thirty seconds and a minute
+# - long enough that the first person to open Orbit after a quiet evening thinks
+# it is broken. It also means the background passes never run: the sync tick and
+# the shared drive measurements only fire while the process is alive.
+#
+# A request every ten minutes is enough to keep it up. /health/ready is the
+# cheapest thing to ask for - it checks the database and returns, touching no
+# provider.
+#
+# This is a backstop, not the main line of defence: GitHub delays scheduled runs
+# when it is busy, and switches the schedule off entirely on a repository with
+# no commits for sixty days. An uptime monitor is the thing that should really
+# be doing this; see docs/05-owner-setup.md.
+
+name: keepalive
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+# Nothing is read and nothing is written; this only makes an outbound request.
+permissions: {}
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wake the API
+        run: |
+          # --max-time well above a cold start, so a run that woke a sleeping
+          # instance waits for it rather than reporting a failure it caused.
+          code=$(curl --silent --show-error --location \
+            --max-time 120 --retry 2 --retry-delay 15 \
+            --output /dev/null --write-out '%{http_code}' \
+            https://api.orbit.harshitsaini.in/health/ready)
+
+          echo "health/ready answered $code"
+          test "$code" = "200"
