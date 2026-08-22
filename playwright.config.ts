@@ -60,6 +60,17 @@ export default defineConfig({
         // refused under NODE_ENV=production.
         AUTH_MODE: 'hosted',
         ENABLE_DEV_AUTH_ENDPOINTS: 'true',
+        /*
+         * Empty, not absent.
+         *
+         * `.env` is read by the server it starts, and dotenv fills in any key
+         * that is missing - so a developer with a real Resend key watched this
+         * suite try to send an actual email to `user-abc@example.com`, get
+         * refused by Resend for using a reserved domain, and fail every test
+         * that signs in. Present-but-empty is left alone by dotenv and chooses
+         * the console transport the dev outbox reads from.
+         */
+        RESEND_API_KEY: '',
         TOKEN_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
         SESSION_SECRET: 'e2e-session-secret',
         DATABASE_URL: E2E_DB_URL,

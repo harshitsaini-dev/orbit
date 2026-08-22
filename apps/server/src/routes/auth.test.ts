@@ -6,7 +6,19 @@ import { after, before, beforeEach, describe, it } from 'node:test';
 process.env.AUTH_MODE = 'hosted';
 process.env.TOKEN_ENCRYPTION_KEY ??= Buffer.alloc(32, 7).toString('base64');
 process.env.SESSION_SECRET ??= 'test-session-secret';
-delete process.env.RESEND_API_KEY;
+/*
+ * Emptied rather than deleted.
+ *
+ * `.env` is loaded when lib/env.js is imported, and dotenv fills in any key
+ * that is *absent* from process.env - so deleting this one invited the real
+ * key straight back in, and a developer who had one in their .env watched
+ * this suite try to send eight actual emails and then fail, because the
+ * console transport is what these tests read the code back from.
+ *
+ * An empty string is present, so dotenv leaves it alone, and it is falsy, so
+ * the console transport is chosen.
+ */
+process.env.RESEND_API_KEY = '';
 // The limiter has its own test below; give the rest of the suite headroom.
 process.env.AUTH_RATE_LIMIT = '10000';
 

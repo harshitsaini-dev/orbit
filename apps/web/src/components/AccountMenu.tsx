@@ -78,33 +78,17 @@ export function AccountMenu() {
       <button
         ref={buttonRef}
         type="button"
-        className="clay-button"
+        // Styled from CSS rather than inline: the width has to shrink on a
+        // phone, and an inline max-width cannot be overridden by a media query.
+        className="clay-button account-trigger"
         aria-haspopup="menu"
         aria-label="Account menu"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((current) => !current)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          padding: '0.3rem 0.75rem 0.3rem 0.3rem',
-          borderRadius: 'var(--radius-pill)',
-          maxWidth: 220,
-        }}
       >
         <Avatar user={user} size={30} />
-        <span
-          data-testid="current-user"
-          style={{
-            fontSize: 13,
-            fontWeight: 500,
-            color: 'var(--text-muted)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-          }}
-        >
+        <span data-testid="current-user" className="account-trigger__name">
           {user.displayName || user.email}
         </span>
       </button>

@@ -182,6 +182,26 @@ h3 {
   }
 }
 
+/* The avatar and the address, as one control. */
+.account-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.3rem 0.75rem 0.3rem 0.3rem;
+  border-radius: var(--radius-pill);
+  max-width: 220px;
+  min-width: 0;
+}
+
+.account-trigger__name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 480px) {
   /*
    * One row, not two.
@@ -193,6 +213,13 @@ h3 {
    * without losing meaning.
    */
   .app-header {
+    /*
+     * nowrap on the header itself, not only on the actions inside it. With
+     * only the inner row pinned, a long address still pushed the whole group
+     * below the brand - which is the stacking this rule exists to prevent, and
+     * it only showed up on a machine whose fonts made the name wider.
+     */
+    flex-wrap: nowrap;
     gap: 0.5rem;
     padding: 0.5rem 0.75rem;
   }
@@ -203,8 +230,10 @@ h3 {
     min-width: 0;
   }
 
-  .app-header__actions > button[aria-label='Account menu'] {
-    max-width: 132px;
+  /* Whatever is left after the search and the upload ring; the address
+     truncates rather than the row growing. */
+  .account-trigger {
+    max-width: 118px;
   }
 }
 
