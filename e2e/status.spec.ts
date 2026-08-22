@@ -15,6 +15,10 @@ test.describe('status screens', () => {
 
     await expect(page.getByRole('heading', { name: 'That page does not exist' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Back to your workspace' })).toBeVisible();
+
+    // The whole viewport, not a panel beside a working sidebar. Drawn in the
+    // content area it reads as one broken widget and people click past it.
+    await expect(page.getByRole('navigation', { name: 'Workspace' })).toHaveCount(0);
   });
 
   test('a server fault blames the server, not the visitor', async ({ page }) => {

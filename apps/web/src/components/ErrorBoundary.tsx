@@ -34,14 +34,11 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!this.state.failed) return this.props.children;
 
     return (
-      <div className="status-shell">
-        <StatusScreen
-          kind="server-error"
-          standalone
-          detail="Orbit hit an unexpected error while drawing this page. Your files are untouched — nothing is stored here in the first place."
-          onRetry={() => this.setState({ failed: false })}
-        />
-      </div>
+      <StatusScreen
+        kind="server-error"
+        detail="Orbit hit an unexpected error while drawing this page. Your files are untouched — nothing is stored here in the first place."
+        onRetry={() => this.setState({ failed: false })}
+      />
     );
   }
 }

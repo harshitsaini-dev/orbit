@@ -56,52 +56,65 @@ interface Props {
   detail?: string | undefined;
   /** Shown when there is something worth retrying without a full reload. */
   onRetry?: (() => void) | undefined;
-  /** Fills the viewport rather than sitting inside the workspace shell. */
-  standalone?: boolean;
 }
 
-export function StatusScreen({ kind, detail, onRetry, standalone = false }: Props) {
+/**
+ * Always the whole viewport, never a panel inside the workspace.
+ *
+ * A page that failed to load is not one of several things on screen - it is
+ * what happened. Drawn in the content area beside a working sidebar it reads as
+ * one broken widget, and people click past it; drawn as the screen it reads as
+ * the state the app is actually in, which is the true one.
+ *
+ * That is also why the brand mark is here rather than only when signed out:
+ * covering the viewport takes the header with it, and a full-screen message
+ * with nothing identifying it could have come from anywhere.
+ */
+export function StatusScreen({ kind, detail, onRetry }: Props) {
   const copy = COPY[kind];
 
   return (
-    <section
-      className="clay status-screen"
-      role={kind === 'not-found' ? undefined : 'alert'}
-      data-status={kind}
-      style={standalone ? { margin: 'auto', maxWidth: 560 } : undefined}
-    >
-      {standalone && (
+    <div className="status-shell">
+      <section
+        className="clay status-screen"
+        role={kind === 'not-found' ? undefined : 'alert'}
+        data-status={kind}
+        style={{ margin: 'auto', maxWidth: 560 }}
+      >
         <span className="status-screen__brand">
           <BrandMark size={26} />
           <strong>Orbit</strong>
         </span>
-      )}
 
-      <span className={`status-screen__glyph status-screen__glyph--${copy.tone}`} aria-hidden="true">
-        {copy.glyph}
-      </span>
+        <span
+          className={`status-screen__glyph status-screen__glyph--${copy.tone}`}
+          aria-hidden="true"
+        >
+          {copy.glyph}
+        </span>
 
-      <h1>{copy.title}</h1>
-      <p>{detail ?? copy.body}</p>
+        <h1>{copy.title}</h1>
+        <p>{detail ?? copy.body}</p>
 
-      <div className="status-screen__actions">
-        {onRetry && (
-          <button type="button" className="clay-button clay-button--accent" onClick={onRetry}>
-            Try again
-          </button>
-        )}
+        <div className="status-screen__actions">
+          {onRetry && (
+            <button type="button" className="clay-button clay-button--accent" onClick={onRetry}>
+              Try again
+            </button>
+          )}
 
-        {kind === 'denied' ? (
-          <Link to="/login" className="clay-button">
-            Sign in
-          </Link>
-        ) : (
-          <Link to="/" className="clay-button">
-            Back to your workspace
-          </Link>
-        )}
-      </div>
-    </section>
+          {kind === 'denied' ? (
+            <Link to="/login" className="clay-button">
+              Sign in
+            </Link>
+          ) : (
+            <Link to="/" className="clay-button">
+              Back to your workspace
+            </Link>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
 

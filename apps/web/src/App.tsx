@@ -90,7 +90,34 @@ function RequireSuperadmin({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * Every address the workspace actually has.
+ *
+ * Kept beside the route table rather than derived from it because it answers a
+ * different question: not "what draws here" but "is this a page at all". An
+ * address that is not one gets the whole screen to say so, rather than a panel
+ * beside a working sidebar - drawn in the content area a 404 reads as one
+ * broken widget, and people click past it.
+ */
+const PATHS = new Set([
+  '/',
+  '/my-drive',
+  '/recent',
+  '/starred',
+  '/shared-with-me',
+  '/collections',
+  '/duplicates',
+  '/schedules',
+  '/quota',
+  '/uploads',
+  '/account',
+  '/developer',
+  '/developer/docs',
+  '/admin',
+]);
+
 function Workspace({ online }: { online: boolean }) {
+  const { pathname } = useLocation();
   const [spotlight, setSpotlight] = useState(false);
   const [accounts, setAccounts] = useState<PublicAccount[]>([]);
 
@@ -107,6 +134,9 @@ function Workspace({ online }: { online: boolean }) {
       .catch(() => undefined);
     return () => controller.abort();
   }, []);
+
+  // Before the shell, not inside it: the point is that there is no page here.
+  if (!PATHS.has(pathname)) return <StatusScreen kind="not-found" />;
 
   return (
     <div className="app-shell">
@@ -188,7 +218,6 @@ function Workspace({ online }: { online: boolean }) {
                 </RequireSuperadmin>
               }
             />
-            <Route path="*" element={<StatusScreen kind="not-found" />} />
           </Routes>
         </main>
       </div>
@@ -212,11 +241,7 @@ export function App() {
    * answer.
    */
   if (!online && !user) {
-    return (
-      <div className="status-shell">
-        <StatusScreen kind="offline" standalone />
-      </div>
-    );
+    return <StatusScreen kind="offline" />;
   }
 
   const workspace = (
