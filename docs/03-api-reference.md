@@ -292,6 +292,22 @@ rather than erroring or duplicating.
 ### `DELETE /api/collections/:id/items/:itemId`
 `204`. Removes the reference. The file is not touched.
 
+### `PUT /api/allocation`
+`{ strategy }` → `204`. One of `round_robin`, `weighted_round_robin`, `least_used`, `most_free`,
+`manual`.
+
+### `PUT /api/accounts/:id/weight`
+`{ weight }` (0-100) → `204`. Read only by `weighted_round_robin`. Zero means never, which parks an
+account without disconnecting it.
+
+### `PUT /api/allocation/order`
+`{ order: [accountId] }` → `204`. The list `manual` walks.
+
+### `POST /api/uploads`
+`accountId` is now **optional**. Omitted, Orbit picks using the strategy above and returns the
+account it chose. `507 no_room` when nothing has space — said before a byte moves rather than
+partway through the transfer.
+
 ### `WS /ws`
 Channel pub/sub. Client frames: `{"type":"subscribe","channel":"..."}`, `unsubscribe`, `ping`.
 Server frames: `upload:progress`, `upload:complete`, `upload:error`, `sync:status`.

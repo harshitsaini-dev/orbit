@@ -18,7 +18,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 2 | First adapter — Google Drive | 🟢 Done |
 | 3 | Remaining adapters (OneDrive, Dropbox, MEGA, pCloud, S3) | 🟡 S3, OneDrive, Dropbox done · GCS, Azure, Bunny, MEGA, pCloud pending |
 | 4 | Unified workspace views | 🟢 Done |
-| 5 | Upload system + WebSocket progress + allocation | 🟡 Upload and progress done · allocation strategies pending |
+| 5 | Upload system + WebSocket progress + allocation | 🟢 Done |
 | 6 | Sync engine | ⚪ Not started |
 | 7 | Sharing + QR | 🟢 Done |
 | 8 | RBAC + superadmin | ⚪ Not started |

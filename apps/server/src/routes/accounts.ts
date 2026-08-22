@@ -11,6 +11,11 @@ import {
 } from '../lib/oauth.js';
 import { requireAuth } from '../middleware/auth.js';
 import {
+  setAccountPriority,
+  setAccountWeight,
+  setStrategy,
+} from '../services/allocation.js';
+import {
   createAccount,
   deleteAccount,
   listAccounts,
@@ -316,6 +321,65 @@ accountsRouter.post('/api/accounts/connect', requireAuth, async (req, res, next)
       });
       return;
     }
+    next(err);
+  }
+});
+
+// --- where uploads go -----------------------------------------------------
+
+const strategySchema = z.object({
+  strategy: z.enum(['round_robin', 'weighted_round_robin', 'least_used', 'most_free', 'manual']),
+});
+
+accountsRouter.put('/api/allocation', requireAuth, async (req, res, next) => {
+  const parsed = strategySchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: { code: 'invalid_request', message: 'Unknown strategy' } });
+    return;
+  }
+
+  try {
+    await setStrategy(req.user!.id, parsed.data.strategy);
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+const weightSchema = z.object({ weight: z.number().int().min(0).max(100) });
+
+accountsRouter.put('/api/accounts/:id/weight', requireAuth, async (req, res, next) => {
+  const parsed = weightSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: { code: 'invalid_request', message: 'Weight must be 0 to 100' } });
+    return;
+  }
+
+  try {
+    const updated = await setAccountWeight(req.user!.id, req.params.id ?? '', parsed.data.weight);
+    if (!updated) {
+      res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
+      return;
+    }
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+const orderSchema = z.object({ order: z.array(z.string().min(1)).max(50) });
+
+accountsRouter.put('/api/allocation/order', requireAuth, async (req, res, next) => {
+  const parsed = orderSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: { code: 'invalid_request', message: 'Malformed order' } });
+    return;
+  }
+
+  try {
+    await setAccountPriority(req.user!.id, parsed.data.order);
+    res.status(204).end();
+  } catch (err) {
     next(err);
   }
 });

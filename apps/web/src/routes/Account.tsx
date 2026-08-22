@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import type { PublicUser, ThemeMode } from '@orbit/shared-types';
+import type { PublicAccount, PublicUser, ThemeMode } from '@orbit/shared-types';
+import { AllocationSettings } from '../components/AllocationSettings.js';
 import { Avatar } from '../components/Avatar.js';
 import { api, ApiError } from '../lib/api.js';
 import { toAvatarDataUrl } from '../lib/image.js';
@@ -11,10 +12,21 @@ export function Account() {
   const { setTheme, setAccent } = useTheme();
 
   const [name, setName] = useState(user?.displayName ?? '');
+  // Loaded here rather than passed in: the allocation panel needs the weights
+  // and the free space, which the profile does not carry.
+  const [accounts, setAccounts] = useState<PublicAccount[]>([]);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    api<{ accounts: PublicAccount[] }>('/api/accounts', { signal: controller.signal })
+      .then(({ accounts: rows }) => setAccounts(rows))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     setName(user?.displayName ?? '');
@@ -149,6 +161,14 @@ export function Account() {
           </p>
         )}
       </section>
+
+      {user && (
+        <AllocationSettings
+          strategy={user.allocationStrategy}
+          accounts={accounts}
+          onChanged={() => void refresh()}
+        />
+      )}
 
       <section
         className="clay"

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { UploadSession } from '@orbit/shared-types';
 import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
+import { chooseAccount, recordUpload } from '../services/allocation.js';
 import { forgetBreakdown } from '../services/breakdown.js';
 import { hub } from '../lib/ws.js';
 
@@ -36,7 +37,11 @@ function sweep(now = Date.now()): void {
 }
 
 const initBody = z.object({
-  accountId: z.string().min(1),
+  /**
+   * Omitted to let Orbit decide. Several drives behaving as one only works if
+   * something can pick, and the user's chosen strategy is that something.
+   */
+  accountId: z.string().min(1).optional(),
   path: z.string().default('/'),
   name: z.string().trim().min(1).max(255),
   sizeBytes: z.number().int().nonnegative(),
@@ -53,7 +58,24 @@ uploadsRouter.post('/api/uploads', requireAuth, async (req, res, next) => {
   try {
     sweep();
 
-    const active = await useAccount(req.user!.id, parsed.data.accountId);
+    let accountId = parsed.data.accountId;
+
+    if (!accountId) {
+      const chosen = await chooseAccount(req.user!.id, parsed.data.sizeBytes);
+      if (!chosen) {
+        // Told before a byte moves rather than partway through the transfer.
+        res.status(507).json({
+          error: {
+            code: 'no_room',
+            message: 'No connected account has room for this file.',
+          },
+        });
+        return;
+      }
+      accountId = chosen.account.id;
+    }
+
+    const active = await useAccount(req.user!.id, accountId);
     if (!active) {
       res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
       return;
@@ -68,7 +90,7 @@ uploadsRouter.post('/api/uploads', requireAuth, async (req, res, next) => {
     const uploadId = nanoid();
     pending.set(uploadId, {
       userId: req.user!.id,
-      accountId: parsed.data.accountId,
+      accountId,
       session,
       name: parsed.data.name,
       totalBytes: parsed.data.sizeBytes,
@@ -78,7 +100,9 @@ uploadsRouter.post('/api/uploads', requireAuth, async (req, res, next) => {
 
     res.status(201).json({
       uploadId,
-      accountId: parsed.data.accountId,
+      // Returned even when the caller supplied it, so a client that let Orbit
+      // choose learns where the file is going.
+      accountId,
       chunkSize: session.chunkSize,
       // The channel is scoped to the upload, so one client cannot watch another's.
       wsChannel: `upload:${uploadId}`,
@@ -162,6 +186,9 @@ uploadsRouter.put(
       pending.delete(uploadId);
       // The cached breakdown no longer reflects what is stored.
       forgetBreakdown(upload.userId, upload.accountId);
+      // What the upload actually cost. least_used reads this, and the storage
+      // figures drift from reality between quota refreshes without it.
+      void recordUpload(upload.userId, upload.accountId, upload.totalBytes);
 
       if (result.file) {
         hub.publish(`upload:${uploadId}`, {
