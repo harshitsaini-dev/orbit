@@ -118,8 +118,13 @@ there tells Google the app uses a restricted scope and can flip it into a state 
 assessment done.
 
 **One step people miss.** A refresh token issued while the app was in Testing keeps its seven-day
-expiry - publishing does not repair it. Disconnect the drive in Orbit and connect it again, so
-Google issues a fresh one.
+expiry - publishing does not repair it. Connect the drive again from **Quota**, which replaces the
+token in place.
+
+**Do not disconnect first.** Connecting an account Orbit already has updates that row rather than
+making a second one, so the reconnect costs nothing. Disconnecting cascades: the share links for
+that drive, the collection items pointing into it, its transfer history and any grants given to
+other people are all deleted with it, and none of that comes back when it is reconnected.
 
 The fix worth trying: **OAuth consent screen → Publishing status → Publish app**. Moving out of
 Testing removes the seven-day expiry. The app stays unverified until you go through Google's
