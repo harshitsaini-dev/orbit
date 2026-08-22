@@ -13,6 +13,7 @@ export type PreviewKind =
   | 'presentation'
   | 'archive'
   | 'font'
+  | 'model'
   | 'none';
 
 /** Office formats, by extension and by the mime types providers report. */
@@ -39,6 +40,15 @@ const OFFICE_MIMES: Record<string, PreviewKind> = {
 };
 
 const FONT_EXTENSIONS = new Set(['ttf', 'otf', 'woff', 'woff2']);
+
+/**
+ * What the 3D viewer has a loader for.
+ *
+ * FBX and USDZ are the obvious omissions. Both are common and neither is worth
+ * the parser: FBX is a proprietary format read through a large converter, and
+ * USDZ is a ZIP whose contents need a renderer Orbit does not have.
+ */
+const MODEL_EXTENSIONS = new Set(['glb', 'gltf', 'obj', 'stl', 'ply']);
 
 /**
  * What the archive viewer can open. RAR is listed but not extracted - its
@@ -120,6 +130,9 @@ export function previewKindFor(file: Pick<OrbitFile, 'mimeType' | 'name' | 'size
   if (office) return office;
 
   if (FONT_EXTENSIONS.has(extension)) return 'font';
+  // Before text: an .obj, a .gltf and an ASCII .stl are all readable as text,
+  // and showing a model's vertex list is not showing the model.
+  if (MODEL_EXTENSIONS.has(extension)) return 'model';
 
   // Archives are listed rather than downloaded, so size does not bar them -
   // except a .tar.gz, which has to be decompressed from the start to be read at

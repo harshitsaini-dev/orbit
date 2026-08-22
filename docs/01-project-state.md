@@ -29,7 +29,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 13 | Spotlight (Ctrl/Cmd + K) | 🟢 Done |
 | 14 | Unified storage dashboard | 🟢 Done |
 | 15 | Collections (virtual folders) | 🟢 Done |
-| 16 | Metadata viewers + remaining previewers | 🟡 Code, CSV, PDF, Office, archives, fonts, markdown done · EXIF, hex, 3D pending |
+| 16 | Metadata viewers + remaining previewers | 🟢 Done — code, CSV, PDF, Office, archives, fonts, markdown, EXIF, hex and 3D |
 | 17 | Cross-cloud transfer engine | 🟢 Done |
 | 18 | Cross-cloud duplicate finder | 🟢 Done |
 | 19 | Scheduled jobs | 🟢 Done |
@@ -96,17 +96,20 @@ the provider offers no stable identity store `NULL` there, and SQLite counts
 NULLs as distinct, so those never deduplicate: merging two connections that only
 *might* be the same is worse than keeping a duplicate.
 
-## Verification (last run, 2026-08-21)
+## Verification (last run, 2026-08-22)
 
 | Check | Result |
 |---|---|
 | `npm run typecheck --workspaces` | clean |
-| `npm test --workspaces` | 248 pass, 0 fail |
+| `npm test --workspaces` | 793 pass, 0 fail |
+| `npm run lint` | 0 errors |
+| `npm run build --workspaces` | clean |
+| `npx playwright test` (headed) | 117 pass, 0 fail across desktop, tablet and mobile - last run 2026-08-21 |
 
 Verified against the live account: 842 files, 11.9 GB scanned, categories summing exactly to the
-provider's own usage figure once the trash allowance is included.
-| `npm run build --workspaces` | clean |
-| `npx playwright test` (headed) | 117 pass, 0 fail across desktop, tablet and mobile |
+provider's own usage figure once the trash allowance is included. The EXIF reader was checked
+against a real photo out of that Drive over the live content route, and the share page's viewer
+against a model and a binary in a real browser.
 
 ## Designed but not built
 

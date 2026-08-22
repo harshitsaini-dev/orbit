@@ -10,6 +10,8 @@ import { CsvViewer } from './CsvViewer.js';
 import { FileIcon } from './FileIcon.js';
 import { ImageViewer } from './ImageViewer.js';
 import { MediaPlayer } from './MediaPlayer.js';
+import { ModelViewer } from './ModelViewer.js';
+import { HexViewer } from './HexViewer.js';
 import { PdfViewer } from './PdfViewer.js';
 import { formatBytes } from '../lib/format.js';
 import { previewKindFor, TEXT_PREVIEW_LIMIT } from '../lib/preview.js';
@@ -212,6 +214,10 @@ export function FileViewer({
     return <FontViewer src={src} name={file.name} />;
   }
 
+  if (kind === 'model') {
+    return <ModelViewer src={src} name={file.name} sizeBytes={file.sizeBytes} />;
+  }
+
   if (kind === 'markdown') {
     return <TextPreview src={src} name={file.name} markdown />;
   }
@@ -267,6 +273,16 @@ function TextPreview({ src, name, markdown = false }: { src: string; name: strin
 
 function NoPreview({ file, contentUrl }: { file: OrbitFile; contentUrl: Props['contentUrl'] }) {
   const isGoogleDoc = file.mimeType.startsWith('application/vnd.google-apps.');
+  const [bytes, setBytes] = useState(false);
+
+  /*
+   * Google's own formats hold no bytes of their own - the content route asks
+   * Drive to export one - so there is nothing to inspect, and offering it would
+   * show the export rather than the file.
+   */
+  if (bytes && !isGoogleDoc) {
+    return <HexViewer src={contentUrl(file, false)} name={file.name} sizeBytes={file.sizeBytes} />;
+  }
 
   return (
     <div
@@ -280,9 +296,20 @@ function NoPreview({ file, contentUrl }: { file: OrbitFile; contentUrl: Props['c
           ? 'Google documents are converted to an Office format on download, which no browser renders inline.'
           : `${file.mimeType || 'This file type'} cannot be shown in the browser.`}
       </p>
-      <a className="clay-button clay-button--accent" href={contentUrl(file, true)} style={{ textDecoration: 'none' }}>
-        Download
-      </a>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+        <a className="clay-button clay-button--accent" href={contentUrl(file, true)} style={{ textDecoration: 'none' }}>
+          Download
+        </a>
+
+        {/* The bytes answer "what actually is this?" for a file whose name and
+            type disagree, which is most of what reaches this screen. */}
+        {!isGoogleDoc && file.sizeBytes > 0 && (
+          <button type="button" className="clay-button" onClick={() => setBytes(true)}>
+            Show bytes
+          </button>
+        )}
+      </div>
     </div>
   );
 }

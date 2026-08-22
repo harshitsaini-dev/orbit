@@ -1261,8 +1261,83 @@ body {
 .preview-stage > .media-shell,
 .preview-stage > .code-view,
 .preview-stage > .office-view,
+.preview-stage > .model-view,
 .preview-stage > .pdf-shell {
   place-self: stretch;
+}
+
+/* --- the byte view and the 3D viewer -------------------------------------- */
+
+/*
+ * The hex dump borrows the code view's frame - same bar, same box - because it
+ * is the same kind of thing: a file shown as its own text rather than as what
+ * it depicts.
+ */
+.hex-view__body {
+  overflow: auto;
+  min-height: 0;
+  padding: 0.5rem 0.7rem;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.hex-view__body table {
+  border-collapse: collapse;
+  /* Deliberately not full width: a hex dump is a fixed sixteen bytes per row,
+     and stretching it apart makes the columns unreadable. */
+  width: max-content;
+}
+
+.hex-view__body th {
+  padding-right: 1rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-align: right;
+  /* The offsets are a ruler, not content worth copying with the bytes. */
+  user-select: none;
+}
+
+.hex-view__hex {
+  padding-right: 1.2rem;
+  white-space: pre;
+}
+
+.hex-view__text {
+  white-space: pre;
+  color: var(--text-muted);
+}
+
+.model-view {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+  box-shadow: var(--shadow-clay);
+  overflow: hidden;
+}
+
+.model-view__stage {
+  min-height: 0;
+  /* The canvas takes the drag; without this the browser pans the page instead
+     of turning the model on a touchscreen. */
+  touch-action: none;
+  cursor: grab;
+}
+
+.model-view__stage:active {
+  cursor: grabbing;
+}
+
+.model-view__bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.5rem 0.7rem;
+  border-top: 1px solid var(--border);
 }
 
 /* --- code and table previews --------------------------------------------- */
@@ -3883,6 +3958,23 @@ body {
   display: flex;
   align-items: center;
   gap: 0.4rem;
+}
+
+.details__gps {
+  display: grid;
+  gap: 3px;
+}
+
+.details__gps a {
+  justify-self: start;
+  font-size: 12.5px;
+}
+
+/* Not styled as an error, because nothing is wrong - but it is the one row on
+   this panel that is about a person rather than a file. */
+.details__caution {
+  color: var(--warning);
+  font-size: 12px;
 }
 
 .details__shares {
