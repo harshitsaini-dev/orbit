@@ -15,8 +15,35 @@ app works after deploying.
 
 ## 1. OneDrive — Microsoft Entra (Azure)
 
-1. Go to <https://portal.azure.com/> and sign in with any Microsoft account. A
-   free personal account is enough; there is no subscription to create.
+> **Blocked, 2026-08-22.** Attempted with a personal Microsoft account and
+> abandoned. It is worth reading this before trying again, because the failure
+> takes a while to become legible.
+>
+> A personal Microsoft account has no Entra directory. The portal signs in, then
+> fails to get a token for a tenant the account is not in - `AADSTS16000
+> interaction_required` - and re-raises the same dialog on every blade, so it
+> reads like a bug rather than a missing prerequisite. App registrations does
+> load, and then refuses: *"The ability to create applications outside of a
+> directory has been deprecated."*
+>
+> So a directory is the prerequisite, and the three ways to get one are:
+> creating a tenant from **Entra ID → Manage tenants → Create** (free, no card,
+> and the one to try first); a **work or school account**, which already has
+> one; or **signing up for Azure**, which is free but asks for card details to
+> verify identity. The M365 Developer Program is listed by the portal as an
+> option but now generally requires a Visual Studio subscription.
+>
+> Note that the app and the drive need not belong to the same account. The
+> registration only has to be multitenant + personal accounts; whoever connects
+> then signs in with their own Microsoft account. A work account elsewhere is
+> enough to unblock this.
+>
+> Until then the OneDrive adapter stays as it is: written, unit-tested against
+> mocked Graph responses, and never run against a real drive.
+
+1. Go to <https://portal.azure.com/> and sign in with a Microsoft account that
+   **has a directory** - see the note above; a personal account without one
+   cannot register an application.
 2. Search the top bar for **Microsoft Entra ID** and open it. (It used to be
    called Azure Active Directory, and some pages still say so.)
 3. Left menu → **App registrations** → **New registration**.

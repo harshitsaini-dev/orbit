@@ -485,10 +485,14 @@ done from the codebase. Step-by-step instructions are in
    `PCLOUD_CLIENT_SECRET`. The adapter is written and unit-tested; without a
    real account it has never run against pCloud itself, which is not the same
    as verified.
-2. **Microsoft app registration** — free, at `portal.azure.com` → App
-   registrations, personal-and-work accounts, same callback shape. OneDrive is
-   in the same position pCloud is: written, tested against mocked responses,
-   never run for real.
+2. **Microsoft app registration** — **blocked, 2026-08-22**. A personal
+   Microsoft account has no Entra directory, and Microsoft has deprecated
+   registering an application outside one, so the portal loops on
+   `AADSTS16000` and then refuses. Unblocking it needs a directory: create a
+   tenant (free, no card), use a work or school account that already has one,
+   or sign up for Azure (free, but asks for card details). `05-onedrive-dropbox.md`
+   has the detail. OneDrive is otherwise in the same position pCloud is:
+   written, tested against mocked responses, never run for real.
 3. **Google verification** — the Google client is live but the consent screen is
    still in *testing*, which caps it at 100 users and expires every refresh
    token after seven days. Verification needs a reachable homepage and privacy
