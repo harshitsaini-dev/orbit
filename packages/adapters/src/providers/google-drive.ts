@@ -343,8 +343,20 @@ export class GoogleDriveAdapter extends BaseAdapter {
           'nextPageToken,files(id,name,mimeType,size,modifiedTime,md5Checksum,shortcutDetails(targetMimeType))',
         pageSize: 1000,
         pageToken,
+        /*
+         * The user's own corpus, deliberately - not every drive they can see.
+         *
+         * This feeds the mirror, which is what the storage breakdown, the
+         * duplicate finder and search all read. Shared drive content is not
+         * this account's: Google does not count it against the account's
+         * allowance either, so pulling it in here made a 15 GB Drive report
+         * a breakdown of storage it does not own and cannot free.
+         *
+         * Shared drives stay browsable; they are simply not part of what this
+         * account has stored.
+         */
+        corpora: 'user',
         supportsAllDrives: true,
-        includeItemsFromAllDrives: true,
       },
     });
 

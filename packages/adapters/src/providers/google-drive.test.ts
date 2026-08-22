@@ -789,3 +789,25 @@ describe('relocate', () => {
     assert.equal(patch.url.searchParams.get('removeParents'), 'folder-old,folder-other');
   });
 });
+
+describe('what the mirror is fed', () => {
+  it('enumerates the account\'s own corpus, not every drive it can see', async () => {
+    // The mirror feeds the storage breakdown, the duplicate finder and search.
+    // Shared drive content is not this account's - Google does not count it
+    // against the allowance either - so pulling it in made a 15 GB Drive
+    // report a breakdown of storage it does not own and cannot free.
+    respondWith(() => json({ files: [] }));
+
+    await adapter.listAllFiles(TOKENS);
+
+    assert.equal(calls[0]!.url.searchParams.get('corpora'), 'user');
+    assert.equal(calls[0]!.url.searchParams.get('includeItemsFromAllDrives'), null);
+  });
+
+  it('still keeps the checksum, which is what proves a duplicate', async () => {
+    respondWith(() => json({ files: [] }));
+    await adapter.listAllFiles(TOKENS);
+
+    assert.match(calls[0]!.url.searchParams.get('fields')!, /md5Checksum/);
+  });
+});

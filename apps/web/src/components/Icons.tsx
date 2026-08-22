@@ -200,3 +200,14 @@ export const GridViewIcon = ({ size }: IconProps) => (
     <rect x="13.4" y="13.4" width="6.4" height="6.4" rx="1.6" />
   </Icon>
 );
+
+export const SharedDrivesIcon = ({ size }: IconProps) => (
+  <Icon size={size}>
+    {/* Two people over a drive: storage that belongs to a group rather than to
+        the person looking at it. */}
+    <path d="M3.6 19.6v-7.2a2 2 0 0 1 2-2h12.8a2 2 0 0 1 2 2v7.2a2 2 0 0 1-2 2H5.6a2 2 0 0 1-2-2z" />
+    <path d="M7.2 15.4h.01" />
+    <circle cx="9.4" cy="5" r="2.1" />
+    <path d="M14.6 7.1a2.1 2.1 0 1 0-1.5-3.6" />
+  </Icon>
+);

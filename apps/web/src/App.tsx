@@ -14,6 +14,7 @@ import {
   QuotaIcon,
   SchedulesIcon,
   UploadFileIcon,
+  SharedDrivesIcon,
   SharedIcon,
   StarOutlineIcon,
 } from './components/Icons.js';
@@ -35,6 +36,7 @@ import { Duplicates } from './routes/Duplicates.js';
 import { Quota } from './routes/Quota.js';
 import { Uploads } from './routes/Uploads.js';
 import { Schedules } from './routes/Schedules.js';
+import { SharedDrives } from './routes/SharedDrives.js';
 import { WorkspaceViewPage } from './routes/WorkspaceView.js';
 
 const NAV = [
@@ -46,6 +48,7 @@ const NAV = [
   { to: '/duplicates', label: 'Duplicates', Icon: DuplicatesIcon },
   { to: '/schedules', label: 'Schedules', Icon: SchedulesIcon },
   { to: '/shared-with-me', label: 'Shared with me', Icon: SharedIcon },
+  { to: '/shared-drives', label: 'Shared drives', Icon: SharedDrivesIcon },
   { to: '/quota', label: 'Quota', Icon: QuotaIcon },
   { to: '/uploads', label: 'Uploads', Icon: UploadFileIcon },
   { to: '/developer', label: 'Developer', Icon: CodeIcon },
@@ -105,6 +108,7 @@ const PATHS = new Set([
   '/recent',
   '/starred',
   '/shared-with-me',
+  '/shared-drives',
   '/collections',
   '/duplicates',
   '/schedules',
@@ -202,6 +206,7 @@ function Workspace({ online }: { online: boolean }) {
             <Route path="/recent" element={<WorkspaceViewPage view="recent" />} />
             <Route path="/starred" element={<WorkspaceViewPage view="starred" />} />
             <Route path="/shared-with-me" element={<WorkspaceViewPage view="shared" />} />
+            <Route path="/shared-drives" element={<SharedDrives />} />
             <Route path="/collections" element={<Collections />} />
             <Route path="/duplicates" element={<Duplicates />} />
             <Route path="/schedules" element={<Schedules />} />
