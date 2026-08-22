@@ -112,20 +112,34 @@ something to move to production before anyone else uses it.
 
 ---
 
-## 1c. pCloud OAuth — free, instant, no review
+## 1c. pCloud OAuth — free, but approved by hand
 
-The only provider left whose adapter has never seen a real account. Unlike
-Google, pCloud asks for no verification and no review: an app is usable the
-moment it is created.
+The only provider left whose adapter has never seen a real account.
 
-1. Sign in at <https://my.pcloud.com/> and open **Settings → Developers → My
-   applications → New application**. (The direct link, if the menu moves, is
-   <https://docs.pcloud.com/my_apps/>.)
-2. Name it *Orbit*. There is no scope list to choose from - a pCloud app is
-   granted the account it is authorised against, whole.
-3. Add the redirect URI **`http://localhost:8787/auth/callback/pcloud`**, and
-   later `https://api.orbit.harshitsaini.in/auth/callback/pcloud` for the
-   deployed one. Both may be registered at once.
+pCloud no longer creates an application on request: **App creation requires
+approval**, and the form is a request rather than a registration. It is still
+free, and there is no verification of the kind Google runs - a person reads the
+request and approves the app. Submitted 2026-08-22, pending since.
+
+1. Sign in at <https://my.pcloud.com/> and open **My applications → New app**.
+   (The direct link, if the menu moves, is <https://docs.pcloud.com/my_apps/>.)
+2. The request form asks for:
+
+   | Field | What Orbit needs |
+   |---|---|
+   | App name | `Orbit` |
+   | Application type | *Personal use* |
+   | Folder access | **All folders** - *Private* is the app's own folder, and a file manager that can only see its own folder is not one |
+   | Write access | **Yes** - upload, rename, move, delete and restore all need it |
+   | Website | A URL that actually loads, because it is read by a person |
+   | Expected number of users | The honest number |
+   | Reason | What the app is, why it needs full access, and that it stores no file contents |
+
+3. Once approved, open the app and add the redirect URI
+   **`http://localhost:8787/auth/callback/pcloud`**, and
+   `https://api.orbit.harshitsaini.in/auth/callback/pcloud` for the deployed
+   one. Both may be registered at once. There is no scope list to choose from -
+   a pCloud app is granted the account it is authorised against, whole.
 4. Copy the **Client ID** and **Client secret** into `.env`:
 
 ```

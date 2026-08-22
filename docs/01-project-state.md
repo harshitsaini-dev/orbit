@@ -477,11 +477,14 @@ Everything here needs an account, a console, or an approval — none of it can b
 done from the codebase. Step-by-step instructions are in
 **`docs/05-owner-setup.md`**. In rough order of what unblocks the most:
 
-1. **pCloud OAuth app** — free, instant, no review. `my.pcloud.com` → Settings →
-   Developers → new app, redirect URI `http://localhost:8787/auth/callback/pcloud`.
-   Put the id and secret in `.env` as `PCLOUD_CLIENT_ID` / `PCLOUD_CLIENT_SECRET`.
-   The adapter is written and unit-tested; without a real account it has never
-   run against pCloud itself, which is not the same as verified.
+1. **pCloud OAuth app** — requested 2026-08-22, **pending approval**. pCloud
+   creates an application by hand rather than on request; it is free and there
+   is no Google-style verification, but a person reads the form. Once it is
+   approved: add the redirect URI `http://localhost:8787/auth/callback/pcloud`
+   and put the id and secret in `.env` as `PCLOUD_CLIENT_ID` /
+   `PCLOUD_CLIENT_SECRET`. The adapter is written and unit-tested; without a
+   real account it has never run against pCloud itself, which is not the same
+   as verified.
 2. **Microsoft app registration** — free, at `portal.azure.com` → App
    registrations, personal-and-work accounts, same callback shape. OneDrive is
    in the same position pCloud is: written, tested against mocked responses,
