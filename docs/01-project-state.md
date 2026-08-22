@@ -22,7 +22,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 6 | Sync engine | 🟢 Done |
 | 7 | Sharing + QR | 🟢 Done |
 | 8 | RBAC + superadmin | 🟢 Done |
-| 9 | Design pass (Claymorphism, three.js, PWA) | 🟡 Five parts done · motion pass and the My Drive toolbar remain |
+| 9 | Design pass (Claymorphism, three.js, PWA) | 🟢 Done — chrome, theme depth, headings, grid, selection, toolbar and motion |
 | 10 | Hardening + deploy | 🟡 Hardening done · deploy waits on the owner's sign-ups |
 | 11 | Developer platform (public API, tokens, OAuth apps, API docs tab) | 🟡 Tokens, `/v1`, Developer tab and API docs done · OAuth apps and webhooks pending |
 | 12 | Instant directory cache + offline browsing | 🟢 Done |

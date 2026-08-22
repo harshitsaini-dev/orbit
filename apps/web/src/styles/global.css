@@ -5110,3 +5110,92 @@ body {
 [data-file][data-selected] {
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
+
+/*
+ * A row answers the pointer.
+ *
+ * Tiles lift on hover and rows did nothing at all, so half the file list felt
+ * live and the other half felt like a printout. The tint is deliberately
+ * weaker than the selected one - hovering is not selecting, and if they looked
+ * alike a drag across the list would read as having selected everything it
+ * passed over.
+ */
+[data-file] {
+  transition: background var(--dur-fast) var(--ease-clay);
+}
+
+[data-file]:hover:not([data-selected]) {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+/* A coarse pointer has no hover; a phone would just get a sticky tint from
+   whatever was tapped last. */
+@media (hover: none) {
+  [data-file]:hover:not([data-selected]) {
+    background: transparent;
+  }
+}
+
+/* --- things arriving ------------------------------------------------------ */
+
+/*
+ * Two animations, used everywhere something appears over the page.
+ *
+ * A dialog and a menu are the same event - something new is now in front of
+ * what you were reading - and they were both appearing instantly, which reads
+ * as a jump-cut. The distances are small and the durations are the ones
+ * already defined: enough to say where it came from, not enough to wait for.
+ */
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+
+.modal-scrim {
+  animation: overlay-in var(--dur-fast) var(--ease-clay);
+}
+
+.modal-panel {
+  animation: panel-in var(--dur-base) var(--ease-clay);
+}
+
+/* Faster, and from where it was opened: a menu is attached to the thing that
+   opened it, so it should look like it came from there. */
+.context-menu {
+  animation: panel-in var(--dur-fast) var(--ease-clay);
+  transform-origin: top left;
+}
+
+/*
+ * Nothing animates for somebody who asked for that.
+ *
+ * The duration tokens are already zero under this preference, which covers
+ * every transition - but an animation with its own duration, like the drop
+ * zone or the spinners, would still run.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Except the ones that exist to say something is still happening. */
+  .skeleton,
+  .media-spinner,
+  .spotlight__spinner {
+    animation-duration: 1.35s !important;
+    animation-iteration-count: infinite !important;
+  }
+}

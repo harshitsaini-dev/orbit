@@ -1041,7 +1041,9 @@ export function MyDrive() {
                   gap: 10,
                   padding: '0.55rem 0.6rem',
                   borderRadius: 'var(--radius-sm)',
-                  background: selected.has(file.remoteId) ? 'var(--accent-soft)' : 'transparent',
+                  // Selected and hovered are both styled from CSS: an inline
+                  // background here beat the hover rule, so a row was the one
+                  // thing in the list that never answered the pointer.
                   opacity: busyId === file.remoteId ? 0.5 : 1,
                   minWidth: 0,
                 }}

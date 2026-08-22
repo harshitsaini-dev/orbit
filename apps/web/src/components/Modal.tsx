@@ -68,6 +68,7 @@ export function Modal({
        button, both of which a keyboard user has. */
     /* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */
     <div
+      className="modal-scrim"
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -87,7 +88,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="clay"
+        className="clay modal-panel"
         style={{
           width: 'min(420px, 100%)',
           padding: 'clamp(1.25rem, 4vw, 1.75rem)',

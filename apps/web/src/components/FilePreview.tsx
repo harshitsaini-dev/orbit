@@ -74,6 +74,8 @@ export function FilePreview({ file, siblings, contentUrl, onSelect, onClose }: P
       role="dialog"
       aria-modal="true"
       aria-label={`Preview of ${file.name}`}
+      // The viewer arrives the way every other overlay does.
+      className="modal-scrim"
       data-testid="file-preview"
       ref={dialogRef}
       tabIndex={-1}
