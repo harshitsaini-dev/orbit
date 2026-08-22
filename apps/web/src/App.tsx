@@ -35,6 +35,7 @@ import { Collections } from './routes/Collections.js';
 import { Duplicates } from './routes/Duplicates.js';
 import { Quota } from './routes/Quota.js';
 import { Uploads } from './routes/Uploads.js';
+import { Admin } from './routes/Admin.js';
 import { Schedules } from './routes/Schedules.js';
 import { SharedDrives } from './routes/SharedDrives.js';
 import { WorkspaceViewPage } from './routes/WorkspaceView.js';
@@ -219,7 +220,7 @@ function Workspace({ online }: { online: boolean }) {
               path="/admin"
               element={
                 <RequireSuperadmin>
-                  <Placeholder title="Admin" phase="Phase 8" />
+                  <Admin />
                 </RequireSuperadmin>
               }
             />

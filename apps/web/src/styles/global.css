@@ -3970,3 +3970,91 @@ body {
     grid-row: 2;
   }
 }
+
+/* --- the operator's console ----------------------------------------------- */
+
+.admin-stats {
+  list-style: none;
+  margin: 1.1rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.75rem;
+}
+
+.admin-stats li {
+  display: grid;
+  gap: 1px;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+.admin-stats strong {
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+}
+
+.admin-stats span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.admin-users {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-users li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.admin-users__who {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.admin-users__who strong {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-users__who > span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.admin-users select {
+  padding: 0.3rem 0.5rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.admin-users button {
+  padding: 0.28rem 0.75rem;
+  font-size: 12.5px;
+}
+
+@media (max-width: 34rem) {
+  /* The controls drop under the name rather than crushing it. */
+  .admin-users li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .admin-users select {
+    grid-column: 1 / -1;
+  }
+}

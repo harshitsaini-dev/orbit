@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import { env } from './lib/env.js';
 import { attachUser } from './middleware/auth.js';
 import { accountsRouter } from './routes/accounts.js';
+import { adminRouter } from './routes/admin.js';
 import { authRouter } from './routes/auth.js';
 import { collectionsRouter } from './routes/collections.js';
 import { filesRouter } from './routes/files.js';
@@ -138,6 +139,7 @@ export function createApp(): Express {
   app.use(attachUser);
   app.use(authRouter);
   app.use(accountsRouter);
+  app.use(adminRouter);
   app.use(membersRouter);
   app.use(schedulesRouter);
   app.use(filesRouter);

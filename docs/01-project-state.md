@@ -21,7 +21,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 5 | Upload system + WebSocket progress + allocation | 🟢 Done |
 | 6 | Sync engine | 🟢 Done |
 | 7 | Sharing + QR | 🟢 Done |
-| 8 | RBAC + superadmin | 🟡 Per-drive grants and audit trail done · superadmin console pending |
+| 8 | RBAC + superadmin | 🟢 Done |
 | 9 | Design pass (Claymorphism, three.js, PWA) | ⚪ Not started |
 | 10 | Hardening + deploy | ⚪ Not started |
 | 11 | Developer platform (public API, tokens, OAuth apps, API docs tab) | ⚪ Designed, not started |
@@ -520,7 +520,17 @@ than the drive, since a drive's rows cascade away with it.
 
 Read from the members panel, gated on `manage` like the member list.
 
-Still to do: the superadmin console.
+**The superadmin console is done.** What it deliberately cannot do is the point: there is no way
+to browse somebody's files, open one, or see what is in their drives — only how many they have
+connected and what each provider reports is in them. Orbit's promise is that it holds nothing, and
+an admin console that walked around that would make the promise false with the operator, the one
+person best placed to break it, holding the key.
+
+Two refusals guard the instance against locking itself out: nobody may change their own role, and
+the last superadmin may neither be demoted nor removed.
+
+Every route answers 404 rather than 403 to a non-admin — being told "you may not" confirms there is
+an admin surface to want.
 
 ## Phase 19 — scheduled jobs
 

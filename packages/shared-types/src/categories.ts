@@ -12,7 +12,7 @@ export const FILE_CATEGORIES = ['image', 'video', 'audio', 'document', 'archive'
 export type FileCategory = (typeof FILE_CATEGORIES)[number];
 
 export const CATEGORY_LABELS: Record<FileCategory, string> = {
-  image: 'Photos & images',
+  image: 'Photos',
   video: 'Videos',
   audio: 'Audio',
   document: 'Documents',
