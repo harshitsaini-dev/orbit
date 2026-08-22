@@ -4970,6 +4970,16 @@ body {
   }
 }
 
+/* The same idea as Bin's `.trash-all`, on the file list. */
+.list-select-all {
+  padding: 0.15rem 0.5rem 0.5rem;
+}
+
+.list-select-all .checkbox__label {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
 /* Select-all sits above the rows it applies to, and says how many that is —
    which is not the same number as everything in the bin once a filter is on. */
 .trash-all {

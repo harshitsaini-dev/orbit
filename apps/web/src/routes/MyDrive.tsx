@@ -28,6 +28,7 @@ import {
   InfoIcon,
 } from '../components/Icons.js';
 import { ViewToggle, useViewMode } from '../components/ViewToggle.js';
+import { PHONE, useMediaQuery } from '../lib/media.js';
 import { ConfirmDialog, NameDialog } from '../components/NameDialog.js';
 import { Pagination } from '../components/Pagination.js';
 import { Select } from '../components/Select.js';
@@ -128,6 +129,7 @@ export function MyDrive() {
   const [previewing, setPreviewing] = useState<OrbitFile | null>(null);
   /** A refresh behind a cached listing, which must not blank the page. */
   const [refreshing, setRefreshing] = useState(false);
+  const phone = useMediaQuery(PHONE);
 
   // Dialogs replace window.prompt and window.confirm, which the browser draws
   // itself, ignore the theme, and on some platforms suppress outright.
@@ -678,29 +680,51 @@ export function MyDrive() {
 
       <section className="clay" style={{ padding: 'clamp(1rem, 3vw, 1.5rem)', display: 'grid', gap: '0.9rem' }}>
         {accounts && accounts.length > 1 && (
-          <div className="scroll-x" style={{ display: 'flex', gap: 8, paddingBottom: 4 }}>
-            {accounts.map((account) => (
-              <button
-                key={account.id}
-                type="button"
-                className="clay-button"
-                aria-pressed={account.id === accountId}
-                onClick={() => navigate({ account: account.id, path: '/' })}
-                style={{
-                  padding: '0.4rem 0.9rem',
-                  fontSize: 13,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  whiteSpace: 'nowrap',
-                  boxShadow: account.id === accountId ? 'var(--shadow-clay-inset)' : 'var(--shadow-clay)',
-                }}
-              >
-                <ProviderIcon provider={account.catalogueKey ?? account.provider} size={18} />
-                {account.nickname}
-              </button>
-            ))}
-          </div>
+          /*
+           * A row of drives on a desk, one menu on a phone.
+           *
+           * The strip is the better control when it fits: every drive visible,
+           * one tap to switch. On a phone it does not fit, and it sat directly
+           * under the navigation - which is also a horizontal scroller there -
+           * so the page had two of them stacked and a sideways swipe was a
+           * guess about which one would move.
+           */
+          phone ? (
+            <Select
+              label="Drive"
+              value={accountId ?? ''}
+              onChange={(next) => navigate({ account: next, path: '/' })}
+              options={accounts.map((account) => ({
+                value: account.id,
+                label: account.nickname,
+              }))}
+            />
+          ) : (
+            <div className="scroll-x" style={{ display: 'flex', gap: 8, paddingBottom: 4 }}>
+              {accounts.map((account) => (
+                <button
+                  key={account.id}
+                  type="button"
+                  className="clay-button"
+                  aria-pressed={account.id === accountId}
+                  onClick={() => navigate({ account: account.id, path: '/' })}
+                  style={{
+                    padding: '0.4rem 0.9rem',
+                    fontSize: 13,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    whiteSpace: 'nowrap',
+                    boxShadow:
+                      account.id === accountId ? 'var(--shadow-clay-inset)' : 'var(--shadow-clay)',
+                  }}
+                >
+                  <ProviderIcon provider={account.catalogueKey ?? account.provider} size={18} />
+                  {account.nickname}
+                </button>
+              ))}
+            </div>
+          )
         )}
 
         <nav aria-label="Folder path" className="scroll-x">
@@ -867,7 +891,25 @@ export function MyDrive() {
 
           <ViewToggle value={viewMode} onChange={setViewMode} />
 
-          {visible.length > 0 && (
+        </div>
+
+        {error && (
+          <p role="alert" style={{ color: 'var(--danger)', margin: 0, fontSize: 14 }}>
+            {error}
+          </p>
+        )}
+      </section>
+
+      <section className="clay" style={{ padding: 'clamp(0.75rem, 2vw, 1.25rem)' }}>
+        {/*
+          * Select-all belongs to the list, not to the toolbar.
+          *
+          * It was a row of its own above the search box, which on a phone was
+          * another thirty-six pixels of chrome - and it was describing rows the
+          * reader could not see yet. Bin has always had it here; now they agree.
+          */}
+        {visible.length > 0 && (
+          <div className="list-select-all">
             <Checkbox
               checked={allVisibleSelected}
               onChange={toggleSelectAll}
@@ -879,17 +921,9 @@ export function MyDrive() {
                     : `Select all ${visible.length}`
               }
             />
-          )}
-        </div>
-
-        {error && (
-          <p role="alert" style={{ color: 'var(--danger)', margin: 0, fontSize: 14 }}>
-            {error}
-          </p>
+          </div>
         )}
-      </section>
 
-      <section className="clay" style={{ padding: 'clamp(0.75rem, 2vw, 1.25rem)' }}>
         {listError && !loading && (
           <StatusScreen
             kind={listError instanceof ApiError ? statusKindFor(listError.status) : 'server-error'}
