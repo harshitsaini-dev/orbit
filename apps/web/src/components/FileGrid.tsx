@@ -75,6 +75,7 @@ export function FileGrid({
           <Tile
             file={file}
             accountId={accountIdFor(file)}
+            selectionKey={selectionKey ? selectionKey(file) : file.remoteId}
             selected={selected.has(selectionKey ? selectionKey(file) : file.remoteId)}
             onToggleSelect={() => onToggleSelect(file.remoteId)}
             onOpen={() => onOpen(file)}
@@ -89,6 +90,7 @@ export function FileGrid({
 function Tile({
   file,
   accountId,
+  selectionKey,
   selected,
   onToggleSelect,
   onOpen,
@@ -100,6 +102,8 @@ function Tile({
   onToggleSelect: () => void;
   onOpen: () => void;
   location?: ReactNode;
+  /** What a drag-select box matches this tile by. */
+  selectionKey: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
@@ -126,6 +130,9 @@ function Tile({
     <div
       ref={ref}
       className="clay-sunken file-tile"
+      // What a drag-select box looks for. Also what marks a tile as "not empty
+      // space", so a drag cannot start on top of one.
+      data-file={selectionKey}
       data-selected={selected ? '' : undefined}
       style={{ padding: 8, display: 'grid', gap: 8, position: 'relative' }}
     >

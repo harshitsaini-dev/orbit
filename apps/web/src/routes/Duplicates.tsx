@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { catalogueEntry, mimeForName, type OrbitFile } from '@orbit/shared-types';
 import { Checkbox } from '../components/Checkbox.js';
+import { DragSelectBox, useDragSelect } from '../components/DragSelect.js';
 import { FileIcon } from '../components/FileIcon.js';
 import { FilePreview } from '../components/FilePreview.js';
 import { GridViewIcon, ListViewIcon } from '../components/Icons.js';
@@ -94,6 +95,14 @@ export function Duplicates() {
   );
   const [showingIgnored, setShowingIgnored] = useState(false);
   const [previewing, setPreviewing] = useState<{ group: Group; file: DuplicateFile } | null>(null);
+
+  // The same drag-to-select every other list of files has.
+  const { containerRef, box } = useDragSelect({
+    enabled: !confirming && !previewing,
+    onSelect: (keys, additive) =>
+      setSelected((current) => (additive ? new Set([...current, ...keys]) : new Set(keys))),
+    onClear: () => setSelected(new Set()),
+  });
 
   const keyOf = (file: DuplicateFile) => `${file.accountId}:${file.remoteId}`;
 
@@ -239,7 +248,9 @@ export function Duplicates() {
   );
 
   return (
-    <div style={{ display: 'grid', gap: '1rem' }}>
+    <div ref={containerRef} style={{ display: 'grid', gap: '1rem' }}>
+      <DragSelectBox box={box} />
+
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'grid', gap: 4 }}>
@@ -404,7 +415,11 @@ export function Duplicates() {
           {view === 'list' ? (
             <ul>
               {group.files.map((file) => (
-                <li key={keyOf(file)}>
+                <li
+                  key={keyOf(file)}
+                  data-file={keyOf(file)}
+                  data-selected={selected.has(keyOf(file)) ? '' : undefined}
+                >
                   <Checkbox
                     checked={selected.has(keyOf(file))}
                     onChange={() => toggle(file)}
@@ -438,7 +453,11 @@ export function Duplicates() {
           ) : (
             <ul className="dup-grid">
               {group.files.map((file) => (
-                <li key={keyOf(file)}>
+                <li
+                  key={keyOf(file)}
+                  data-file={keyOf(file)}
+                  data-selected={selected.has(keyOf(file)) ? '' : undefined}
+                >
                   <span className="dup-grid__pick">
                     <Checkbox
                       checked={selected.has(keyOf(file))}

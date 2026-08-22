@@ -9,6 +9,7 @@ import { Checkbox } from '../components/Checkbox.js';
 import { ContextMenu, useContextMenu, type MenuItem } from '../components/ContextMenu.js';
 import { DropZone } from '../components/DropZone.js';
 import { AddToCollection } from '../components/AddToCollection.js';
+import { DragSelectBox, useDragSelect } from '../components/DragSelect.js';
 import { FileDetails } from '../components/FileDetails.js';
 import { FolderPicker } from '../components/FolderPicker.js';
 import { TransferDialog } from '../components/TransferDialog.js';
@@ -629,6 +630,19 @@ export function MyDrive() {
   }
 
   // Selection and select-all follow what is on screen, which is one page.
+  /**
+   * Drag a box over files to select them, as every file manager does.
+   *
+   * Off while a dialog or the viewer is open: a drag behind a modal is a
+   * selection nobody can see changing.
+   */
+  const { containerRef, box } = useDragSelect({
+    enabled: !dialog && !previewing && !sharing && !transferring && !relocating && !detailing,
+    onSelect: (keys, additive) =>
+      setSelected((current) => (additive ? new Set([...current, ...keys]) : new Set(keys))),
+    onClear: () => setSelected(new Set()),
+  });
+
   const selectedFiles = paged.filter((file) => selected.has(file.remoteId));
   const allVisibleSelected = paged.length > 0 && selectedFiles.length === paged.length;
 
@@ -649,8 +663,11 @@ export function MyDrive() {
 
   return (
     <div
+      ref={containerRef}
       style={{ display: 'grid', gap: '1rem', position: 'relative' }}
     >
+      <DragSelectBox box={box} />
+
       <DropZone
         label={path === '/' ? 'Upload to this drive' : `Upload to ${path}`}
         onFiles={(files, transfer) => void onDropped(files, transfer)}
@@ -926,6 +943,8 @@ export function MyDrive() {
             {paged.map((file) => (
               <li
                 key={file.remoteId}
+                data-file={file.remoteId}
+                data-selected={selected.has(file.remoteId) ? '' : undefined}
                 onContextMenu={(event) => menu.open(event, file)}
                 style={{
                   display: 'flex',

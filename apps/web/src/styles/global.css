@@ -4271,3 +4271,27 @@ body {
   color: var(--danger);
   font-weight: 500;
 }
+
+/* --- dragging a box over files -------------------------------------------- */
+
+/*
+ * Fixed, because the rectangle is measured against the viewport rather than
+ * against a scrolled container - a box that drifts when the page scrolls under
+ * it reads as broken.
+ *
+ * pointer-events: none so the box never becomes the thing under the cursor and
+ * stops the drag it is drawing.
+ */
+.drag-box {
+  position: fixed;
+  z-index: 150;
+  pointer-events: none;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+/* A row being dragged over, before the pointer is released. */
+[data-file][data-selected] {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { catalogueEntry, type OrbitFile } from '@orbit/shared-types';
 import { Checkbox } from '../components/Checkbox.js';
+import { DragSelectBox, useDragSelect } from '../components/DragSelect.js';
 import { FileIcon } from '../components/FileIcon.js';
 import { FileGrid } from '../components/FileGrid.js';
 import { FilePreview } from '../components/FilePreview.js';
@@ -87,6 +88,19 @@ export function Trash() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [purgingMany, setPurgingMany] = useState(false);
   const [previewing, setPreviewing] = useState<TrashedFile | null>(null);
+
+  /**
+   * Drag a box over files to select them, as every file manager does.
+   *
+   * Disabled while a dialog is open: a drag behind a modal is a selection
+   * nobody can see changing.
+   */
+  const { containerRef, box } = useDragSelect({
+    enabled: !purging && !purgingMany && !previewing,
+    onSelect: (keys, additive) =>
+      setSelected((current) => (additive ? new Set([...current, ...keys]) : new Set(keys))),
+    onClear: () => setSelected(new Set()),
+  });
 
   const load = useCallback(async () => {
     try {
@@ -231,7 +245,9 @@ export function Trash() {
   }
 
   return (
-    <div style={{ display: 'grid', gap: '1rem' }}>
+    <div ref={containerRef} style={{ display: 'grid', gap: '1rem' }}>
+      <DragSelectBox box={box} />
+
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
@@ -394,7 +410,12 @@ export function Trash() {
           {viewMode === 'list' && (
           <ul className="trash-list">
             {sorted.map((file) => (
-              <li key={keyOf(file)} data-busy={busyId === keyOf(file) ? '' : undefined}>
+              <li
+                key={keyOf(file)}
+                data-file={keyOf(file)}
+                data-selected={selected.has(keyOf(file)) ? '' : undefined}
+                data-busy={busyId === keyOf(file) ? '' : undefined}
+              >
                 <Checkbox
                   checked={selected.has(keyOf(file))}
                   onChange={() => toggle(keyOf(file))}
