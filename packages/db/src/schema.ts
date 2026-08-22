@@ -226,19 +226,46 @@ export const syncLog = sqliteTable(
   (t) => [index('sync_account_idx').on(t.accountId, t.ranAt)],
 );
 
+/**
+ * Who did what, and where.
+ *
+ * Written for the actions that cannot be undone by looking at the result -
+ * a deletion, a move, a link published to the open internet, somebody's access
+ * changed. Reading a file is not recorded: it would be most of the rows and
+ * none of the answers.
+ *
+ * `actorId` is nullable and set to null rather than cascaded when a user is
+ * removed. A trail that deletes itself along with the person it is about is
+ * not a trail; the entry survives saying what happened, with the name gone.
+ */
 export const auditLog = sqliteTable(
   'audit_log',
   {
     id: text('id').primaryKey(),
     actorId: text('actor_id').references(() => users.id, { onDelete: 'set null' }),
+    /** Kept alongside the id, so a removed account still names who acted. */
+    actorEmail: text('actor_email'),
     action: text('action').notNull(),
+    /**
+     * Which drive it happened on.
+     *
+     * The column the whole thing is read by: once several people can act on one
+     * drive, "what has been done to this drive" is the question, and it is not
+     * answerable from a target that is usually a file.
+     */
+    accountId: text('account_id').references(() => accounts.id, { onDelete: 'cascade' }),
     targetType: text('target_type'),
     targetId: text('target_id'),
+    /** A short human sentence. Never tokens, codes, or anything secret. */
+    summary: text('summary'),
     metadata: text('metadata'),
     ip: text('ip'),
     createdAt: text('created_at').notNull().default(now),
   },
-  (t) => [index('audit_actor_idx').on(t.actorId, t.createdAt)],
+  (t) => [
+    index('audit_actor_idx').on(t.actorId, t.createdAt),
+    index('audit_account_idx').on(t.accountId, t.createdAt),
+  ],
 );
 
 /**

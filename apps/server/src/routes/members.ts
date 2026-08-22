@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/auth.js';
 import { getAccountRow } from '../services/accounts.js';
+import { listForAccount, record } from '../services/audit.js';
 import { invite, listMembers, revoke, setLevel, LEVELS, type Level } from '../services/sharing.js';
 
 /**
@@ -33,6 +34,27 @@ membersRouter.get('/api/accounts/:id/members', requireAuth, async (req, res, nex
     }
 
     res.json({ members: await listMembers(account.id), owner: account.userId === req.user!.id });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * What has been done to this drive.
+ *
+ * Gated on `manage` like the member list, and for the same reason: who deleted
+ * what is not a reader's business, and a 404 rather than a 403 keeps the fact
+ * that there is a log from being confirmed.
+ */
+membersRouter.get('/api/accounts/:id/activity', requireAuth, async (req, res, next) => {
+  try {
+    const account = await getAccountRow(req.user!.id, req.params.id!, 'manage');
+    if (!account) {
+      res.status(404).json(notFound);
+      return;
+    }
+
+    res.json({ entries: await listForAccount(account.id) });
   } catch (err) {
     next(err);
   }
@@ -75,6 +97,17 @@ membersRouter.post('/api/accounts/:id/members', requireAuth, async (req, res, ne
       return;
     }
 
+    await record({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: 'member.invite',
+      accountId: account.id,
+      targetType: 'user',
+      targetId: result.member.userId,
+      summary: `Gave ${result.member.email} ${parsed.data.level} access`,
+      ip: req.ip,
+    });
+
     res.status(201).json({ member: result.member });
   } catch (err) {
     next(err);
@@ -109,6 +142,17 @@ membersRouter.patch('/api/accounts/:id/members/:userId', requireAuth, async (req
       return;
     }
 
+    await record({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: 'member.level',
+      accountId: account.id,
+      targetType: 'user',
+      targetId: req.params.userId!,
+      summary: `Changed access to ${parsed.data.level}`,
+      ip: req.ip,
+    });
+
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -129,6 +173,17 @@ membersRouter.delete('/api/accounts/:id/members/:userId', requireAuth, async (re
       res.status(404).json({ error: { code: 'not_found', message: 'No such member' } });
       return;
     }
+
+    await record({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: 'member.revoke',
+      accountId: account.id,
+      targetType: 'user',
+      targetId: req.params.userId!,
+      summary: 'Removed access',
+      ip: req.ip,
+    });
 
     res.status(204).end();
   } catch (err) {

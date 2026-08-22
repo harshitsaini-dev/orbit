@@ -11,6 +11,7 @@ import {
 } from '../lib/oauth.js';
 import { requireAuth } from '../middleware/auth.js';
 import { findDuplicates, ignoreGroup, unignoreGroup } from '../services/duplicates.js';
+import { record } from '../services/audit.js';
 import { storageSummary } from '../services/storage-summary.js';
 import { mirrorSize, recentSyncs, syncAccount } from '../services/sync.js';
 import {
@@ -157,6 +158,17 @@ accountsRouter.get('/auth/callback/:provider', requireAuth, async (req, res, nex
       tokens,
     });
 
+    await record({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: 'account.connect',
+      accountId: account.id,
+      targetType: 'account',
+      targetId: account.id,
+      summary: `Connected ${nickname}`,
+      ip: req.ip,
+    });
+
     // Best effort: a quota failure must not undo a successful connection.
     await refreshQuota(req.user!.id, account.id).catch(() => undefined);
 
@@ -203,6 +215,25 @@ accountsRouter.delete('/api/accounts/:id', requireAuth, async (req, res, next) =
       res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
       return;
     }
+
+    /*
+     * Recorded against the person, not the drive.
+     *
+     * The drive's rows cascade away with it, so an entry naming the account
+     * that has just gone would delete itself in the same breath. This one
+     * belongs on the actor's own trail, which is where somebody would look for
+     * "what happened to that connection".
+     */
+    await record({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: 'account.disconnect',
+      targetType: 'account',
+      targetId: req.params.id!,
+      summary: 'Disconnected a drive',
+      ip: req.ip,
+    });
+
     res.status(204).end();
   } catch (err) {
     next(err);

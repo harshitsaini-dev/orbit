@@ -178,14 +178,24 @@ export async function listShares(userId: string): Promise<PublicShare[]> {
  * A revoked link keeps its short id, so the same id can never be handed out
  * again to something else - and the owner can still see that it existed.
  */
-export async function revokeShare(userId: string, shortId: string): Promise<boolean> {
+/**
+ * Revokes a link and returns the row, or null if there was nothing to revoke.
+ *
+ * The row rather than a boolean because the caller needs to know which drive it
+ * belonged to - a revocation is recorded against the drive, and the link is the
+ * only thing that knows which one that was.
+ */
+export async function revokeShare(
+  userId: string,
+  shortId: string,
+): Promise<{ accountId: string } | null> {
   const [updated] = await db()
     .update(shareLinks)
     .set({ revokedAt: new Date().toISOString() })
     .where(and(eq(shareLinks.shortId, shortId), eq(shareLinks.ownerId, userId)))
     .returning();
 
-  return Boolean(updated);
+  return updated ? { accountId: updated.accountId } : null;
 }
 
 export type ShareLookup =

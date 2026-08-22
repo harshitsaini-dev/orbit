@@ -26,6 +26,80 @@ function levelLabel(level: AccessLevel): string {
   return LEVELS.find((l) => l.value === level)?.label ?? level;
 }
 
+interface AuditEntry {
+  id: string;
+  action: string;
+  actorEmail: string | null;
+  summary: string | null;
+  createdAt: string;
+}
+
+function ago(iso: string): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const minutes = Math.round(ms / 60_000);
+
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  if (minutes < 1_440) return `${Math.round(minutes / 60)}h ago`;
+  return new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/**
+ * What has been done to this drive, and by whom.
+ *
+ * Worth having only because a drive can now have more than one person on it -
+ * before that the answer was always "you". Reads are deliberately not recorded:
+ * they would be most of the rows and none of the answers, and a log of
+ * everything a colleague opened is surveillance rather than an audit trail.
+ */
+function Activity({ accountId }: { accountId: string }) {
+  const [entries, setEntries] = useState<AuditEntry[] | null>(null);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const controller = new AbortController();
+    api<{ entries: AuditEntry[] }>(`/api/accounts/${accountId}/activity`, {
+      signal: controller.signal,
+    })
+      .then(({ entries: rows }) => setEntries(rows))
+      .catch(() => setEntries([]));
+
+    return () => controller.abort();
+  }, [accountId, open]);
+
+  return (
+    <div className="drive-activity">
+      <button type="button" className="link-button" onClick={() => setOpen((current) => !current)}>
+        {open ? 'Hide activity' : 'Show activity'}
+      </button>
+
+      {open && entries === null && <p className="drive-members__hint">Loading…</p>}
+
+      {open && entries?.length === 0 && (
+        <p className="drive-members__hint">
+          Nothing yet. Deletions, moves, published links and access changes appear here — opening a
+          file does not.
+        </p>
+      )}
+
+      {open && entries && entries.length > 0 && (
+        <ul>
+          {entries.map((entry) => (
+            <li key={entry.id}>
+              <span>{entry.summary ?? entry.action}</span>
+              <span>
+                {entry.actorEmail ?? 'a removed account'} · {ago(entry.createdAt)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export function DriveMembers({ account }: { account: PublicAccount }) {
   const [members, setMembers] = useState<DriveMember[] | null>(null);
   const [email, setEmail] = useState('');
@@ -192,6 +266,8 @@ export function DriveMembers({ account }: { account: PublicAccount }) {
           {error}
         </p>
       )}
+
+      <Activity accountId={account.id} />
     </div>
   );
 }

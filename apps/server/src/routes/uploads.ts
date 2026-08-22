@@ -5,6 +5,7 @@ import type { UploadSession } from '@orbit/shared-types';
 import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
 import { chooseAccount, recordUpload, wantsToChoose } from '../services/allocation.js';
+import { record } from '../services/audit.js';
 import { forgetBreakdown } from '../services/breakdown.js';
 import { hub } from '../lib/ws.js';
 
@@ -215,6 +216,15 @@ uploadsRouter.put(
           },
         });
       }
+
+      await record({
+        actorId: upload.userId,
+        action: 'file.upload',
+        accountId: upload.accountId,
+        targetType: 'file',
+        targetId: result.file?.remoteId,
+        summary: `Uploaded ${result.file?.name ?? 'a file'}`,
+      });
 
       res.json({ done: true, file: result.file });
     } catch (err) {

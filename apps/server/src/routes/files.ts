@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
+import { record } from '../services/audit.js';
 import { renderThumbnail } from '../services/thumbnails.js';
 import { forgetBreakdown } from '../services/breakdown.js';
 import { searchWorkspace } from '../services/search.js';
@@ -386,6 +387,17 @@ filesRouter.post('/api/files/:id/relocate', requireAuth, async (req, res, next) 
       { copy: parsed.data.copy },
     );
 
+    await record({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: 'file.relocate',
+      accountId: active.row.id,
+      targetType: 'file',
+      targetId: req.params.id!,
+      summary: `${parsed.data.copy ? 'Copied' : 'Moved'} ${file.name} to ${parsed.data.targetPath}`,
+      ip: req.ip,
+    });
+
     res.json({ file });
   } catch (err) {
     if (!sendProviderError(err, res)) next(err);
@@ -420,6 +432,16 @@ filesRouter.patch('/api/files/:id', requireAuth, async (req, res, next) => {
 
     if (parsed.data.name !== undefined) {
       await active.adapter.rename(active.tokens, remoteId, parsed.data.name);
+      await record({
+        actorId: req.user!.id,
+        actorEmail: req.user!.email,
+        action: 'file.rename',
+        accountId: active.row.id,
+        targetType: 'file',
+        targetId: remoteId,
+        summary: `Renamed to ${parsed.data.name}`,
+        ip: req.ip,
+      });
     }
     if (parsed.data.starred !== undefined) {
       if (!active.adapter.capabilities.star) {
@@ -460,6 +482,22 @@ filesRouter.delete('/api/files', requireAuth, async (req, res, next) => {
 
     // The cached breakdown is now wrong; drop it rather than serve stale sizes.
     forgetBreakdown(req.user!.id, parsed.data.accountId);
+
+    if (result.succeeded.length > 0) {
+      await record({
+        actorId: req.user!.id,
+        actorEmail: req.user!.email,
+        action: 'file.delete',
+        accountId: active.row.id,
+        targetType: 'file',
+        // The whole batch was one action; recording it as one entry keeps a
+        // hundred-file delete from burying everything else in the list.
+        targetId: result.succeeded[0]!,
+        summary: `Deleted ${result.succeeded.length} ${result.succeeded.length === 1 ? 'item' : 'items'}`,
+        metadata: { count: result.succeeded.length, failed: result.failed.length },
+        ip: req.ip,
+      });
+    }
 
     // 207 when the batch was mixed, so a caller cannot read a 200 as "all done".
     res.status(result.failed.length > 0 ? 207 : 200).json(result);

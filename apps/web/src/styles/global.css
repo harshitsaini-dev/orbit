@@ -3023,8 +3023,10 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
 }
 
-.collection-grid button {
+.collection-grid button,
+.collection-grid a {
   display: grid;
+  text-decoration: none;
   gap: 6px;
   width: 100%;
   padding: 1rem 1.1rem;
@@ -3041,7 +3043,8 @@ body {
     box-shadow 150ms ease;
 }
 
-.collection-grid button:hover {
+.collection-grid button:hover,
+.collection-grid a:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-clay), var(--glow-accent);
 }
@@ -3876,4 +3879,45 @@ body {
     grid-template-columns: minmax(0, 1fr);
     gap: 1px;
   }
+}
+
+/* --- what has been done to a drive ---------------------------------------- */
+
+.drive-activity {
+  display: grid;
+  gap: 0.4rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--border);
+}
+
+/* Left-aligned on its own: it is a disclosure, not a form control. */
+.drive-activity > button {
+  justify-self: start;
+  font-size: 12.5px;
+}
+
+.drive-activity ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  /* Capped, because this is a panel inside a card rather than a page. */
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.drive-activity li {
+  display: grid;
+  gap: 1px;
+  font-size: 12.5px;
+}
+
+.drive-activity li > span:first-child {
+  color: var(--text);
+}
+
+.drive-activity li > span:last-child {
+  color: var(--text-muted);
+  font-size: 11.5px;
 }

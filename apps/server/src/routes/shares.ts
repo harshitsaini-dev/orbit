@@ -4,6 +4,7 @@ import { Router } from 'express';
 import QRCode from 'qrcode';
 import { z } from 'zod';
 import { env } from '../lib/env.js';
+import { record } from '../services/audit.js';
 import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
 import {
@@ -55,6 +56,24 @@ sharesRouter.post('/api/shares', requireAuth, async (req, res, next) => {
       return;
     }
 
+    /*
+     * The short id, never the password.
+     *
+     * A link put on the open internet is the least undoable thing this app
+     * does, so it is worth a row - but the row must not become the place a
+     * password was written down.
+     */
+    await record({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: 'share.create',
+      accountId: parsed.data.accountId,
+      targetType: 'share',
+      targetId: share.shortId,
+      summary: `Published a ${share.permission === 'download' ? 'downloadable' : 'view-only'} link`,
+      ip: req.ip,
+    });
+
     res.status(201).json({ share: withUrl(share) });
   } catch (err) {
     next(err);
@@ -90,6 +109,18 @@ sharesRouter.delete('/api/shares/:shortId', requireAuth, async (req, res, next) 
       res.status(404).json({ error: { code: 'not_found', message: 'No such link' } });
       return;
     }
+
+    await record({
+      actorId: req.user!.id,
+      actorEmail: req.user!.email,
+      action: 'share.revoke',
+      accountId: revoked.accountId,
+      targetType: 'share',
+      targetId: req.params.shortId ?? '',
+      summary: 'Revoked a public link',
+      ip: req.ip,
+    });
+
     res.status(204).end();
   } catch (err) {
     next(err);
