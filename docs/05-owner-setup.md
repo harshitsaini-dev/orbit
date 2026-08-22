@@ -141,9 +141,22 @@ Written and tested against mocked responses, never against a real account.
 Registering the app is free and needs no card. Step by step in
 `05-onedrive-dropbox.md`; nothing else waits on it.
 
-Dropbox, in the same document, is already connected. Its app is in *development*
-mode, which caps it at 50 linked accounts - fine while it is only you, and
-something to move to production before anyone else uses it.
+Dropbox, in the same document, is already connected, and needs nothing further.
+
+Its app is in *development* mode, which is often written up as a 50-account cap.
+It is not: development status links up to **500 Dropbox users**, and Dropbox's
+own production request form says in as many words that an app which does not
+need more than 50 **should not apply**, and that an application is not reviewed
+at all until the app already has 50 users.
+
+So there is nothing to do here and no seven-day trap of the kind Google's
+Testing mode had. Fill in the **Branding** tab anyway - name, icons, website,
+privacy policy - because that is what a person sees on the Dropbox authorise
+screen, and an app with a puzzle-piece icon and no publisher reads as something
+not to grant access to.
+
+Come back only if 50 accounts are ever linked. Dropbox then gives **two weeks**
+to apply before it stops linking new ones.
 
 ---
 

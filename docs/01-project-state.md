@@ -511,9 +511,13 @@ done from the codebase. Step-by-step instructions are in
    the wall to go through before opening Orbit to a crowd. Full verification of
    the `drive` scope still means an annual third-party security assessment that
    is not free.
-4. **Dropbox production mode** — connected and working, but the app is in
-   development mode, which is capped at 50 linked accounts. Fine for now;
-   needed before anyone else uses it.
+4. ~~**Dropbox production mode**~~ — nothing to do, checked 2026-08-23. The
+   "50 linked accounts" written here before was wrong: development status
+   links up to **500**, and Dropbox's production request form states that an
+   app needing fewer than 50 should not apply and will not be reviewed until
+   it has 50 users. Branding (name, icons, website, privacy policy) is filled
+   in, which is what the authorise screen shows. Revisit only at 50 accounts,
+   when Dropbox allows two weeks to apply.
 5. ~~**Deployment sign-ups**~~ — done 2026-08-22. Turso, Render, Vercel, Resend
    and Cloudflare are all live, all still on free plans.
 6. ~~**Production secrets**~~ — done 2026-08-22. Generated on the deploying
