@@ -65,6 +65,26 @@ class Hub {
   get connectionCount(): number {
     return this.wss?.clients.size ?? 0;
   }
+
+  /**
+   * Closes every socket so the process can exit.
+   *
+   * A WebSocket is a connection that by design never ends, so `server.close()`
+   * waits for them forever - a shutdown that looks hung until the platform
+   * gives up and kills the process, which is how an upload gets cut off mid
+   * chunk instead of being told the server is going away.
+   */
+  close(): void {
+    for (const socket of this.wss?.clients ?? []) {
+      // 1001 is "going away", which is what this is; the client reconnects
+      // rather than treating it as an error.
+      socket.close(1001, 'server shutting down');
+    }
+
+    this.channels.clear();
+    this.wss?.close();
+    this.wss = null;
+  }
 }
 
 export const hub = new Hub();

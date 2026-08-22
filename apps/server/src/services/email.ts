@@ -1,5 +1,6 @@
 import { Resend } from 'resend';
 import { env } from '../lib/env.js';
+import { log } from '../lib/log.js';
 
 interface Mail {
   to: string;
@@ -36,7 +37,12 @@ export function clearOutbox(): void {
  */
 async function send(mail: Mail): Promise<void> {
   if (!env.RESEND_API_KEY) {
-    console.log(`[email:dev] to=${mail.to} subject="${mail.subject}"\n${mail.text}`);
+    /*
+     * The one place a code is deliberately written down, and the only
+     * transport with no mailbox to send it to. Production cannot reach here:
+     * hosted mode refuses to start without RESEND_API_KEY.
+     */
+    log.warn(`[email:dev] to=${mail.to} subject="${mail.subject}"\n${mail.text}`);
     return;
   }
 

@@ -1,6 +1,7 @@
 import cron, { type ScheduledTask } from 'node-cron';
 import { runDue } from './schedules.js';
 import { env } from '../lib/env.js';
+import { log } from '../lib/log.js';
 import { nameUnlabelledAccounts, refreshExpiringAccounts } from './accounts.js';
 import { measureStaleSharedDrives } from './storage-summary.js';
 import { syncAll } from './sync.js';
@@ -23,9 +24,11 @@ async function runSyncPass(): Promise<void> {
   // do. A dead grant is also discovered here rather than the moment they need it.
   const result = await refreshExpiringAccounts();
   if (result.refreshed || result.revoked || result.failed) {
-    console.log(
-      `token sweep: ${result.refreshed} refreshed, ${result.revoked} need reconnecting, ${result.failed} deferred`,
-    );
+    log.info('token sweep', {
+      refreshed: result.refreshed,
+      needReconnecting: result.revoked,
+      deferred: result.failed,
+    });
   }
 
   const synced = await syncAll();
@@ -33,10 +36,7 @@ async function runSyncPass(): Promise<void> {
   const changed = synced.reduce((sum, account) => sum + account.changed + account.deleted, 0);
 
   if (synced.length > 0) {
-    console.log(
-      `sync: ${synced.length} account(s), ${changed} change(s)` +
-        (failed.length > 0 ? `, ${failed.length} failed` : ''),
-    );
+    log.info('sync pass', { accounts: synced.length, changes: changed, failed: failed.length });
   }
 }
 
@@ -57,27 +57,27 @@ async function runSyncPass(): Promise<void> {
 async function measureSharedDrives(): Promise<void> {
   try {
     const done = await measureStaleSharedDrives();
-    if (done > 0) console.log(`shared drives: measured ${done}`);
+    if (done > 0) log.info('shared drives measured', { drives: done });
   } catch (err) {
-    console.error('shared drive pass failed', err instanceof Error ? err.message : err);
+    log.error('shared drive pass failed', { error: err });
   }
 }
 
 async function nameAccounts(): Promise<void> {
   try {
     const named = await nameUnlabelledAccounts();
-    if (named > 0) console.log(`accounts: named ${named} connection(s) from the provider`);
+    if (named > 0) log.info('accounts named from the provider', { accounts: named });
   } catch (err) {
-    console.error('naming pass failed', err instanceof Error ? err.message : err);
+    log.error('naming pass failed', { error: err });
   }
 }
 
 async function runUserSchedules(): Promise<void> {
   try {
     const ran = await runDue();
-    if (ran > 0) console.log(`schedules: ran ${ran}`);
+    if (ran > 0) log.info('schedules ran', { schedules: ran });
   } catch (err) {
-    console.error('schedule pass failed', err instanceof Error ? err.message : err);
+    log.error('schedule pass failed', { error: err });
   }
 }
 
@@ -88,7 +88,7 @@ export function startSyncScheduler(): Scheduler {
 
   const task: ScheduledTask = cron.schedule(env.SYNC_CRON, () => {
     void runSyncPass().catch((err: unknown) => {
-      console.error('sync pass failed', err instanceof Error ? err.message : err);
+      log.error('sync pass failed', { error: err });
     });
     void runUserSchedules();
     void measureSharedDrives();
@@ -97,7 +97,7 @@ export function startSyncScheduler(): Scheduler {
   // One pass at boot, so a restart after a long idle period renews immediately
   // rather than waiting for the next tick.
   void runSyncPass().catch((err: unknown) => {
-    console.error('initial sync pass failed', err instanceof Error ? err.message : err);
+    log.error('initial sync pass failed', { error: err });
   });
 
   // And the user's own jobs, for the same reason and more so: the instance

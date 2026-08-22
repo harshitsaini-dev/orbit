@@ -1,0 +1,35 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "npm run build -w @orbit/web",
+  "outputDirectory": "apps/web/dist",
+  "installCommand": "npm ci",
+  "framework": null,
+  "_comment": "Rewrites run after the filesystem check, so real files - the service worker, the icons, the hashed bundles - are served as themselves and only unknown paths reach the app's router.",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "content-security-policy",
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; worker-src 'self' blob:; connect-src 'self' https://api.orbit.harshitsaini.in wss://api.orbit.harshitsaini.in; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+        },
+        { "key": "x-content-type-options", "value": "nosniff" },
+        { "key": "referrer-policy", "value": "strict-origin-when-cross-origin" },
+        { "key": "x-frame-options", "value": "DENY" },
+        {
+          "key": "permissions-policy",
+          "value": "camera=(), microphone=(), geolocation=(), payment=(), interest-cohort=()"
+        },
+        {
+          "key": "strict-transport-security",
+          "value": "max-age=31536000; includeSubDomains"
+        }
+      ]
+    },
+    {
+      "source": "/assets/(.*)",
+      "headers": [{ "key": "cache-control", "value": "public, max-age=31536000, immutable" }]
+    }
+  ]
+}

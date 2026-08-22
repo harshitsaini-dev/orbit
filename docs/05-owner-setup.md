@@ -196,11 +196,20 @@ DATABASE_URL=libsql://orbit-prod-<org>.turso.io DATABASE_AUTH_TOKEN=<token> npm 
 
 1. Sign up at <https://render.com/> with GitHub, and grant it access to the `orbit` repo.
 2. **New → Web Service** → pick `harshitsaini-dev/orbit`.
-3. Settings:
+3. Settings — or skip them: `render.yaml` in the repository root is a blueprint with all of
+   this in it, so **New → Blueprint** reads it and only asks for the secrets. By hand:
    - Root directory: leave empty (repository root)
    - Runtime: Node
-   - Build command: `npm ci`
+   - Build command: `npm ci && npm run build -w @orbit/web`
+
+     The web workspace is not a mistake here. The share page's viewer is built from it into
+     the server, so `npm ci` alone deploys an API whose share links fall back to the plain
+     preview.
    - Start command: `npm start -w @orbit/server`
+   - Health check path: `/health/ready`
+
+     Not `/health`. The cheap one answers from memory and would report "ok" with the database
+     unreachable, which is exactly the state Render must not send traffic into.
    - Instance type: **Free**
 4. **Environment** → add:
 
@@ -255,12 +264,20 @@ verification both platforms run.
 
 1. Sign up at <https://vercel.com/> with GitHub.
 2. **Add New → Project** → import `harshitsaini-dev/orbit`.
-3. Settings:
-   - Framework preset: **Vite**
-   - Root directory: `apps/web`
-   - Build command: `npm run build`
-   - Output directory: `dist`
+3. Settings — `vercel.json` in the repository root already carries these, so accept what it
+   proposes rather than overriding it:
+   - Root directory: leave empty (repository root)
+
+     Not `apps/web`. This is an npm-workspaces monorepo: the web app depends on
+     `@orbit/shared-types`, which only resolves from an install done at the root.
+   - Build command: `npm run build -w @orbit/web`
+   - Output directory: `apps/web/dist`
 4. **Environment Variables** → `VITE_API_URL` = `https://api.orbit.harshitsaini.in`
+
+   The same file also sets the security headers the app is served with, including a
+   content-security-policy that names the API's origin. If the API ever moves, that value moves
+   with it - otherwise the browser blocks every request the app makes and the page looks empty
+   for no stated reason.
 5. Deploy, then **Settings → Domains** → add `orbit.harshitsaini.in`. Vercel shows the CNAME
    target for section 5.
 

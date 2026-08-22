@@ -50,6 +50,8 @@ const schema = z.object({
 const parsed = schema.safeParse(process.env);
 
 if (!parsed.success) {
+  // console rather than the logger: the logger reads this module for its level
+  // and its format, so there is nothing to log with until this has parsed.
   console.error('Invalid environment configuration:');
   for (const issue of parsed.error.issues) {
     console.error(`  ${issue.path.join('.')}: ${issue.message}`);
@@ -82,3 +84,78 @@ export function assertHostedSecrets(): void {
   }
 }
 
+
+/** Only the parts of the configuration these checks are about. */
+export interface ProductionConfig {
+  AUTH_MODE: string;
+  ENABLE_DEV_AUTH_ENDPOINTS: boolean;
+  DATABASE_URL?: string | undefined;
+  TOKEN_ENCRYPTION_KEY?: string | undefined;
+  SESSION_SECRET?: string | undefined;
+  APP_URL: string;
+  API_URL: string;
+}
+
+/**
+ * Everything wrong with a configuration that would still start.
+ *
+ * Each of these runs perfectly well and is wrong in a way nothing would
+ * surface: a workspace with the sign-in turned off, a database that disappears
+ * on the next deploy, cookies sent over plain HTTP.
+ *
+ * Returned as a list rather than thrown one at a time, because somebody fixing
+ * a deployment wants all of it, not one round trip per line.
+ */
+export function productionProblems(config: ProductionConfig): string[] {
+  const problems: string[] = [];
+
+  // The big one. Local mode runs every request as one implicit user with no
+  // sign-in at all, which on a public host is an open workspace.
+  if (config.AUTH_MODE !== 'hosted') {
+    problems.push('AUTH_MODE must be "hosted" in production - local mode has no sign-in');
+  }
+
+  if (config.ENABLE_DEV_AUTH_ENDPOINTS) {
+    problems.push('ENABLE_DEV_AUTH_ENDPOINTS must be off in production - it reads back OTP codes');
+  }
+
+  // Without it, libSQL writes a file inside the container, and a container is
+  // not somewhere anything survives.
+  if (!config.DATABASE_URL) {
+    problems.push('DATABASE_URL must be set in production - a local file is lost on every deploy');
+  }
+
+  // AES-256 wants exactly 32 bytes. A shorter key is either padded or rejected
+  // depending on where it is used, and neither is something to discover later.
+  if (config.TOKEN_ENCRYPTION_KEY) {
+    const bytes = Buffer.from(config.TOKEN_ENCRYPTION_KEY, 'base64').length;
+    if (bytes !== 32) {
+      problems.push(`TOKEN_ENCRYPTION_KEY must be 32 bytes of base64, not ${bytes}`);
+    }
+  }
+
+  if (config.SESSION_SECRET && config.SESSION_SECRET.length < 32) {
+    problems.push('SESSION_SECRET must be at least 32 characters');
+  }
+
+  // Session cookies are marked secure in production, so a browser on an http
+  // origin silently drops them and nobody can stay signed in.
+  for (const key of ['APP_URL', 'API_URL'] as const) {
+    if (!config[key].startsWith('https://')) problems.push(`${key} must be https in production`);
+  }
+
+  return problems;
+}
+
+/**
+ * The same checks, applied at boot, before anything is served - because the
+ * alternative is finding out from a user.
+ */
+export function assertProductionSafety(): void {
+  if (env.NODE_ENV !== 'production') return;
+
+  const problems = productionProblems(env);
+  if (problems.length > 0) {
+    throw new Error(['Refusing to start in production:', ...problems].join('\n  - '));
+  }
+}

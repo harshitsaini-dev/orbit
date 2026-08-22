@@ -3,6 +3,7 @@ import { ALLOCATION_STRATEGIES, catalogueEntry, PROVIDER_CATALOGUE } from '@orbi
 import { Router } from 'express';
 import { z } from 'zod';
 import { env } from '../lib/env.js';
+import { log } from '../lib/log.js';
 import {
   beginAuthorisation,
   consumeAuthorisation,
@@ -398,7 +399,7 @@ accountsRouter.post('/api/accounts/connect', requireAuth, async (req, res, next)
     // which of the four fields is wrong, and that is the whole difference
     // between fixing it in a minute and guessing.
     if (err instanceof ProviderError) {
-      console.error(`connect ${entry.key} failed:`, err.message);
+      log.error('connect failed', { provider: entry.key, error: err });
 
       res.status(400).json({
         error: { code: 'connect_failed', message: explainConnectFailure(err) },

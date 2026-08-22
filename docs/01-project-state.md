@@ -23,7 +23,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 7 | Sharing + QR | 🟢 Done |
 | 8 | RBAC + superadmin | 🟢 Done |
 | 9 | Design pass (Claymorphism, three.js, PWA) | ⚪ Not started |
-| 10 | Hardening + deploy | ⚪ Not started |
+| 10 | Hardening + deploy | 🟡 Hardening done · deploy waits on the owner's sign-ups |
 | 11 | Developer platform (public API, tokens, OAuth apps, API docs tab) | ⚪ Designed, not started |
 | 12 | Instant directory cache + offline browsing | 🟢 Done |
 | 13 | Spotlight (Ctrl/Cmd + K) | 🟢 Done |
@@ -101,7 +101,7 @@ NULLs as distinct, so those never deduplicate: merging two connections that only
 | Check | Result |
 |---|---|
 | `npm run typecheck --workspaces` | clean |
-| `npm test --workspaces` | 793 pass, 0 fail |
+| `npm test --workspaces` | 818 pass, 0 fail |
 | `npm run lint` | 0 errors |
 | `npm run build --workspaces` | clean |
 | `npx playwright test` (headed) | 219 pass, 0 fail across desktop, tablet and mobile |

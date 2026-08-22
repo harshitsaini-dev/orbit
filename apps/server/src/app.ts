@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { ProviderError } from '@orbit/adapters';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
@@ -5,6 +6,7 @@ import express, { type Express, type NextFunction, type Request, type Response }
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { env } from './lib/env.js';
+import { log } from './lib/log.js';
 import { attachUser } from './middleware/auth.js';
 import { accountsRouter } from './routes/accounts.js';
 import { adminRouter } from './routes/admin.js';
@@ -57,6 +59,49 @@ export function createApp(): Express {
 
   app.set('trust proxy', 1);
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+
+  /*
+   * One id per request, echoed back on the response and written on every line
+   * about it - including the sentence a user sees when something fails.
+   *
+   * The point is being able to answer "it said something went wrong" with the
+   * actual reason. Without it a report is a time and a page name, and the log
+   * for a busy minute is unsearchable.
+   *
+   * An id supplied by a caller is not trusted: it is a header a stranger can
+   * set, and one long enough or odd enough would end up in every log line.
+   */
+  app.use((req, res, next) => {
+    const supplied = req.get('x-request-id');
+    const id =
+      supplied && /^[\w-]{1,64}$/.test(supplied) ? supplied : randomBytes(8).toString('hex');
+
+    res.locals['requestId'] = id;
+    res.setHeader('x-request-id', id);
+
+    const startedAt = process.hrtime.bigint();
+
+    res.on('finish', () => {
+      const ms = Number(process.hrtime.bigint() - startedAt) / 1e6;
+      const fields = {
+        requestId: id,
+        method: req.method,
+        // The path without its query: a query string carries share ids, file
+        // ids and the odd token, and the redactor is a second line of defence
+        // rather than the first.
+        path: req.route ? req.baseUrl + req.route.path : req.path,
+        status: res.statusCode,
+        ms: Math.round(ms),
+      };
+
+      // The uptime pinger hits /health every few minutes forever, and it is
+      // not news. Everything else is.
+      if (req.path.startsWith('/health')) log.debug('request', fields);
+      else log.info('request', fields);
+    });
+
+    next();
+  });
   app.use(cors({ origin: env.APP_URL, credentials: true }));
   // Skips the upload chunk route: that body is raw file bytes, and a JSON
   // parser would both fail on it and buffer it twice.
@@ -155,18 +200,27 @@ export function createApp(): Express {
   app.use(uploadsRouter);
 
   app.use((_req, res) => {
-    res.status(404).json({ error: { code: 'not_found', message: 'Route not found' } });
+    res.status(404).json({
+      error: {
+        code: 'not_found',
+        message: 'Route not found',
+        requestId: String(res.locals['requestId'] ?? ''),
+      },
+    });
   });
 
   app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
-    // Log the cause chain: a wrapped driver error otherwise reports only
-    // "Failed query", which says nothing about why it failed.
-    console.error(`${req.method} ${req.path} ->`, err.name, err.message);
-    let cause = (err as { cause?: unknown }).cause;
-    while (cause instanceof Error) {
-      console.error('  caused by:', cause.name, cause.message);
-      cause = (cause as { cause?: unknown }).cause;
-    }
+    const requestId = String(res.locals['requestId'] ?? '');
+
+    // The cause chain matters: a wrapped driver error otherwise reports only
+    // "Failed query", which says nothing about why it failed. The logger
+    // follows it, and redacts anything that turns out to be a credential.
+    log.error('request failed', {
+      requestId,
+      method: req.method,
+      path: req.path,
+      error: err,
+    });
     // A provider that told us exactly what was wrong should not be reported as
     // "something went wrong": a refused upload is usually a permission or a
     // missing folder, and the user can act on that but not on a 500. The
@@ -177,11 +231,14 @@ export function createApp(): Express {
       const [status, code, message] = describeProviderFailure(err.status);
       // An adapter that understood the failure explains it better than a status
       // ever could, so its own wording wins where it wrote one.
-      res.status(status).json({ error: { code, message: err.userMessage ?? message } });
+      res.status(status).json({ error: { code, message: err.userMessage ?? message, requestId } });
       return;
     }
 
-    res.status(500).json({ error: { code: 'internal_error', message: 'Something went wrong' } });
+    // The id is the only part of this a user can usefully quote back.
+    res.status(500).json({
+      error: { code: 'internal_error', message: 'Something went wrong', requestId },
+    });
   });
 
   return app;
