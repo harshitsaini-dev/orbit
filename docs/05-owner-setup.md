@@ -215,11 +215,12 @@ DATABASE_URL=libsql://orbit-prod-<org>.turso.io DATABASE_AUTH_TOKEN=<token> npm 
    this in it, so **New → Blueprint** reads it and only asks for the secrets. By hand:
    - Root directory: leave empty (repository root)
    - Runtime: Node
-   - Build command: `npm ci && npm run build -w @orbit/web`
+   - Build command: `npm ci --include=dev && npm run build -w @orbit/web`
 
-     The web workspace is not a mistake here. The share page's viewer is built from it into
-     the server, so `npm ci` alone deploys an API whose share links fall back to the plain
-     preview.
+     Both halves matter. `--include=dev` because `NODE_ENV=production` makes npm skip
+     devDependencies, which is where TypeScript, Vite and the `tsx` that *starts* the server
+     all live. And the web workspace because the share page's viewer is built from it into the
+     server, so `npm ci` alone deploys an API whose share links fall back to the plain preview.
    - Start command: `npm start -w @orbit/server`
    - Health check path: `/health/ready`
 

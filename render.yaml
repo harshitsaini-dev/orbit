@@ -19,8 +19,18 @@ services:
     region: singapore
     branch: main
 
-    # `npm ci` alone would start a server whose share pages have no viewer.
-    buildCommand: npm ci && npm run build -w @orbit/web
+    # Two things about this line, both learned the hard way.
+    #
+    # `--include=dev`, because NODE_ENV is production here and npm then omits
+    # devDependencies - which is where TypeScript, Vite and, more to the point,
+    # the `tsx` this service is *started* with all live. Without it the build
+    # fails on a missing type definition, and had it not, the start command
+    # would have failed on a missing binary.
+    #
+    # And the web workspace, because the share page's viewer is built from it
+    # into the server: `npm ci` alone deploys an API whose share links fall
+    # back to the plain preview.
+    buildCommand: npm ci --include=dev && npm run build -w @orbit/web
     startCommand: npm start -w @orbit/server
 
     healthCheckPath: /health/ready
