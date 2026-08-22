@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { catalogueEntry } from '@orbit/shared-types';
 import type { OrbitFile, ProviderCapabilities, PublicAccount } from '@orbit/shared-types';
-import { DownloadIcon, OpenIcon, RenameIcon, StarIcon } from '../components/ActionIcon.js';
+import { DownloadIcon, OpenIcon, RenameIcon, ShareIcon, StarIcon } from '../components/ActionIcon.js';
 import { FileIcon } from '../components/FileIcon.js';
 import { FilePreview } from '../components/FilePreview.js';
 import { Checkbox } from '../components/Checkbox.js';
 import { ContextMenu, useContextMenu, type MenuItem } from '../components/ContextMenu.js';
 import { DropZone } from '../components/DropZone.js';
+import { ShareDialog } from '../components/ShareDialog.js';
 import { FileGrid } from '../components/FileGrid.js';
 import {
   NewFolderIcon,
@@ -332,6 +333,7 @@ export function MyDrive() {
   }, [accountId, path, filters, searchActive]);
 
   const menu = useContextMenu<OrbitFile>();
+  const [sharing, setSharing] = useState<OrbitFile | null>(null);
 
   /**
    * What the right-click menu offers for one file. Built here rather than in
@@ -365,6 +367,13 @@ export function MyDrive() {
         label: file.starred ? 'Remove star' : 'Add star',
         icon: <StarIcon filled={file.starred} />,
         onSelect: () => void toggleStar(file),
+      },
+      {
+        label: 'Share link',
+        icon: <ShareIcon />,
+        onSelect: () => setSharing(file),
+        // A folder has no single stream to serve, so there is nothing to share.
+        disabled: file.isFolder,
       },
       {
         label: 'Rename',
@@ -991,6 +1000,15 @@ export function MyDrive() {
           </p>
         )}
       </section>
+
+      {sharing && (
+        <ShareDialog
+          file={sharing}
+          accountId={accountId}
+          apiBase={API_BASE}
+          onClose={() => setSharing(null)}
+        />
+      )}
 
       {menu.state && (
         <ContextMenu

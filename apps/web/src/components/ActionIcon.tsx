@@ -56,3 +56,14 @@ export function OpenIcon({ size = 16 }: { size?: number }) {
     </svg>
   );
 }
+
+export function ShareIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg {...base} width={size} height={size}>
+      <circle cx="17.6" cy="5.8" r="2.6" />
+      <circle cx="6.4" cy="12" r="2.6" />
+      <circle cx="17.6" cy="18.2" r="2.6" />
+      <path d="M8.8 10.7 15.2 7.1M8.8 13.3l6.4 3.6" />
+    </svg>
+  );
+}

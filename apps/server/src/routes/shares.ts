@@ -1,0 +1,269 @@
+import { Readable } from 'node:stream';
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { Router } from 'express';
+import QRCode from 'qrcode';
+import { z } from 'zod';
+import { env } from '../lib/env.js';
+import { requireAuth } from '../middleware/auth.js';
+import { useAccount } from '../services/accounts.js';
+import {
+  createShare,
+  listShares,
+  lookupShare,
+  recordAccess,
+  resolveShareTarget,
+  revokeShare,
+  type PublicShare,
+} from '../services/shares.js';
+import { parseRange } from './files.js';
+import { sharePage } from './share-page.js';
+
+export const sharesRouter: Router = Router();
+
+// --- the owner's side -----------------------------------------------------
+
+const createSchema = z.object({
+  accountId: z.string().min(1),
+  remoteId: z.string().min(1),
+  permission: z.enum(['view', 'download']).optional(),
+  password: z.string().min(1).max(200).optional(),
+  expiresInDays: z.number().int().positive().max(365).optional(),
+});
+
+function shareUrl(shortId: string): string {
+  // The API's own origin, not the app's: the page is served here, so that the
+  // bytes and the page come from one place and no provider URL is involved.
+  return `${env.API_URL}/s/${shortId}`;
+}
+
+function withUrl(share: PublicShare): PublicShare & { url: string } {
+  return { ...share, url: shareUrl(share.shortId) };
+}
+
+sharesRouter.post('/api/shares', requireAuth, async (req, res, next) => {
+  const parsed = createSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: { code: 'invalid_request', message: 'Malformed share' } });
+    return;
+  }
+
+  try {
+    const share = await createShare({ userId: req.user!.id, ...parsed.data });
+    if (!share) {
+      res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
+      return;
+    }
+
+    res.status(201).json({ share: withUrl(share) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+sharesRouter.get('/api/shares', requireAuth, async (req, res, next) => {
+  try {
+    res.json({ shares: (await listShares(req.user!.id)).map(withUrl) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+sharesRouter.delete('/api/shares/:shortId', requireAuth, async (req, res, next) => {
+  try {
+    const revoked = await revokeShare(req.user!.id, req.params.shortId ?? '');
+    if (!revoked) {
+      res.status(404).json({ error: { code: 'not_found', message: 'No such link' } });
+      return;
+    }
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// --- the visitor's side ---------------------------------------------------
+
+/**
+ * Proof that a password was entered, so the page and the bytes it references do
+ * not each demand it.
+ *
+ * An HMAC of the id rather than the password itself: the cookie travels with
+ * every request to the share and would otherwise put the password in the
+ * browser's store.
+ */
+function unlockToken(shortId: string): string {
+  return createHmac('sha256', env.SESSION_SECRET ?? 'orbit-dev-secret')
+    .update(`share:${shortId}`)
+    .digest('base64url');
+}
+
+function hasUnlocked(req: { cookies?: Record<string, unknown> }, shortId: string): boolean {
+  const supplied = req.cookies?.[`orbit_share_${shortId}`];
+  if (typeof supplied !== 'string') return false;
+
+  const expected = unlockToken(shortId);
+  const a = Buffer.from(supplied);
+  const b = Buffer.from(expected);
+  // Length-checked first: timingSafeEqual throws on a mismatch rather than
+  // returning false, which would turn a wrong-length cookie into a 500.
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+/** Nothing shared should end up in a search index. */
+function publicHeaders(res: {
+  setHeader: (name: string, value: string) => void;
+}): void {
+  res.setHeader('x-robots-tag', 'noindex, nofollow, noarchive');
+  res.setHeader('referrer-policy', 'no-referrer');
+  // The page runs no scripts at all, so the policy can say exactly that.
+  res.setHeader(
+    'content-security-policy',
+    "default-src 'none'; img-src 'self' data:; media-src 'self'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+  );
+}
+
+sharesRouter.get('/s/:shortId', async (req, res, next) => {
+  const shortId = req.params.shortId ?? '';
+
+  try {
+    const found = await lookupShare(shortId);
+    publicHeaders(res);
+
+    if (found.state === 'missing') {
+      res.status(404).type('html').send(sharePage({ kind: 'missing' }));
+      return;
+    }
+    if (found.state === 'expired') {
+      res.status(410).type('html').send(sharePage({ kind: 'expired' }));
+      return;
+    }
+    if (found.state === 'locked' && !hasUnlocked(req, shortId)) {
+      res.status(401).type('html').send(sharePage({ kind: 'locked', shortId }));
+      return;
+    }
+
+    res
+      .type('html')
+      .send(sharePage({ kind: 'file', shortId, share: found.share }));
+  } catch (err) {
+    next(err);
+  }
+});
+
+const unlockSchema = z.object({ password: z.string().min(1).max(200) });
+
+sharesRouter.post('/s/:shortId/unlock', async (req, res, next) => {
+  const shortId = req.params.shortId ?? '';
+
+  try {
+    const parsed = unlockSchema.safeParse(req.body);
+    const found = await lookupShare(shortId, parsed.success ? parsed.data.password : undefined);
+    publicHeaders(res);
+
+    if (found.state === 'missing') {
+      res.status(404).type('html').send(sharePage({ kind: 'missing' }));
+      return;
+    }
+    if (found.state === 'expired') {
+      res.status(410).type('html').send(sharePage({ kind: 'expired' }));
+      return;
+    }
+    if (found.state === 'locked') {
+      res.status(401).type('html').send(sharePage({ kind: 'locked', shortId, wrong: true }));
+      return;
+    }
+
+    res.cookie(`orbit_share_${shortId}`, unlockToken(shortId), {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: `/s/${shortId}`,
+      maxAge: 6 * 60 * 60 * 1000,
+    });
+
+    // Redirect rather than render, so a refresh does not resubmit the password.
+    res.redirect(303, `/s/${shortId}`);
+  } catch (err) {
+    next(err);
+  }
+});
+
+sharesRouter.get('/s/:shortId/content', async (req, res, next) => {
+  const shortId = req.params.shortId ?? '';
+
+  try {
+    const target = await resolveShareTarget(shortId, hasUnlocked(req, shortId));
+
+    if ('blocked' in target) {
+      // A visitor without the password gets the same answer as one following a
+      // link that never existed: the bytes say nothing the page has not said.
+      res.status(target.blocked === 'expired' ? 410 : 404).end();
+      return;
+    }
+
+    const active = await useAccount(target.ownerId, target.accountId);
+    if (!active) {
+      res.status(404).end();
+      return;
+    }
+
+    const range = parseRange(req.headers.range);
+    const stream = await active.adapter.getFileStream(
+      active.tokens,
+      target.remoteId,
+      range ?? undefined,
+    );
+
+    publicHeaders(res);
+    res.setHeader('content-type', stream.contentType);
+    res.setHeader('accept-ranges', 'bytes');
+    // Never held by a shared cache: the link can be revoked at any moment, and
+    // a cached copy would outlive the revocation.
+    res.setHeader('cache-control', 'private, no-store');
+
+    if (req.query.download !== undefined && target.permission === 'download') {
+      res.setHeader(
+        'content-disposition',
+        `attachment; filename*=UTF-8''${encodeURIComponent(target.name)}`,
+      );
+    }
+
+    if (stream.contentRange) {
+      res.status(206).setHeader('content-range', stream.contentRange);
+    }
+    if (stream.contentLength !== undefined) {
+      res.setHeader('content-length', String(stream.contentLength));
+    }
+
+    Readable.fromWeb(stream.stream as never).pipe(res);
+    void recordAccess(shortId);
+  } catch (err) {
+    next(err);
+  }
+});
+
+sharesRouter.get('/s/:shortId/qr', async (req, res, next) => {
+  const shortId = req.params.shortId ?? '';
+
+  try {
+    const found = await lookupShare(shortId);
+    if (found.state === 'missing') {
+      res.status(404).end();
+      return;
+    }
+
+    // SVG rather than PNG: it scales to whatever it is printed or shown at,
+    // and it is a fraction of the bytes.
+    const svg = await QRCode.toString(shareUrl(shortId), {
+      type: 'svg',
+      margin: 1,
+      errorCorrectionLevel: 'M',
+    });
+
+    publicHeaders(res);
+    res.type('image/svg+xml').setHeader('cache-control', 'private, max-age=3600');
+    res.send(svg);
+  } catch (err) {
+    next(err);
+  }
+});

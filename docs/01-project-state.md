@@ -20,7 +20,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 4 | Unified workspace views | 🟢 Done |
 | 5 | Upload system + WebSocket progress + allocation | 🟡 Upload and progress done · allocation strategies pending |
 | 6 | Sync engine | ⚪ Not started |
-| 7 | Sharing + QR | ⚪ Not started |
+| 7 | Sharing + QR | 🟢 Done |
 | 8 | RBAC + superadmin | ⚪ Not started |
 | 9 | Design pass (Claymorphism, three.js, PWA) | ⚪ Not started |
 | 10 | Hardening + deploy | ⚪ Not started |

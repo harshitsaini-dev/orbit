@@ -2157,3 +2157,60 @@ body {
   border-top: 1px solid var(--border);
   margin: 1.5em 0;
 }
+
+/* --- share dialog --------------------------------------------------------- */
+
+.share-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.share-hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.share-link {
+  display: flex;
+  gap: 8px;
+}
+
+.share-link input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding: 0.6rem 0.9rem;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: var(--shadow-clay-inset);
+  border-radius: var(--radius-sm);
+}
+
+.share-link .clay-button {
+  padding: 0.5rem 1.1rem;
+  font-size: 13px;
+}
+
+.share-qr {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+}
+
+.share-qr img {
+  /* A QR is black on white by definition; on a dark surface it needs its own
+     ground or half of it disappears. */
+  background: #fff;
+  padding: 8px;
+  border-radius: 10px;
+}
+
+.share-qr span {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}

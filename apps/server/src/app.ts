@@ -10,6 +10,7 @@ import { accountsRouter } from './routes/accounts.js';
 import { authRouter } from './routes/auth.js';
 import { filesRouter } from './routes/files.js';
 import { profileRouter } from './routes/profile.js';
+import { sharesRouter } from './routes/shares.js';
 import { uploadsRouter } from './routes/uploads.js';
 import { healthRouter } from './routes/health.js';
 
@@ -58,6 +59,8 @@ export function createApp(): Express {
       ? next()
       : express.json({ limit: '1mb' })(req, res, next),
   );
+  // The share page's password form posts urlencoded, since it runs no scripts.
+  app.use('/s', express.urlencoded({ extended: false, limit: '4kb' }));
   app.use(cookieParser());
 
   /**
@@ -110,6 +113,22 @@ export function createApp(): Express {
     }),
   );
 
+  /**
+   * Share links are public, so they are the one surface a stranger can reach
+   * without a session - and the one that must not let a stranger walk the id
+   * space looking for links that work. The budget is generous enough for a page
+   * plus its bytes and its QR, and far too small to search 60 bits.
+   */
+  app.use(
+    rateLimit({
+      windowMs: env.API_RATE_WINDOW_MS,
+      limit: env.SHARE_RATE_LIMIT,
+      standardHeaders: 'draft-7',
+      legacyHeaders: false,
+      skip: (req) => !req.path.startsWith('/s/'),
+    }),
+  );
+
   app.use(healthRouter);
 
   app.use(attachUser);
@@ -117,6 +136,7 @@ export function createApp(): Express {
   app.use(accountsRouter);
   app.use(filesRouter);
   app.use(profileRouter);
+  app.use(sharesRouter);
   app.use(uploadsRouter);
 
   app.use((_req, res) => {

@@ -222,6 +222,47 @@ bounded at 60 pages and its result cached for 30 minutes; `?refresh=1` forces a 
 Only the catalogue entries with a working adapter behind them, so the connect UI never offers a
 dead end. The full intended list is `GET /api/catalogue`.
 
+### `POST /api/shares`
+`{ accountId, remoteId, permission?, password?, expiresInDays? }` → `201 { share }`, where the
+share carries a `url` on the API's own origin. Sharing a file that already has a live link returns
+that link rather than minting a second one — two live links for one file cannot both be managed
+from a UI that shows one per file.
+
+The name, type and size are copied in when the link is made. A share page is public and can be
+opened any number of times; reading metadata per view would turn a link into a way to make Orbit
+hammer someone's Drive.
+
+### `GET /api/shares`
+`{ shares: [] }` for the caller. Never includes the password hash. `hasPassword` says whether
+there is one.
+
+### `DELETE /api/shares/:shortId`
+Revokes. `204`. The row is kept with `revokedAt` set, so the short id can never be handed out
+again, and the link then answers exactly as one that never existed.
+
+### `GET /s/:shortId`
+The public page, server-rendered here rather than by the web app so that the page and the bytes
+come from one origin — anything else needs a redirect that leaks where the file really is. It
+runs **no JavaScript**, so its policy is `default-src 'none'`, and it carries
+`X-Robots-Tag: noindex`.
+
+`404` for a link that is revoked or never existed — the same answer for both, so the id space
+cannot be probed. `410` for one that has expired, which tells a holder of the link nothing they
+did not know. `401` and a password form for a protected one.
+
+### `POST /s/:shortId/unlock`
+Urlencoded `password`. On success sets an httpOnly cookie scoped to `/s/:shortId` containing an
+HMAC of the id — not the password, which would otherwise sit in the browser's cookie store — and
+redirects, so a refresh does not resubmit.
+
+### `GET /s/:shortId/content`
+The bytes, Range-aware so a shared video seeks. `private, no-store`: a revoked link must not
+outlive its revocation in a cache. `?download` sets a filename, and only when the link permits
+downloading.
+
+### `GET /s/:shortId/qr`
+An SVG QR code of the link. SVG rather than PNG so it scales to whatever it is printed at.
+
 ### `WS /ws`
 Channel pub/sub. Client frames: `{"type":"subscribe","channel":"..."}`, `unsubscribe`, `ping`.
 Server frames: `upload:progress`, `upload:complete`, `upload:error`, `sync:status`.

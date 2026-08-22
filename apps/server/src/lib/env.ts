@@ -26,6 +26,7 @@ const schema = z.object({
   /** Requests per window, per IP. Auth is the brute-force surface, so it is tighter. */
   AUTH_RATE_LIMIT: z.coerce.number().int().positive().default(20),
   AUTH_RATE_WINDOW_MS: z.coerce.number().int().positive().default(15 * 60 * 1000),
+  SHARE_RATE_LIMIT: z.coerce.number().int().positive().default(240),
   API_RATE_LIMIT: z.coerce.number().int().positive().default(120),
   API_RATE_WINDOW_MS: z.coerce.number().int().positive().default(60 * 1000),
   /**

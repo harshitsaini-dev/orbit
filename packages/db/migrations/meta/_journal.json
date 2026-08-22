@@ -43,6 +43,13 @@
       "when": 1787329387678,
       "tag": "0005_backfill_remote_account_id",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1787329387679,
+      "tag": "0006_share_links_by_account",
+      "breakpoints": true
     }
   ]
 }

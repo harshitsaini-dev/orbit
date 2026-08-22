@@ -102,25 +102,52 @@ export const filesMirror = sqliteTable(
   ],
 );
 
+/**
+ * A public link to one file.
+ *
+ * Keyed on the account and the provider's own id rather than on a row in the
+ * mirror: the mirror is filled by the sync engine, so a link that depended on
+ * it could not be made for a file the owner is looking at right now - which is
+ * the only moment anyone wants to share something.
+ *
+ * The name, type and size are copied in rather than read from the provider on
+ * every view. A share page is public and can be opened by anyone any number of
+ * times; fetching metadata each time would turn a link into a way to make Orbit
+ * hammer someone's Drive.
+ */
 export const shareLinks = sqliteTable(
   'share_links',
   {
     shortId: text('short_id').primaryKey(),
-    fileMirrorId: text('file_mirror_id')
-      .notNull()
-      .references(() => filesMirror.id, { onDelete: 'cascade' }),
     ownerId: text('owner_id')
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
-    permission: text('permission', { enum: ['view', 'download'] }).notNull().default('view'),
-    /** Optional argon2 hash - set when the link is password protected. */
+    accountId: text('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    remoteId: text('remote_id').notNull(),
+
+    /** Snapshot taken when the link was made. */
+    name: text('name').notNull(),
+    mimeType: text('mime_type').notNull().default('application/octet-stream'),
+    sizeBytes: real('size_bytes').notNull().default(0),
+
+    /** `view` shows it in the page; `download` also offers the file itself. */
+    permission: text('permission', { enum: ['view', 'download'] }).notNull().default('download'),
+    /** scrypt, as everywhere else here. Null when the link has no password. */
     passwordHash: text('password_hash'),
     expiresAt: text('expires_at'),
     accessCount: integer('access_count').notNull().default(0),
+    lastAccessedAt: text('last_accessed_at'),
     revokedAt: text('revoked_at'),
     createdAt: text('created_at').notNull().default(now),
   },
-  (t) => [index('share_owner_idx').on(t.ownerId)],
+  (t) => [
+    index('share_owner_idx').on(t.ownerId),
+    // Reused when the same file is shared twice, so one file has one link
+    // rather than a new one per click.
+    index('share_target_idx').on(t.accountId, t.remoteId),
+  ],
 );
 
 export const sessions = sqliteTable(
