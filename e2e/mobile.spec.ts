@@ -39,6 +39,26 @@ test.describe('small-screen layout', () => {
     }
   });
 
+  test('the page does not spend the screen on its own chrome', async ({ page }, testInfo) => {
+    /*
+     * Everything above the content is paid for on every page, and on a phone
+     * there is not much screen to pay with. The header used to stack the brand
+     * above the search and the avatar, which cost about fifty pixels of every
+     * single view.
+     *
+     * A ceiling rather than an exact height: this is about the header staying
+     * one row, not about a particular font metric.
+     */
+    await signIn(page);
+
+    const header = await page.locator('.app-header').boundingBox();
+    const limit = testInfo.project.name === 'mobile' ? 76 : 96;
+
+    expect(header!.height, `${testInfo.project.name}: the header has stacked`).toBeLessThanOrEqual(
+      limit,
+    );
+  });
+
   test('every navigation item is reachable', async ({ page }, testInfo) => {
     await signIn(page);
     const nav = page.getByRole('navigation', { name: 'Workspace' });

@@ -747,10 +747,11 @@ export function MyDrive() {
               type="button"
               className="clay-button icon-button"
               style={{ padding: '0.4rem 1rem', fontSize: 13 }}
+              aria-label="Go up one folder"
               onClick={() => navigate({ path: parentOf(path) })}
             >
               <UpIcon size={16} />
-              Up
+              <span className="btn-label">Up</span>
             </button>
           )}
           <button
@@ -772,20 +773,22 @@ export function MyDrive() {
             // something Orbit did. Dragging the folder in avoids it entirely,
             // because a drop carries the files without a picker.
             title="Your browser will ask before handing over a folder. Dragging it in skips that."
+            aria-label="Upload folder"
             onClick={() => folderInputRef.current?.click()}
           >
             <UploadFolderIcon size={16} />
-            Upload folder
+            <span className="btn-label">Upload folder</span>
           </button>
           <button
             type="button"
             className="clay-button icon-button"
             style={{ padding: '0.4rem 1rem', fontSize: 13 }}
             disabled={busyId !== null}
+            aria-label="New folder"
             onClick={() => setDialog({ kind: 'new-folder' })}
           >
             <NewFolderIcon size={16} />
-            New folder
+            <span className="btn-label">New folder</span>
           </button>
 
           <input
@@ -817,10 +820,11 @@ export function MyDrive() {
             className="clay-button icon-button"
             style={{ padding: '0.4rem 1rem', fontSize: 13 }}
             disabled={loading}
+            aria-label="Refresh this folder"
             onClick={() => void load()}
           >
             <RefreshIcon size={16} />
-            Refresh
+            <span className="btn-label">Refresh</span>
           </button>
 
           {selectedFiles.length > 0 && (

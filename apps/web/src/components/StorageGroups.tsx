@@ -217,7 +217,9 @@ function CategoryLegend({ totals }: { totals: CategoryTotal[] }) {
       {totals.map((entry) => (
         <li key={entry.category}>
           <span style={{ background: CATEGORY_COLOURS[entry.category] }} />
-          <strong>{CATEGORY_LABELS[entry.category]}</strong>
+          {/* Truncated rather than wrapped, so the numbers beside it stay in
+              their columns; the full label is on the element either way. */}
+          <strong title={CATEGORY_LABELS[entry.category]}>{CATEGORY_LABELS[entry.category]}</strong>
           <span>{formatBytes(entry.sizeBytes)}</span>
           <span>
             {entry.fileCount.toLocaleString()} {entry.fileCount === 1 ? 'file' : 'files'}

@@ -305,24 +305,31 @@ export function Trash() {
 
         <FilterBox value={filter} onChange={setFilter} count={all.length} />
 
-        {/* Why some rows have no countdown. Without this it reads as a broken
-            feature rather than as a provider that will not say. */}
-        {data && data.files.some((file) => file.purgesAt === null) && (
-          <p className="share-hint" style={{ marginTop: '0.7rem' }}>
-            Some of these show no deadline. Providers mostly do not say when a file was deleted —
-            Dropbox reports none at all, and Drive dates only the items in a shared drive — so Orbit
-            counts from its own delete instead. Anything removed before this, or removed in the
-            provider&rsquo;s own website, has no date to count from.
-          </p>
-        )}
+        {/*
+          * Both of these are worth saying and neither is worth two paragraphs
+          * above the list. Folded away, they take one line; a reader who
+          * wonders why a row has no countdown opens it and finds out.
+          */}
+        {data && (data.files.some((file) => file.purgesAt === null) || data.noBin.length > 0) && (
+          <details className="fold">
+            <summary>Why some files show no deadline</summary>
 
-        {/* Said plainly rather than left to be discovered by a delete that
-            cannot be undone. */}
-        {data && data.noBin.length > 0 && (
-          <p className="share-hint" style={{ marginTop: '0.7rem' }}>
-            {data.noBin.map((drive) => drive.nickname).join(', ')} keep no bin — a delete there is
-            final and nothing from them can appear here.
-          </p>
+            {data.files.some((file) => file.purgesAt === null) && (
+              <p>
+                Providers mostly do not say when a file was deleted — Dropbox reports none at all,
+                and Drive dates only the items in a shared drive — so Orbit counts from its own
+                delete instead. Anything removed before this, or removed in the provider&rsquo;s own
+                website, has no date to count from.
+              </p>
+            )}
+
+            {data.noBin.length > 0 && (
+              <p>
+                {data.noBin.map((drive) => drive.nickname).join(', ')} keep no bin — a delete there
+                is final and nothing from them can appear here.
+              </p>
+            )}
+          </details>
         )}
 
         {data?.problems.map((problem) => (
