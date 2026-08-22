@@ -1,4 +1,4 @@
-import { GoogleDriveAdapter, getAdapter } from '@orbit/adapters';
+import { GoogleDriveAdapter, getAdapter, ProviderError } from '@orbit/adapters';
 import { catalogueEntry } from '@orbit/shared-types';
 import { Router } from 'express';
 import { z } from 'zod';
@@ -10,6 +10,7 @@ import {
   redirectUriFor,
 } from '../lib/oauth.js';
 import { requireAuth } from '../middleware/auth.js';
+import { mirrorSize, recentSyncs, syncAccount } from '../services/sync.js';
 import {
   setAccountPriority,
   setAccountWeight,
@@ -314,13 +315,61 @@ accountsRouter.post('/api/accounts/connect', requireAuth, async (req, res, next)
 
     res.status(201).json({ account });
   } catch (err) {
-    // A refused key is the user's to fix, not a fault to report as a 500.
-    if (err instanceof Error && err.name === 'ProviderError') {
+    // A refused key is the user's to fix, not a fault to report as a 500 - but
+    // "could not connect" is not something anyone can act on. The store says
+    // which of the four fields is wrong, and that is the whole difference
+    // between fixing it in a minute and guessing.
+    if (err instanceof ProviderError) {
+      console.error(`connect ${entry.key} failed:`, err.message);
+
       res.status(400).json({
-        error: { code: 'connect_failed', message: 'Could not reach that bucket with those keys' },
+        error: { code: 'connect_failed', message: explainConnectFailure(err) },
       });
       return;
     }
+    next(err);
+  }
+});
+
+// --- the mirror -----------------------------------------------------------
+
+/**
+ * Syncs one account now.
+ *
+ * Answers immediately rather than waiting for the pass: a full enumeration can
+ * take minutes, and a request held open that long dies on the way through most
+ * proxies. Progress arrives on the `sync:{accountId}` channel.
+ */
+accountsRouter.post('/api/accounts/:id/sync', requireAuth, async (req, res, next) => {
+  const accountId = req.params.id ?? '';
+
+  try {
+    const owned = (await listAccounts(req.user!.id)).some((account) => account.id === accountId);
+    if (!owned) {
+      res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
+      return;
+    }
+
+    void syncAccount(req.user!.id, accountId).catch(() => undefined);
+    res.status(202).json({ started: true, channel: `sync:${accountId}` });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** What the mirror holds, and how the last pass went. */
+accountsRouter.get('/api/accounts/:id/sync', requireAuth, async (req, res, next) => {
+  const accountId = req.params.id ?? '';
+
+  try {
+    const owned = (await listAccounts(req.user!.id)).some((account) => account.id === accountId);
+    if (!owned) {
+      res.status(404).json({ error: { code: 'not_found', message: 'No such account' } });
+      return;
+    }
+
+    res.json({ files: await mirrorSize(accountId), history: await recentSyncs(accountId) });
+  } catch (err) {
     next(err);
   }
 });
@@ -383,6 +432,36 @@ accountsRouter.put('/api/allocation/order', requireAuth, async (req, res, next) 
     next(err);
   }
 });
+
+/**
+ * Turns a store's refusal into the field to go and check.
+ *
+ * These four failures account for nearly every first attempt, and each points
+ * at a different box on the form. The provider's own wording is quoted at the
+ * end because it occasionally says something more specific, and it contains no
+ * credential material - `providerFetch` quotes bodies, never headers.
+ */
+function explainConnectFailure(err: ProviderError): string {
+  const detail = err.message.replace(/^s3 \[\d+\]: /, '').slice(0, 200);
+
+  if (/SignatureDoesNotMatch/i.test(detail)) {
+    return `The signature was rejected. This is almost always the region: it must match the project's region exactly, not "auto". Check the secret key too. (${detail})`;
+  }
+  if (/NoSuchBucket/i.test(detail)) {
+    return `That bucket does not exist at this endpoint. Check the bucket name, and that it was created in this project. (${detail})`;
+  }
+  if (/InvalidAccessKeyId/i.test(detail)) {
+    return `The access key was not recognised. For Supabase these come from Project Settings, Storage, S3 access keys - not the anon or service keys. (${detail})`;
+  }
+  if (/AccessDenied|Forbidden/i.test(detail) || err.status === 403) {
+    return `The keys were accepted but are not allowed to list that bucket. (${detail})`;
+  }
+  if (err.status === 404) {
+    return `Nothing answered at that endpoint. Check the project reference or endpoint URL. (${detail})`;
+  }
+
+  return `Could not reach that bucket: ${detail}`;
+}
 
 /** Which catalogue entries can actually be connected today. */
 accountsRouter.get('/api/connectable', requireAuth, (_req, res) => {

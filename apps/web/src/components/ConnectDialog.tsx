@@ -95,7 +95,18 @@ export function ConnectDialog({
         ))}
 
         {error && (
-          <p role="alert" style={{ color: 'var(--danger)', margin: 0, fontSize: 13.5 }}>
+          <p
+            role="alert"
+            style={{
+              color: 'var(--danger)',
+              margin: 0,
+              fontSize: 13,
+              lineHeight: 1.5,
+              // These messages name the field to check and quote the store, so
+              // they run long. Truncating one hides the part that helps.
+              overflowWrap: 'anywhere',
+            }}
+          >
             {error}
           </p>
         )}

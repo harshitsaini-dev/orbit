@@ -19,7 +19,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 3 | Remaining adapters (OneDrive, Dropbox, MEGA, pCloud, S3) | 🟡 S3, OneDrive, Dropbox done · GCS, Azure, Bunny, MEGA, pCloud pending |
 | 4 | Unified workspace views | 🟢 Done |
 | 5 | Upload system + WebSocket progress + allocation | 🟢 Done |
-| 6 | Sync engine | ⚪ Not started |
+| 6 | Sync engine | 🟢 Done |
 | 7 | Sharing + QR | 🟢 Done |
 | 8 | RBAC + superadmin | ⚪ Not started |
 | 9 | Design pass (Claymorphism, three.js, PWA) | ⚪ Not started |
@@ -238,6 +238,26 @@ provider's own usage figure once the trash allowance is included.
 Every viewer says what it is not showing. Someone looking at a spreadsheet
 whose charts are the point should not conclude the file is broken when Orbit
 simply is not drawing them.
+
+## The mirror
+
+`files_mirror` holds metadata for every file in every account - names, paths,
+sizes, checksums, never bytes. It is what makes finding duplicates across
+clouds, counting what is stored, and searching without waiting for the slowest
+provider possible at all.
+
+A delta feed reports what changed since a point in time, and a fresh cursor
+means "from now on" - so the first pass returns nothing. The mirror is therefore
+**seeded** by a full enumeration and only then followed by deltas; without that
+it would only ever learn about files that changed after Orbit connected, which
+for an untouched account is never. Measured against the connected Drive: 863
+files on the first pass.
+
+The cursor is written every page rather than at the end, so a pass cut short by
+a restart resumes instead of enumerating everything again. A pass that stops at
+its page cap reports `partial` rather than pretending to be complete. A dead
+grant marks the account for reconnection instead of retrying every hour forever;
+a 5xx does not, because that is the provider having a bad afternoon.
 
 ## The directory cache
 

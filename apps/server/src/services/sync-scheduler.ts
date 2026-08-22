@@ -1,6 +1,7 @@
 import cron, { type ScheduledTask } from 'node-cron';
 import { env } from '../lib/env.js';
 import { refreshExpiringAccounts } from './accounts.js';
+import { syncAll } from './sync.js';
 
 export interface Scheduler {
   stop(): void;
@@ -8,9 +9,10 @@ export interface Scheduler {
 }
 
 /**
- * Scheduled delta sync. Phase 6 fills runSyncPass() in with the per-account
- * listChangesSince() loop; the schedule wiring lives here so the process shape
- * (one Node service on Render doing API + WS + cron) is fixed from day one.
+ * The scheduled pass: keep tokens alive, then bring the mirror up to date.
+ *
+ * The wiring lives here so the process shape - one Node service doing API, WS
+ * and cron - is fixed rather than assumed.
  */
 async function runSyncPass(): Promise<void> {
   // Keeping tokens alive is the part of a sync pass that matters even before
@@ -24,8 +26,16 @@ async function runSyncPass(): Promise<void> {
     );
   }
 
-  // TODO(phase-6): for each account -> getAdapter(provider).listChangesSince(cursor),
-  // upsert into files_mirror, write a sync_log row, publish a sync:status event.
+  const synced = await syncAll();
+  const failed = synced.filter((account) => account.status === 'error');
+  const changed = synced.reduce((sum, account) => sum + account.changed + account.deleted, 0);
+
+  if (synced.length > 0) {
+    console.log(
+      `sync: ${synced.length} account(s), ${changed} change(s)` +
+        (failed.length > 0 ? `, ${failed.length} failed` : ''),
+    );
+  }
 }
 
 export function startSyncScheduler(): Scheduler {
