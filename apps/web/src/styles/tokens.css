@@ -15,12 +15,23 @@
   --radius-pill: 999px;
 
   /* surfaces */
+  /*
+   * The page is not the same colour as the things on it.
+   *
+   * Both used --surface, so a card was exactly its own background and the only
+   * thing separating them was the clay shadow. In dark that shadow is nearly
+   * black and does the job; in light it is a soft blue-grey at half opacity,
+   * and the whole workspace read as one flat sheet with faint smudges on it.
+   */
+  --bg-page: #e4e9f2;
   --surface: #eef1f6;
   --surface-raised: #f4f6fa;
   --surface-sunken: #e4e8f0;
   --text: #1c2030;
   --text-muted: #5b6479;
   --border: rgba(28, 32, 48, 0.08);
+  /* Strong enough to read as an edge; --border is for dividers, not controls. */
+  --checkbox-ring: rgba(28, 32, 48, 0.28);
 
   /* accent - user swappable */
   --accent: #6c8cff;
@@ -63,12 +74,14 @@
 /* Explicit dark choice wins in both directions; system default falls through to
    the media query below. Never define a colour only inside one of these blocks. */
 :root[data-theme='dark'] {
+  --bg-page: #12151f;
   --surface: #1c1f2b;
   --surface-raised: #232736;
   --surface-sunken: #161923;
   --text: #eef1f6;
   --text-muted: #98a1b8;
   --border: rgba(238, 241, 246, 0.1);
+  --checkbox-ring: rgba(238, 241, 246, 0.3);
   --accent-soft: color-mix(in srgb, var(--accent) 22%, transparent);
   --scrollbar-thumb: rgba(238, 241, 246, 0.18);
   --scrollbar-thumb-hover: rgba(238, 241, 246, 0.34);
@@ -84,12 +97,14 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
+    --bg-page: #12151f;
     --surface: #1c1f2b;
     --surface-raised: #232736;
     --surface-sunken: #161923;
     --text: #eef1f6;
     --text-muted: #98a1b8;
     --border: rgba(238, 241, 246, 0.1);
+    --checkbox-ring: rgba(238, 241, 246, 0.3);
     --accent-soft: color-mix(in srgb, var(--accent) 22%, transparent);
     --scrollbar-thumb: rgba(238, 241, 246, 0.18);
     --scrollbar-thumb-hover: rgba(238, 241, 246, 0.34);

@@ -14,7 +14,7 @@ body,
 
 body {
   margin: 0;
-  background: var(--surface);
+  background: var(--bg-page);
   color: var(--text);
   font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   font-size: 16px;
@@ -381,7 +381,15 @@ body {
   place-items: center;
   padding: 2px;
   background: var(--surface-sunken);
-  box-shadow: var(--shadow-clay-inset);
+  /*
+   * A ring as well as the inset shadow.
+   *
+   * Unchecked, the box was a sunken surface on a surface - about two percent
+   * of lightness apart in the light theme - so an empty checkbox read as
+   * nothing being there at all, and a row of them read as a column of smudges.
+   * The ring is what says "this is a control, and it is off".
+   */
+  box-shadow: var(--shadow-clay-inset), inset 0 0 0 1.5px var(--checkbox-ring);
   color: transparent;
   transition:
     background var(--dur-fast) var(--ease-clay),
@@ -390,7 +398,7 @@ body {
 }
 
 .checkbox:hover .checkbox__box {
-  box-shadow: var(--shadow-clay-inset), var(--glow-accent);
+  box-shadow: var(--shadow-clay-inset), inset 0 0 0 1.5px var(--accent), var(--glow-accent);
 }
 
 .checkbox input:checked + .checkbox__box {
@@ -1291,7 +1299,7 @@ body {
   display: grid;
   overflow-y: auto;
   padding: clamp(1rem, 4vw, 2rem);
-  background: var(--surface);
+  background: var(--bg-page);
 }
 
 /* --- the area a preview is drawn in -------------------------------------- */
@@ -1319,7 +1327,7 @@ body {
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 0.75rem;
   padding: clamp(0.6rem, 2vw, 1.5rem);
-  background: var(--surface);
+  background: var(--bg-page);
 }
 
 .share-head {
