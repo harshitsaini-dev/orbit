@@ -872,6 +872,19 @@ export class GoogleDriveAdapter extends BaseAdapter {
     let parentId = 'root';
 
     for (const segment of segments) {
+      /*
+       * The synthetic folder has no children in Drive, so it must never be
+       * used as a parent in a query - Drive rejects the id outright, and the
+       * throw skipped the fallback below that knows what to do with it. Its
+       * children are the shared drives, resolved from their own list.
+       */
+      if (parentId === SHARED_DRIVES_ID) {
+        const drive = (await this.sharedDrives(tokens)).find((d) => d.name === segment);
+        if (!drive) throw new ProviderError(this.id, 404, `No shared drive named ${segment}`);
+        parentId = drive.id;
+        continue;
+      }
+
       const page = await providerJson<DriveList>(this.id, `${API}/files`, {
         headers: this.auth(tokens),
         query: {
@@ -900,15 +913,6 @@ export class GoogleDriveAdapter extends BaseAdapter {
         if (parentId === 'root' && segment === SHARED_DRIVES) {
           parentId = SHARED_DRIVES_ID;
           continue;
-        }
-
-        // And its children are the shared drives themselves, addressed by name.
-        if (parentId === SHARED_DRIVES_ID) {
-          const drive = (await this.sharedDrives(tokens)).find((d) => d.name === segment);
-          if (drive) {
-            parentId = drive.id;
-            continue;
-          }
         }
 
         throw new ProviderError(this.id, 404, `No folder at ${path}`);

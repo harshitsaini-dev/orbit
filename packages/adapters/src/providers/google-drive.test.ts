@@ -704,6 +704,29 @@ describe('shared drives', () => {
     assert.ok(lookup!.url.searchParams.get('q')!.includes("'drive-marketing' in parents"));
   });
 
+  it('opens one without ever using the synthetic folder as a parent', async () => {
+    // Drive rejects an id it did not issue, and the throw used to skip the
+    // fallback that knew what to do with it - so a shared drive listed fine
+    // and 404'd the moment somebody clicked into it.
+    respondWith((call) => {
+      if (call.url.pathname.endsWith('/drives')) {
+        return json({ drives: [{ id: '0AIshareddrive', name: 'PO Data' }] });
+      }
+      return json({ files: [{ id: 'f1', name: 'PO', mimeType: GOOGLE_DRIVE_FOLDER_MIME }] });
+    });
+
+    const page = await adapter.listFolder(TOKENS, '/Shared drives/PO Data');
+
+    assert.deepEqual(page.files.map((f) => f.name), ['PO']);
+
+    for (const call of calls) {
+      assert.ok(
+        !(call.url.searchParams.get('q') ?? '').includes('orbit:shared-drives'),
+        'the synthetic id must never reach Drive',
+      );
+    }
+  });
+
   it('still lists My Drive when the account cannot ask for shared drives', async () => {
     // A personal account returns an empty list; some refuse outright. Neither
     // is a reason to fail the listing.

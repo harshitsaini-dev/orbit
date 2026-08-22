@@ -1195,10 +1195,20 @@ body {
 }
 
 /* Fills the window when there is no workspace shell to sit inside. */
+/*
+ * Fixed rather than merely tall: this is portalled to the body from wherever it
+ * was returned, and it has to cover the header and the navigation rather than
+ * scroll past them. Opaque for the same reason - a failure showing the working
+ * app through it invites people to try clicking on it.
+ */
 .status-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
   display: grid;
-  min-height: 100dvh;
+  overflow-y: auto;
   padding: clamp(1rem, 4vw, 2rem);
+  background: var(--surface);
 }
 
 /* --- the area a preview is drawn in -------------------------------------- */
@@ -1414,7 +1424,7 @@ body {
 }
 
 .pdf-shell--fullscreen {
-  background: var(--bg);
+  background: var(--surface);
   padding: 12px;
 }
 
@@ -1609,7 +1619,7 @@ body {
   display: grid;
   place-items: center;
   padding: 2rem;
-  background: color-mix(in srgb, var(--bg) 62%, transparent);
+  background: color-mix(in srgb, var(--surface) 62%, transparent);
   backdrop-filter: blur(7px);
   /* The overlay must not eat the drag events it is reacting to: they are
      handled on the window, and a pointer-catching layer would swallow the drop
@@ -2117,7 +2127,7 @@ body {
 .markdown-body pre {
   padding: 0.9rem 1rem;
   border-radius: var(--radius-sm);
-  background: var(--bg);
+  background: var(--surface);
   overflow-x: auto;
 }
 

@@ -21,6 +21,49 @@ test.describe('status screens', () => {
     await expect(page.getByRole('navigation', { name: 'Workspace' })).toHaveCount(0);
   });
 
+  test('an error inside a page still covers the navigation', async ({ page }) => {
+    // This one is returned from a page component, which sits inside the shell -
+    // so covering the viewport from there only works because it is portalled
+    // out of it. Without that the sidebar stays drawn around the failure and it
+    // reads as one broken widget.
+    await signIn(page);
+
+    await page.route('**/api/duplicates*', (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: '{"error":{"code":"internal_error","message":"boom"}}',
+      }),
+    );
+
+    await page.goto('/duplicates');
+    await expect(page.getByRole('heading', { name: 'Something broke on our side' })).toBeVisible();
+
+    /*
+     * Geometry, not occlusion: `toBeInViewport` reports an element covered by
+     * another as still in the viewport, so the thing to check is that the
+     * failure actually fills the screen and is opaque.
+     */
+    const covered = await page.evaluate(() => {
+      const shell = document.querySelector('.status-shell');
+      if (!shell) return null;
+
+      const box = shell.getBoundingClientRect();
+      const style = getComputedStyle(shell);
+      return {
+        fillsViewport: box.width >= window.innerWidth && box.height >= window.innerHeight,
+        background: style.backgroundColor,
+        // What is actually painted at the top-left, where the navigation is.
+        onTop: document.elementFromPoint(60, 300)?.closest('.status-shell') !== null,
+      };
+    });
+
+    expect(covered).not.toBeNull();
+    expect(covered!.fillsViewport).toBe(true);
+    expect(covered!.background).not.toBe('rgba(0, 0, 0, 0)');
+    expect(covered!.onTop).toBe(true);
+  });
+
   test('a server fault blames the server, not the visitor', async ({ page }) => {
     await signIn(page);
 

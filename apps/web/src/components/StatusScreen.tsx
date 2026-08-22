@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { BrandMark } from './BrandMark.js';
 
@@ -66,6 +67,12 @@ interface Props {
  * one broken widget, and people click past it; drawn as the screen it reads as
  * the state the app is actually in, which is the true one.
  *
+ * Rendered through a portal because most of these are returned from a page
+ * component, which sits inside the shell - so covering the viewport from there
+ * would still leave the header and the navigation drawn around it. The portal
+ * is what makes "the whole screen" true from anywhere rather than only at the
+ * top of the tree.
+ *
  * That is also why the brand mark is here rather than only when signed out:
  * covering the viewport takes the header with it, and a full-screen message
  * with nothing identifying it could have come from anywhere.
@@ -73,7 +80,7 @@ interface Props {
 export function StatusScreen({ kind, detail, onRetry }: Props) {
   const copy = COPY[kind];
 
-  return (
+  return createPortal(
     <div className="status-shell">
       <section
         className="clay status-screen"
@@ -114,7 +121,8 @@ export function StatusScreen({ kind, detail, onRetry }: Props) {
           )}
         </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
