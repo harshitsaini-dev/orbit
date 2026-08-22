@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import type { OrbitFile } from '@orbit/shared-types';
 import { Checkbox } from './Checkbox.js';
@@ -25,14 +26,33 @@ export function FileGrid({
   showLocation,
   locationOf,
   onContextMenu,
+  selectionKey,
 }: {
   files: OrbitFile[];
   accountIdFor: (file: OrbitFile) => string;
   selected: Set<string>;
   onToggleSelect: (remoteId: string) => void;
+  /**
+   * How a file is keyed in the selection.
+   *
+   * Defaults to the remote id, which is unique inside one drive - and wrong
+   * anywhere that spans several. The bin does, and used to look as though
+   * selecting did nothing: the click registered against the account-qualified
+   * key the page keeps and the tile went on comparing against a bare remote id
+   * that was never in the set.
+   */
+  selectionKey?: (file: OrbitFile) => string;
   onOpen: (file: OrbitFile) => void;
   showLocation?: boolean;
-  locationOf?: (file: OrbitFile) => string;
+  /**
+   * What to say under the name instead of the size.
+   *
+   * A node rather than a string, so a page whose files span several drives can
+   * show which one - a nickname on its own does not say whether that is a
+   * Google Drive or a bucket, and on the pages that need this at all it is
+   * usually the first thing somebody wants to know.
+   */
+  locationOf?: (file: OrbitFile) => ReactNode;
   onContextMenu?: (event: React.MouseEvent, file: OrbitFile) => void;
 }) {
   return (
@@ -55,7 +75,7 @@ export function FileGrid({
           <Tile
             file={file}
             accountId={accountIdFor(file)}
-            selected={selected.has(file.remoteId)}
+            selected={selected.has(selectionKey ? selectionKey(file) : file.remoteId)}
             onToggleSelect={() => onToggleSelect(file.remoteId)}
             onOpen={() => onOpen(file)}
             location={showLocation ? locationOf?.(file) : undefined}
@@ -79,7 +99,7 @@ function Tile({
   selected: boolean;
   onToggleSelect: () => void;
   onOpen: () => void;
-  location?: string;
+  location?: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
@@ -169,11 +189,14 @@ function Tile({
           </span>
           <span
             style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
               fontSize: 11,
               color: 'var(--text-muted)',
               overflow: 'hidden',
-              textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              minWidth: 0,
             }}
           >
             {location ?? (file.isFolder ? 'Folder' : formatBytes(file.sizeBytes))}

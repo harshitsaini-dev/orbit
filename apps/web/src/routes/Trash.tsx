@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { catalogueEntry, type OrbitFile } from '@orbit/shared-types';
+import { Checkbox } from '../components/Checkbox.js';
 import { FileIcon } from '../components/FileIcon.js';
 import { FileGrid } from '../components/FileGrid.js';
 import { FilePreview } from '../components/FilePreview.js';
@@ -316,21 +317,25 @@ export function Trash() {
 
       {sorted.length > 0 && (
         <section className="clay" style={{ padding: '0.75rem' }}>
-          <label className="trash-all">
-            <input type="checkbox" checked={allShownSelected} onChange={toggleAll} />
-            <span>
-              {allShownSelected ? 'Unselect' : 'Select'} all {sorted.length}
-              {filter.trim() ? ' shown' : ''}
-            </span>
-          </label>
+          {/* The same control as every other tick in the app, rather than the
+              browser's own - two kinds of checkbox on one page reads as one of
+              them being broken. */}
+          <div className="trash-all">
+            <Checkbox
+              checked={allShownSelected}
+              onChange={toggleAll}
+              label={`${allShownSelected ? 'Unselect' : 'Select'} all ${sorted.length}${filter.trim() ? ' shown' : ''}`}
+            />
+          </div>
 
           {viewMode === 'grid' && (
             <FileGrid
               files={sorted}
               accountIdFor={(file) => (file as TrashedFile).accountId}
               selected={selected}
-              // The grid keys selection on remoteId alone; the bin spans
-              // drives, so the account has to be part of it.
+              // The bin spans drives, so a remote id alone does not identify a
+              // file in it - the grid is told how this page keys them.
+              selectionKey={(file) => keyOf(file as TrashedFile)}
               onToggleSelect={(remoteId) => {
                 const match = sorted.find((file) => file.remoteId === remoteId);
                 if (match) toggle(keyOf(match));
@@ -340,7 +345,31 @@ export function Trash() {
                 if (match && !match.isFolder) setPreviewing(match);
               }}
               showLocation
-              locationOf={(file) => (file as TrashedFile).accountNickname}
+              locationOf={(file) => {
+                const entry = file as TrashedFile;
+                const left = timeLeft(entry.purgesAt);
+
+                return (
+                  <>
+                    <ProviderIcon provider={entry.catalogueKey ?? entry.provider} size={12} />
+                    <span
+                      style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}
+                      title={`${catalogueEntry(entry.catalogueKey ?? '')?.label ?? entry.provider} · ${entry.accountNickname}`}
+                    >
+                      {entry.accountNickname}
+                    </span>
+                    {/* The deadline belongs on the tile too: it is the reason
+                        somebody is on this page. */}
+                    <span
+                      className="trash-list__deadline"
+                      data-urgent={left.urgent ? '' : undefined}
+                      style={{ marginLeft: 'auto', flex: 'none' }}
+                    >
+                      {left.urgent ? left.text : ''}
+                    </span>
+                  </>
+                );
+              }}
             />
           )}
 
@@ -348,11 +377,11 @@ export function Trash() {
           <ul className="trash-list">
             {sorted.map((file) => (
               <li key={keyOf(file)} data-busy={busyId === keyOf(file) ? '' : undefined}>
-                <input
-                  type="checkbox"
+                <Checkbox
                   checked={selected.has(keyOf(file))}
                   onChange={() => toggle(keyOf(file))}
                   aria-label={`Select ${file.name}`}
+                  size={18}
                 />
 
                 <button

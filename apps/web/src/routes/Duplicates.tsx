@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { catalogueEntry, mimeForName, type OrbitFile } from '@orbit/shared-types';
+import { Checkbox } from '../components/Checkbox.js';
 import { FileIcon } from '../components/FileIcon.js';
 import { FilePreview } from '../components/FilePreview.js';
 import { GridViewIcon, ListViewIcon } from '../components/Icons.js';
@@ -404,11 +405,11 @@ export function Duplicates() {
             <ul>
               {group.files.map((file) => (
                 <li key={keyOf(file)}>
-                  <input
-                    type="checkbox"
+                  <Checkbox
                     checked={selected.has(keyOf(file))}
                     onChange={() => toggle(file)}
                     aria-label={`Select ${file.name} in ${file.accountNickname}`}
+                    size={18}
                   />
 
                   <button
@@ -438,14 +439,14 @@ export function Duplicates() {
             <ul className="dup-grid">
               {group.files.map((file) => (
                 <li key={keyOf(file)}>
-                  <label className="dup-grid__pick">
-                    <input
-                      type="checkbox"
+                  <span className="dup-grid__pick">
+                    <Checkbox
                       checked={selected.has(keyOf(file))}
                       onChange={() => toggle(file)}
                       aria-label={`Select ${file.name} in ${file.accountNickname}`}
+                      size={18}
                     />
-                  </label>
+                  </span>
 
                   <button
                     type="button"

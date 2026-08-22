@@ -4245,13 +4245,15 @@ body {
 /* Select-all sits above the rows it applies to, and says how many that is —
    which is not the same number as everything in the bin once a filter is on. */
 .trash-all {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   padding: 0.35rem 0.6rem 0.6rem;
   font-size: 13px;
+}
+
+/* The label inherits the muted tone the row heading wants, without the
+   Checkbox component needing to know it is being used as one. */
+.trash-all .checkbox__label {
   color: var(--text-muted);
-  cursor: pointer;
+  font-size: 13px;
 }
 
 .trash-list > li {
