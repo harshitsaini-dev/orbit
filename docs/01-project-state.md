@@ -4,8 +4,14 @@ _Last updated: 2026-08-23_
 
 ## Current phase
 
-**Phase 1 — Auth. Complete.** Phase 0 is complete apart from the infrastructure accounts,
-which need the owner's hands (see "Blocked on the owner" below).
+**Live in production since 2026-08-22.** <https://orbit.harshitsaini.in> on Vercel,
+`api.orbit.harshitsaini.in` on Render, Turso in Mumbai, Resend on
+`signal.harshitsaini.in`, DNS through Cloudflare. Verified end to end: OTP
+sign-in, Google Drive connected, browsing, thumbnails, preview, share link and
+QR, upload, download.
+
+What remains is in "Blocked on the owner" below - approvals and consoles, not
+code.
 
 Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 
@@ -23,7 +29,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 7 | Sharing + QR | 🟢 Done |
 | 8 | RBAC + superadmin | 🟢 Done |
 | 9 | Design pass (Claymorphism, three.js, PWA) | 🟢 Done — chrome, theme depth, headings, grid, selection, toolbar and motion |
-| 10 | Hardening + deploy | 🟡 Hardening done · deploy waits on the owner's sign-ups |
+| 10 | Hardening + deploy | 🟢 Done — live at orbit.harshitsaini.in since 2026-08-22 |
 | 11 | Developer platform (public API, tokens, OAuth apps, API docs tab) | 🟡 Tokens, `/v1`, Developer tab and API docs done · OAuth apps and webhooks pending |
 | 12 | Instant directory cache + offline browsing | 🟢 Done |
 | 13 | Spotlight (Ctrl/Cmd + K) | 🟢 Done |
@@ -493,17 +499,19 @@ done from the codebase. Step-by-step instructions are in
    or sign up for Azure (free, but asks for card details). `05-onedrive-dropbox.md`
    has the detail. OneDrive is otherwise in the same position pCloud is:
    written, tested against mocked responses, never run for real.
-3. **Google verification** — the Google client is live but the consent screen is
-   still in *testing*, which caps it at 100 users and expires every refresh
-   token after seven days. Verification needs a reachable homepage and privacy
-   policy, so it cannot happen before a deploy.
+3. **Google verification** — **now unblocked and the most urgent thing on this
+   list.** The consent screen is still in *testing*, which caps it at 100 users
+   and, worse for a live service, expires every refresh token after seven days:
+   the connected Drive will simply stop working about a week after it was
+   connected, and keep doing so. Verification needed a reachable homepage and
+   privacy policy, which the deploy now provides.
 4. **Dropbox production mode** — connected and working, but the app is in
    development mode, which is capped at 50 linked accounts. Fine for now;
    needed before anyone else uses it.
-5. **Deployment sign-ups** — Turso, Render, Vercel, Resend, Cloudflare DNS. All
-   card-free, all Phase 10, and (3) depends on them.
-6. **Production secrets** — fresh `TOKEN_ENCRYPTION_KEY` and `SESSION_SECRET`.
-   Generated on the machine that deploys, never committed.
+5. ~~**Deployment sign-ups**~~ — done 2026-08-22. Turso, Render, Vercel, Resend
+   and Cloudflare are all live, all still on free plans.
+6. ~~**Production secrets**~~ — done 2026-08-22. Generated on the deploying
+   machine, held in Render's environment, never committed.
 
 Optional, and only to exercise an adapter against something real: an Azure
 storage account, a Bunny storage zone, and a GCS bucket with its
