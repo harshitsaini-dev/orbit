@@ -26,7 +26,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 10 | Hardening + deploy | ⚪ Not started |
 | 11 | Developer platform (public API, tokens, OAuth apps, API docs tab) | ⚪ Designed, not started |
 | 12 | Instant directory cache + offline browsing | 🟢 Done |
-| 13 | Spotlight (Ctrl/Cmd + K) | ⚪ Designed, not started |
+| 13 | Spotlight (Ctrl/Cmd + K) | 🟢 Done |
 | 14 | Unified storage dashboard | ⚪ Designed, not started |
 | 15 | Collections (virtual folders) | ⚪ Designed, not started |
 | 16 | Metadata viewers + remaining previewers | 🟡 Code, CSV and PDF done · fonts, markdown, archives, 3D pending |
@@ -259,6 +259,19 @@ never reached the server means we could not tell.
 
 The cache is visible and clearable from the account menu. One that nobody can
 see or clear is one people stop trusting the moment anything looks stale.
+
+## Spotlight
+
+Ctrl/Cmd + K from anywhere, or the button in the header. Every result carries
+the service it came from, because the question it exists to answer is which
+cloud a file is in.
+
+Two searches run. The cache answers immediately and without debouncing, since
+reading an object store is not a request; the provider's search follows after a
+pause and replaces the local answer rather than joining it, or most files would
+be listed twice. The local half is labelled while it stands alone: it covers
+only folders that have been opened, so presenting it as the result would be
+telling someone a file is missing when Orbit has not looked.
 
 ## Uploads
 - Upload files, upload a folder, or drag either onto the page. A dropped folder is walked

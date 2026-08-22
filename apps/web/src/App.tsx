@@ -1,5 +1,5 @@
-import { useEffect, type ReactNode } from 'react';
-import type { ThemeMode } from '@orbit/shared-types';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import type { PublicAccount, ThemeMode } from '@orbit/shared-types';
 import { Link, NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AccountMenu } from './components/AccountMenu.js';
 import { BrandMark } from './components/BrandMark.js';
@@ -15,7 +15,9 @@ import {
   StarOutlineIcon,
 } from './components/Icons.js';
 import { StatusScreen } from './components/StatusScreen.js';
+import { Spotlight, useSpotlightShortcut } from './components/Spotlight.js';
 import { UploadIndicator } from './components/UploadIndicator.js';
+import { api } from './lib/api.js';
 import { useAuth } from './lib/auth.js';
 import { useOnline } from './lib/online.js';
 import { useTheme } from './lib/theme.js';
@@ -80,6 +82,23 @@ function RequireSuperadmin({ children }: { children: ReactNode }) {
 }
 
 function Workspace({ online }: { online: boolean }) {
+  const [spotlight, setSpotlight] = useState(false);
+  const [accounts, setAccounts] = useState<PublicAccount[]>([]);
+
+  const openSpotlight = useCallback(() => setSpotlight(true), []);
+  useSpotlightShortcut(openSpotlight);
+
+  // Loaded once for the whole workspace: Spotlight needs to say which service
+  // each result came from, and asking again on every open would make the
+  // shortcut feel slower than the search behind it.
+  useEffect(() => {
+    const controller = new AbortController();
+    api<{ accounts: PublicAccount[] }>('/api/accounts', { signal: controller.signal })
+      .then(({ accounts: rows }) => setAccounts(rows))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
+
   return (
     <div className="app-shell">
       <ProfileAppearance />
@@ -98,10 +117,26 @@ function Workspace({ online }: { online: boolean }) {
           <strong style={{ fontSize: 20, letterSpacing: '-0.03em' }}>Orbit</strong>
         </Link>
         <div className="app-header__actions">
+          <button
+            type="button"
+            className="clay-button spotlight__open"
+            onClick={openSpotlight}
+            aria-label="Search everything"
+          >
+            <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" aria-hidden="true" style={{ display: 'block' }}>
+              <circle cx="10.8" cy="10.8" r="6.4" />
+              <path d="M15.5 15.5 20.6 20.6" />
+            </svg>
+            <span>Search</span>
+            <kbd>{navigator.platform.startsWith('Mac') ? '⌘' : 'Ctrl'} K</kbd>
+          </button>
+
           <UploadIndicator />
           <AccountMenu />
         </div>
       </header>
+
+      {spotlight && <Spotlight accounts={accounts} onClose={() => setSpotlight(false)} />}
 
       {!online && (
         <p className="offline-bar" role="status">

@@ -2234,3 +2234,175 @@ body {
   color: var(--warning, #e08a2e);
   font-size: 10px;
 }
+
+/* --- spotlight ------------------------------------------------------------ */
+
+.spotlight__open {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.4rem 0.8rem;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.spotlight__open kbd {
+  padding: 0.1rem 0.35rem;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11px;
+}
+
+@media (max-width: 720px) {
+  /* On a phone the shortcut is unreachable and the label is the only part
+     worth the width. */
+  .spotlight__open span,
+  .spotlight__open kbd {
+    display: none;
+  }
+}
+
+.spotlight__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  padding: clamp(1rem, 10vh, 8rem) 1rem 1rem;
+  background: rgba(8, 10, 16, 0.62);
+  backdrop-filter: blur(6px);
+}
+
+.spotlight {
+  width: min(680px, 100%);
+  padding: 0;
+  overflow: hidden;
+  display: grid;
+  /* Bounded so a long result list scrolls inside the panel rather than pushing
+     the field off the top of the screen. */
+  max-height: min(560px, 76dvh);
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.spotlight__field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.spotlight__field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 15.5px;
+  outline: none;
+}
+
+.spotlight__field input::-webkit-search-cancel-button {
+  appearance: none;
+}
+
+.spotlight__spinner {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--accent-soft);
+  border-top-color: var(--accent);
+  animation: spotlight-spin 700ms linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spotlight-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spotlight__results {
+  list-style: none;
+  margin: 0;
+  padding: 6px;
+  overflow: auto;
+  display: grid;
+  gap: 2px;
+}
+
+.spotlight__results button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0.55rem 0.7rem;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.spotlight__results button[data-active] {
+  background: var(--accent-soft);
+}
+
+.spotlight__name {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+}
+
+.spotlight__name strong {
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spotlight__name > span {
+  color: var(--text-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spotlight__where {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.spotlight__empty,
+.spotlight__note {
+  margin: 0;
+  padding: 0.85rem 1.1rem;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.spotlight__note {
+  border-top: 1px solid var(--border);
+}
+
+.spotlight__note kbd {
+  padding: 0.1rem 0.35rem;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  font: inherit;
+  font-size: 11.5px;
+}

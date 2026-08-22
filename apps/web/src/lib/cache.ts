@@ -201,3 +201,55 @@ export async function cacheSize(): Promise<{ folders: number; files: number }> {
     }
   });
 }
+
+/**
+ * Every cached file whose name matches, across every account.
+ *
+ * This is what makes Spotlight feel instant: the provider search still runs and
+ * still decides the answer, but something appears while it is in flight. What
+ * comes from here is explicitly a subset - only folders that have been opened -
+ * so the UI has to say so rather than presenting it as the whole result.
+ */
+export async function searchCache(
+  text: string,
+  limit = 30,
+): Promise<Array<OrbitFile & { accountId: string }>> {
+  if (text.trim() === '') return [];
+
+  const database = await open();
+  if (!database) return [];
+
+  const needle = text.toLowerCase();
+
+  return new Promise((resolve) => {
+    try {
+      const transaction = database.transaction(FOLDERS, 'readonly');
+      const request = transaction.objectStore(FOLDERS).getAll() as IDBRequest<CachedFolder[]>;
+
+      request.onsuccess = () => {
+        const seen = new Set<string>();
+        const hits: Array<OrbitFile & { accountId: string }> = [];
+
+        for (const folder of request.result) {
+          for (const file of folder.files) {
+            if (hits.length >= limit) break;
+            if (!file.name.toLowerCase().includes(needle)) continue;
+
+            // The same file appears in every folder listing that contains it,
+            // and once more per account it is cached under.
+            const key = `${folder.accountId}:${file.remoteId}`;
+            if (seen.has(key)) continue;
+
+            seen.add(key);
+            hits.push({ ...file, accountId: folder.accountId });
+          }
+        }
+
+        resolve(hits);
+      };
+      request.onerror = () => resolve([]);
+    } catch {
+      resolve([]);
+    }
+  });
+}
