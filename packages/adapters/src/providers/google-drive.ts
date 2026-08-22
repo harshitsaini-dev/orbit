@@ -199,7 +199,24 @@ export class GoogleDriveAdapter extends BaseAdapter {
       },
     });
 
-    const files = page.files ?? [];
+    let files = page.files ?? [];
+
+    /*
+     * Shared drives sit beside My Drive, not inside it.
+     *
+     * `includeItemsFromAllDrives` makes their *contents* visible once the
+     * parent is known, which is why files in one have always worked - but a
+     * shared drive is its own root and is not a child of `root`, so a Workspace
+     * user's team drives were simply absent from the top level with nothing to
+     * say they existed.
+     *
+     * They are folded in as folders at the root. A shared drive's id doubles as
+     * its root folder id, so from that point everything below behaves exactly
+     * like any other folder.
+     */
+    if (parent === '/' && !pageToken) {
+      files = [...(await this.sharedDrives(tokens)), ...files];
+    }
 
     // Drive answers a listing of a folder the caller cannot see with an empty
     // list rather than an error, so a shortcut whose target was deleted or
@@ -212,6 +229,34 @@ export class GoogleDriveAdapter extends BaseAdapter {
       files: files.map((file) => toOrbitFile(file, joinPath(parent, file.name))),
       nextPageToken: page.nextPageToken,
     };
+  }
+
+  /**
+   * The shared drives this account can see, as folder entries.
+   *
+   * A personal Google account has none and the call returns an empty list; some
+   * accounts refuse it outright, which is not an error worth surfacing - it
+   * means "no shared drives", and My Drive should still list.
+   */
+  private async sharedDrives(tokens: AccountTokens): Promise<DriveFile[]> {
+    try {
+      const page = await providerJson<{ drives?: Array<{ id: string; name: string }> }>(
+        this.id,
+        `${API}/drives`,
+        {
+          headers: this.auth(tokens),
+          query: { pageSize: 100, fields: 'drives(id,name)' },
+        },
+      );
+
+      return (page.drives ?? []).map((drive) => ({
+        id: drive.id,
+        name: drive.name,
+        mimeType: GOOGLE_DRIVE_FOLDER_MIME,
+      }));
+    } catch {
+      return [];
+    }
   }
 
   /** Confirms a folder exists and is readable, for when a listing came back empty. */
@@ -759,7 +804,26 @@ export class GoogleDriveAdapter extends BaseAdapter {
       });
 
       const match = page.files?.[0];
-      if (!match) throw new ProviderError(this.id, 404, `No folder at ${path}`);
+
+      if (!match) {
+        /*
+         * The first segment may name a shared drive rather than a folder. Those
+         * are roots of their own and will never be found by looking inside
+         * `root`, so the list of them is consulted - but only here, on the way
+         * to a 404. Asking up front would add a call to every path resolution
+         * for a case most accounts do not have.
+         */
+        if (parentId === 'root') {
+          const drive = (await this.sharedDrives(tokens)).find((d) => d.name === segment);
+          if (drive) {
+            parentId = drive.id;
+            continue;
+          }
+        }
+
+        throw new ProviderError(this.id, 404, `No folder at ${path}`);
+      }
+
       // Walk through the shortcut, not into it.
       parentId = match.shortcutDetails?.targetId ?? match.id;
     }

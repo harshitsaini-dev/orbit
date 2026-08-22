@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, it } from 'node:test';
 import type { AccountTokens } from '@orbit/shared-types';
 import { ProviderError } from '../base.js';
 import {
+  GOOGLE_DRIVE_FOLDER_MIME,
   GOOGLE_DRIVE_SHORTCUT_MIME,
   GoogleDriveAdapter,
   escapeQuery,
@@ -138,22 +139,29 @@ describe('refreshToken', () => {
 
 describe('listFolder', () => {
   it('lists the root without any path lookups', async () => {
-    respondWith((call) =>
-      call.url.pathname === '/drive/v3/files'
+    respondWith((call) => {
+      if (call.url.pathname.endsWith('/drives')) return json({ drives: [] });
+      return call.url.pathname === '/drive/v3/files'
         ? json({
             files: [
               { id: 'f1', name: 'Photos', mimeType: 'application/vnd.google-apps.folder' },
               { id: 'f2', name: 'notes.txt', mimeType: 'text/plain', size: '120', starred: true },
             ],
           })
-        : undefined,
-    );
+        : undefined;
+    });
 
     const page = await adapter.listFolder(TOKENS, '/');
 
-    assert.equal(calls.length, 1, 'the root needs no resolution');
-    assert.match(calls[0]!.url.searchParams.get('q')!, /'root' in parents/);
-    assert.equal(calls[0]!.headers.authorization, 'Bearer test-access-token');
+    // One listing and one ask for shared drives - and no walk, because the root
+    // is the one path that needs no resolving.
+    const lookups = calls.filter((c) => (c.url.searchParams.get('q') ?? '').includes('name ='));
+    assert.deepEqual(lookups, [], 'the root needs no resolution');
+    assert.equal(calls.length, 2);
+
+    const listing = calls.find((c) => c.url.searchParams.get('q'))!;
+    assert.match(listing.url.searchParams.get('q')!, /'root' in parents/);
+    assert.equal(listing.headers.authorization, 'Bearer test-access-token');
 
     assert.equal(page.files.length, 2);
     assert.deepEqual(
@@ -589,5 +597,84 @@ describe('what a flat enumeration asks for', () => {
     const fields = calls[0]!.url.searchParams.get('fields') ?? '';
     assert.doesNotMatch(fields, /parents/);
     assert.doesNotMatch(fields, /trashed/);
+  });
+});
+
+describe('shared drives', () => {
+  it('lists them at the root, beside My Drive', async () => {
+    // `includeItemsFromAllDrives` makes their contents visible once the parent
+    // is known, but a shared drive is its own root and is not a child of
+    // `root` - so without this a Workspace user's team drives were absent from
+    // the top level with nothing to say they existed.
+    respondWith((call) => {
+      if (call.url.pathname.endsWith('/drives')) {
+        return json({ drives: [{ id: 'drive-marketing', name: 'Marketing' }] });
+      }
+      return json({ files: [{ id: 'f1', name: 'notes.txt', mimeType: 'text/plain' }] });
+    });
+
+    const page = await adapter.listFolder(TOKENS, '/');
+
+    assert.deepEqual(
+      page.files.map((f) => [f.name, f.isFolder]),
+      [
+        ['Marketing', true],
+        ['notes.txt', false],
+      ],
+    );
+    // A shared drive's id doubles as its root folder id, so everything below
+    // behaves like any other folder from here.
+    assert.equal(page.files[0]!.remoteId, 'drive-marketing');
+  });
+
+  it('does not ask for them while a path resolves normally', async () => {
+    // The list of roots costs a call, and most accounts have none. It is worth
+    // asking on the way to a 404, not on the way to a folder that was found.
+    respondWith((call) => {
+      if (call.url.pathname.endsWith('/drives')) return json({ drives: [] });
+      const q = call.url.searchParams.get('q') ?? '';
+      if (q.includes("name = 'Documents'")) {
+        return json({ files: [{ id: 'folder-docs', mimeType: GOOGLE_DRIVE_FOLDER_MIME }] });
+      }
+      return json({ files: [{ id: 'f1', name: 'a.txt', mimeType: 'text/plain' }] });
+    });
+
+    await adapter.listFolder(TOKENS, '/Documents');
+
+    assert.equal(calls.filter((c) => c.url.pathname.endsWith('/drives')).length, 0);
+  });
+
+  it('walks a path that starts at a shared drive', async () => {
+    respondWith((call) => {
+      if (call.url.pathname.endsWith('/drives')) {
+        return json({ drives: [{ id: 'drive-marketing', name: 'Marketing' }] });
+      }
+      const q = call.url.searchParams.get('q') ?? '';
+      // 'Marketing' is not a folder under root - it is a shared drive - so the
+      // walk misses, consults the roots, and carries on from there.
+      if (q.includes("name = '2026'")) {
+        return json({ files: [{ id: 'folder-2026', mimeType: GOOGLE_DRIVE_FOLDER_MIME }] });
+      }
+      return json({ files: [] });
+    });
+
+    await adapter.listFolder(TOKENS, '/Marketing/2026');
+
+    // The walk starts at the shared drive rather than at `root`, which is the
+    // only place `2026` could have been found.
+    const lookup = calls.find((c) => (c.url.searchParams.get('q') ?? '').includes("name = '2026'"));
+    assert.ok(lookup!.url.searchParams.get('q')!.includes("'drive-marketing' in parents"));
+  });
+
+  it('still lists My Drive when the account cannot ask for shared drives', async () => {
+    // A personal account returns an empty list; some refuse outright. Neither
+    // is a reason to fail the listing.
+    respondWith((call) => {
+      if (call.url.pathname.endsWith('/drives')) return new Response('nope', { status: 403 });
+      return json({ files: [{ id: 'f1', name: 'notes.txt', mimeType: 'text/plain' }] });
+    });
+
+    const page = await adapter.listFolder(TOKENS, '/');
+    assert.deepEqual(page.files.map((f) => f.name), ['notes.txt']);
   });
 });
