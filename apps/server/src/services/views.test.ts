@@ -39,15 +39,21 @@ function file(name: string, modifiedAt: string, extra: Record<string, unknown> =
   };
 }
 
-async function seed(provider: 'google_drive' | 'onedrive', nickname: string) {
+async function seed(
+  provider: 'google_drive' | 'onedrive',
+  nickname: string,
+  accessToken = 'access-token-sentinel',
+) {
   const user = await getLocalUser();
   const account = await createAccount({
     userId: user.id,
     provider,
     catalogueKey: provider,
     nickname,
+    // Named per account where a test needs to tell which one was asked.
+    remoteAccountId: nickname,
     tokens: {
-      accessToken: 'access-token-sentinel',
+      accessToken,
       refreshToken: 'refresh-token-sentinel',
       expiresAt: Date.now() + 3_600_000,
     },
@@ -151,21 +157,81 @@ describe('listWorkspaceView', () => {
     assert.equal(asked, 'recent', 'but recent is still fair game');
   });
 
-  it('caps the merged list', async () => {
+  it('returns everything it fetched rather than throwing the rest away', async () => {
+    /*
+     * This used to cap at a hundred and discard the remainder, with nothing to
+     * say the view was incomplete - so a person with more than that simply
+     * never saw the rest and had no reason to think anything was missing.
+     */
     (drive as unknown as Record<string, unknown>).listView = async () => ({
-      files: Array.from({ length: 50 }, (_, i) => file(`f${i}.txt`, '2026-01-01T00:00:00.000Z')),
+      files: Array.from({ length: 150 }, (_, i) => file(`f${i}.txt`, '2026-01-01T00:00:00.000Z')),
     });
 
     const { userId } = await seed('google_drive', 'me@example.com');
-    const result = await listWorkspaceView(userId, 'recent', 10);
+    const result = await listWorkspaceView(userId, 'recent');
 
-    assert.equal(result.files.length, 10);
+    assert.equal(result.files.length, 150);
+    assert.equal(result.nextCursor, undefined, 'and no more to ask for');
+  });
+
+  it('hands back a cursor while a provider still has pages', async () => {
+    (drive as unknown as Record<string, unknown>).listView = async (
+      _tokens: unknown,
+      _view: unknown,
+      pageToken?: string,
+    ) => ({
+      files: [file(pageToken ? 'second.txt' : 'first.txt', '2026-01-01T00:00:00.000Z')],
+      nextPageToken: pageToken ? undefined : 'page-2',
+    });
+
+    const { userId } = await seed('google_drive', 'me@example.com');
+
+    const first = await listWorkspaceView(userId, 'recent');
+    assert.deepEqual(first.files.map((f) => f.name), ['first.txt']);
+    assert.ok(first.nextCursor);
+
+    const second = await listWorkspaceView(userId, 'recent', { cursor: first.nextCursor });
+    assert.deepEqual(second.files.map((f) => f.name), ['second.txt']);
+    assert.equal(second.nextCursor, undefined);
+  });
+
+  it('only asks the accounts that still had pages left', async () => {
+    // Otherwise every "load more" re-fetches the first page of every account
+    // that had already finished.
+    const asked: string[] = [];
+    (drive as unknown as Record<string, unknown>).listView = async (
+      tokens: { accessToken?: string },
+      _view: unknown,
+      pageToken?: string,
+    ) => {
+      asked.push(tokens.accessToken ?? '?');
+      return {
+        files: [file('a.txt', '2026-01-01T00:00:00.000Z')],
+        // Only the first account ever has a second page.
+        nextPageToken: tokens.accessToken === 'token-one' && !pageToken ? 'more' : undefined,
+      };
+    };
+
+    const { userId } = await seed('google_drive', 'one@example.com', 'token-one');
+    await seed('google_drive', 'two@example.com', 'token-two');
+
+    const first = await listWorkspaceView(userId, 'recent');
+    asked.length = 0;
+
+    await listWorkspaceView(userId, 'recent', { cursor: first.nextCursor });
+    assert.deepEqual(asked, ['token-one']);
   });
 
   it('returns an empty view when nothing is connected', async () => {
     const user = await getLocalUser();
     const result = await listWorkspaceView(user.id, 'recent');
 
-    assert.deepEqual(result, { files: [], problems: [], unsupported: [] });
+    assert.deepEqual(result, {
+      files: [],
+      problems: [],
+      unsupported: [],
+      // Nothing to ask again for, which is what an absent cursor means.
+      nextCursor: undefined,
+    });
   });
 });

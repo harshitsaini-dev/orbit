@@ -6,6 +6,7 @@ import { inArray } from 'drizzle-orm';
 import { db } from '../lib/db.js';
 import { useAccount } from './accounts.js';
 import { readableAccountIds } from './sharing.js';
+import { decodeCursor, encodeCursor, type Cursor } from '../lib/cursor.js';
 import type { ViewResult, WorkspaceFile } from './views.js';
 
 export interface SearchRequest extends SearchQuery {
@@ -23,26 +24,6 @@ export interface SearchResult extends ViewResult {
  * have thousands of matches and another none — so a single page token would
  * either cut the deep account short or re-read the shallow one.
  */
-type Cursor = Record<string, string>;
-
-function decodeCursor(raw: string | undefined): Cursor | null {
-  if (!raw) return null;
-  try {
-    const parsed: unknown = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8'));
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
-    return parsed as Cursor;
-  } catch {
-    // A malformed cursor restarts the search rather than failing it.
-    return null;
-  }
-}
-
-function encodeCursor(cursor: Cursor): string | undefined {
-  const entries = Object.entries(cursor).filter(([, token]) => Boolean(token));
-  if (entries.length === 0) return undefined;
-  return Buffer.from(JSON.stringify(Object.fromEntries(entries)), 'utf8').toString('base64url');
-}
-
 /**
  * Search across accounts.
  *

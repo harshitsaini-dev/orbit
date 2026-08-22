@@ -34,6 +34,8 @@ interface ViewResponse {
   files: WorkspaceFile[];
   problems: Array<{ accountId: string; nickname: string; reason: string }>;
   unsupported: Array<{ accountId: string; nickname: string }>;
+  /** Absent when every account has run out of pages. */
+  nextCursor?: string;
 }
 
 const COPY: Record<ViewName, { title: string; blurb: string; empty: string }> = {
@@ -75,6 +77,7 @@ export function WorkspaceViewPage({ view }: { view: ViewName }) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [previewing, setPreviewing] = useState<WorkspaceFile | null>(null);
   const [viewMode, setViewMode] = useListView(`view-${view}`);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const copy = COPY[view];
 
@@ -119,6 +122,35 @@ export function WorkspaceViewPage({ view }: { view: ViewName }) {
       setError(err instanceof ApiError ? err.message : 'Could not update');
     } finally {
       setBusyId(null);
+    }
+  }
+
+  /**
+   * Fetches the next page from every account that still had one.
+   *
+   * Appended rather than replacing, and the sort runs over everything
+   * accumulated - a merged view has no single stream to page through, so a
+   * later page can hold something older than the page before it, and sorting
+   * only within a page would put the list in the wrong order.
+   */
+  async function loadMore(): Promise<void> {
+    if (!data?.nextCursor || loadingMore) return;
+    setLoadingMore(true);
+
+    try {
+      const next = await api<ViewResponse>(
+        `/api/views/${view}?cursor=${encodeURIComponent(data.nextCursor)}`,
+      );
+
+      setData((current) =>
+        current
+          ? { ...next, files: [...current.files, ...next.files] }
+          : next,
+      );
+    } catch {
+      setError('Could not load any more');
+    } finally {
+      setLoadingMore(false);
     }
   }
 
@@ -314,6 +346,19 @@ export function WorkspaceViewPage({ view }: { view: ViewName }) {
               </li>
             ))}
           </ul>
+        )}
+
+        {data?.nextCursor && (
+          <div style={{ display: 'grid', placeItems: 'center', padding: '0.9rem 0 0.3rem' }}>
+            <button
+              type="button"
+              className="clay-button"
+              disabled={loadingMore}
+              onClick={() => void loadMore()}
+            >
+              {loadingMore ? 'Loading…' : 'Load more'}
+            </button>
+          </div>
         )}
       </section>
 

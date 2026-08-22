@@ -76,7 +76,8 @@ filesRouter.get('/api/views/:view', requireAuth, async (req, res, next) => {
   }
 
   try {
-    res.json(await listWorkspaceView(req.user!.id, view));
+    const cursor = typeof req.query.cursor === 'string' ? req.query.cursor : undefined;
+    res.json(await listWorkspaceView(req.user!.id, view, { cursor }));
   } catch (err) {
     if (!sendProviderError(err, res)) next(err);
   }

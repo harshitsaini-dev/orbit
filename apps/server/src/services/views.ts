@@ -5,6 +5,7 @@ import { inArray } from 'drizzle-orm';
 import { db } from '../lib/db.js';
 import { useAccount } from './accounts.js';
 import { readableAccountIds } from './sharing.js';
+import { decodeCursor, encodeCursor, type Cursor } from '../lib/cursor.js';
 
 /** A file with the account it came from, which is what makes a merged view readable. */
 export interface WorkspaceFile extends OrbitFile {
@@ -19,6 +20,8 @@ export interface ViewResult {
   problems: Array<{ accountId: string; nickname: string; reason: string }>;
   /** Accounts whose provider cannot offer this view at all. */
   unsupported: Array<{ accountId: string; nickname: string }>;
+  /** Absent when every account has run out of pages. */
+  nextCursor?: string | undefined;
 }
 
 /** Which capability gates each view. */
@@ -39,14 +42,19 @@ function supports(view: WorkspaceView, capabilities: { star: boolean; sharedWith
 export async function listWorkspaceView(
   userId: string,
   view: WorkspaceView,
-  limit = 100,
+  options: { cursor?: string | undefined } = {},
 ): Promise<ViewResult> {
   // Every drive they may read, not only the ones they connected: a drive
   // shared with somebody is a drive they should be able to find things in.
   const readable = await readableAccountIds(userId);
-  const rows = readable.length
+  const all = readable.length
     ? await db().select().from(accounts).where(inArray(accounts.id, readable))
     : [];
+
+  const cursor = decodeCursor(options.cursor);
+  // Continuing: only the accounts that still had pages left are asked again.
+  const rows = cursor ? all.filter((row) => cursor[row.id]) : all;
+  const nextCursor: Cursor = {};
 
   const result: ViewResult = { files: [], problems: [], unsupported: [] };
 
@@ -60,8 +68,13 @@ export async function listWorkspaceView(
       const active = await useAccount(userId, row.id, 'read');
       if (!active) return { row, unsupported: false as const, files: [] };
 
-      const page = await active.adapter.listView(active.tokens, view);
-      return { row, unsupported: false as const, files: page.files };
+      const page = await active.adapter.listView(active.tokens, view, cursor?.[row.id]);
+      return {
+        row,
+        unsupported: false as const,
+        files: page.files,
+        nextPageToken: page.nextPageToken,
+      };
     }),
   );
 
@@ -94,16 +107,28 @@ export async function listWorkspaceView(
         accountNickname: row.nickname,
       });
     }
+
+    if (outcome.value.nextPageToken) nextCursor[row.id] = outcome.value.nextPageToken;
   }
 
-  // Merged results need one order, not each provider's. Recent and shared are
-  // chronological; starred reads better by name.
+  /*
+   * Sorted within the page, not across pages.
+   *
+   * A merged view has no single stream to page through - each provider is at
+   * its own position - so a later page can hold something older than the page
+   * before it. The client sorts what it has accumulated, which is what makes
+   * the whole list read correctly however many pages are in it.
+   *
+   * Nothing is sliced away any more. Truncating at a hundred was not a page
+   * size, it was files being fetched and thrown out, with nothing to say the
+   * view was incomplete.
+   */
   result.files.sort((a, b) =>
     view === 'starred'
       ? a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' })
       : Date.parse(b.modifiedAt) - Date.parse(a.modifiedAt),
   );
 
-  result.files = result.files.slice(0, limit);
+  result.nextCursor = encodeCursor(nextCursor);
   return result;
 }
