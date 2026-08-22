@@ -32,7 +32,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 16 | Metadata viewers + remaining previewers | 🟡 Code, CSV, PDF, Office, archives, fonts, markdown done · EXIF, hex, 3D pending |
 | 17 | Cross-cloud transfer engine | 🟢 Done |
 | 18 | Cross-cloud duplicate finder | 🟢 Done |
-| 19 | Scheduled jobs | 🟡 Service + tests done · routes and UI pending |
+| 19 | Scheduled jobs | 🟢 Done |
 | 20 | Automatic tagging by OCR | ⚪ Designed, not started |
 | 21 | Peer-to-peer direct transfer | ⚪ Designed, not started |
 | 22 | Share analytics | ⚪ Designed, not started |
@@ -511,6 +511,19 @@ What is enforced, and where:
 
 Still to do: a superadmin console, and an audit trail of who did what on a shared drive
 (`audit_log` exists and is unwritten).
+
+## Phase 19 — scheduled jobs
+
+Presets and a time, not cron expressions. They tick on the same node-cron pass that refreshes
+tokens, kept in a function of their own so a broken schedule cannot stop tokens being renewed.
+
+The instance sleeps, which shapes everything here: due-ness is a comparison against a stored time
+rather than an event, so waking at 6am finds the 2am job still waiting. The next run is computed
+from *now*, so ten missed hours do not become ten runs. The page says this in as many words rather
+than letting people work it out from a job that fires at the wrong time.
+
+"Run now" deliberately does not move `nextRunAt` — it exists so somebody can find out whether a job
+works without waiting until 2am to discover it does not.
 
 ## Thumbnails on stores that make none
 

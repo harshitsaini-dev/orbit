@@ -372,6 +372,38 @@ Progress arrives on the WebSocket as `transfer:progress` and `transfer:done`, on
 `transfer:{id}` — a transfer outlives the request that started it, so there is nowhere else to
 report it.
 
+## Schedules
+
+Jobs that run again on their own, described by a preset and a time rather than a cron expression.
+They tick on the same node-cron pass that refreshes tokens.
+
+The instance sleeps, so **due-ness is a comparison against a stored time, not an event**: a 2am job
+whose moment passes with nothing awake runs on the next wake-up. The next run is then computed from
+*now*, so ten missed hours do not become ten runs.
+
+### `GET /api/schedules`
+`{ schedules: PublicSchedule[] }`, soonest first. Only the caller's own.
+
+### `POST /api/schedules`
+`{ name, action, every, hour?, minute?, weekday?, dayOfMonth?, ...action fields }` → `201`.
+`action: 'sync'` takes `accountId`; `action: 'backup'` takes `sourceAccountId`, `sourceRemoteId`,
+`targetAccountId` and `targetPath`.
+
+The drives are checked **at the level the job will need** — a backup target for `write`, not merely
+for existing. A job that turns out on its first firing to have been pointed at a read-only drive has
+already cost the user a week of believing it was running. `404` if any check fails.
+
+### `PATCH /api/schedules/:id`
+`{ enabled }` → `204`.
+
+### `POST /api/schedules/:id/run`
+Runs it now and returns the updated row, **without moving when it next runs on its own** — pressing
+this at four in the afternoon must not turn a nightly job into a four-in-the-afternoon job. Mostly
+so somebody can find out whether a job works rather than waiting until 2am to discover it does not.
+
+### `DELETE /api/schedules/:id`
+`204`. The job stops; nothing it has already done is undone.
+
 ### `WS /ws`
 Channel pub/sub. Client frames: `{"type":"subscribe","channel":"..."}`, `unsubscribe`, `ping`.
 Server frames: `upload:progress`, `upload:complete`, `upload:error`, `sync:status`.

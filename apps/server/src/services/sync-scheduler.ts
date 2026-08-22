@@ -1,4 +1,5 @@
 import cron, { type ScheduledTask } from 'node-cron';
+import { runDue } from './schedules.js';
 import { env } from '../lib/env.js';
 import { refreshExpiringAccounts } from './accounts.js';
 import { syncAll } from './sync.js';
@@ -38,6 +39,21 @@ async function runSyncPass(): Promise<void> {
   }
 }
 
+/**
+ * The jobs the user set up, as opposed to the token refresh above.
+ *
+ * Separate from `runSyncPass` and never allowed to throw into it: a broken
+ * schedule must not stop tokens being renewed.
+ */
+async function runUserSchedules(): Promise<void> {
+  try {
+    const ran = await runDue();
+    if (ran > 0) console.log(`schedules: ran ${ran}`);
+  } catch (err) {
+    console.error('schedule pass failed', err instanceof Error ? err.message : err);
+  }
+}
+
 export function startSyncScheduler(): Scheduler {
   if (!cron.validate(env.SYNC_CRON)) {
     throw new Error(`SYNC_CRON is not a valid cron expression: ${env.SYNC_CRON}`);
@@ -47,6 +63,7 @@ export function startSyncScheduler(): Scheduler {
     void runSyncPass().catch((err: unknown) => {
       console.error('sync pass failed', err instanceof Error ? err.message : err);
     });
+    void runUserSchedules();
   });
 
   // One pass at boot, so a restart after a long idle period renews immediately
@@ -54,6 +71,10 @@ export function startSyncScheduler(): Scheduler {
   void runSyncPass().catch((err: unknown) => {
     console.error('initial sync pass failed', err instanceof Error ? err.message : err);
   });
+
+  // And the user's own jobs, for the same reason and more so: the instance
+  // sleeps, so waking up is the only chance a 2am job gets to run at all.
+  void runUserSchedules();
 
   return {
     stop: () => task.stop(),

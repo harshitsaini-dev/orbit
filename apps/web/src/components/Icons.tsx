@@ -152,3 +152,13 @@ export function DuplicatesIcon({ size = 18 }: { size?: number }) {
     </svg>
   );
 }
+
+export const SchedulesIcon = ({ size }: IconProps) => (
+  <Icon size={size}>
+    {/* A clock with an arrow round it: something that happens again, rather
+        than something that happened once. */}
+    <path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1" />
+    <path d="M20.6 3.4v4.2h-4.2" />
+    <path d="M12 7.6V12l2.9 1.8" />
+  </Icon>
+);

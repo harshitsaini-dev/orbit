@@ -240,6 +240,34 @@ export async function runSchedule(row: ScheduleRow): Promise<void> {
 }
 
 /**
+ * Runs one schedule on demand, leaving its own timetable alone.
+ *
+ * `runSchedule` recomputes `nextRunAt` from now, which is right when the job
+ * fired because it was due and wrong when somebody pressed a button - pressing
+ * "run now" at 4pm should not move a nightly job to 4pm tomorrow. So the time
+ * is put back afterwards.
+ */
+export async function runScheduleNow(
+  userId: string,
+  id: string,
+): Promise<PublicSchedule | null> {
+  const [row] = await db()
+    .select()
+    .from(schedules)
+    .where(and(eq(schedules.id, id), eq(schedules.ownerId, userId)))
+    .limit(1);
+
+  if (!row) return null;
+
+  const due = row.nextRunAt;
+  await runSchedule(row);
+  await db().update(schedules).set({ nextRunAt: due }).where(eq(schedules.id, id));
+
+  const [updated] = await db().select().from(schedules).where(eq(schedules.id, id));
+  return updated ? toPublic(updated) : null;
+}
+
+/**
  * Everything due, run in order.
  *
  * Called on every tick and once on start-up, which is what makes "run late"
