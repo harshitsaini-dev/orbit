@@ -30,6 +30,15 @@ const schema = z.object({
   API_RATE_LIMIT: z.coerce.number().int().positive().default(120),
   API_RATE_WINDOW_MS: z.coerce.number().int().positive().default(60 * 1000),
   /**
+   * The public API, counted per token rather than per IP.
+   *
+   * An IP limit punishes everyone behind one NAT and does nothing against a
+   * client spread over several addresses; a token is the thing actually making
+   * the requests.
+   */
+  V1_RATE_LIMIT: z.coerce.number().int().positive().default(300),
+
+  /**
    * Streaming a file and fetching a thumbnail are counted separately from
    * metadata calls. A grid of tiles fetches one preview each, so a photo folder
    * would otherwise exhaust the metadata budget in a single scroll.

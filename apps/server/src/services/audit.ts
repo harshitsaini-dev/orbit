@@ -29,7 +29,9 @@ export type AuditAction =
   | 'member.level'
   | 'member.revoke'
   | 'account.connect'
-  | 'account.disconnect';
+  | 'account.disconnect'
+  | 'token.create'
+  | 'token.revoke';
 
 export interface RecordInput {
   actorId: string;

@@ -569,3 +569,45 @@ export const deletions = sqliteTable(
     index('deletion_user_idx').on(t.userId),
   ],
 );
+
+/**
+ * Personal access tokens: a person acting as themselves, from a script.
+ *
+ * Stored exactly as a session is - a SHA-256 fingerprint, never the token -
+ * so a copy of this table is not a set of working credentials.
+ *
+ * `scopes` is a space-separated list rather than a join table. It is read on
+ * every request and written once, it is never queried across rows, and OAuth
+ * itself carries scopes as a space-separated string, so this is the same shape
+ * the wire uses.
+ */
+export const apiTokens = sqliteTable(
+  'api_tokens',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** What the person called it, so they can tell two tokens apart. */
+    name: text('name').notNull(),
+    tokenHash: text('token_hash').notNull(),
+    /** The last few characters, shown in the list. The rest is unrecoverable. */
+    tail: text('tail').notNull(),
+    scopes: text('scopes').notNull(),
+    /**
+     * Roughly when it was last used, not exactly.
+     *
+     * Written at most once a minute per token: the useful question is "is this
+     * token still in use", and answering it precisely would mean a write on
+     * every single request.
+     */
+    lastUsedAt: text('last_used_at'),
+    expiresAt: text('expires_at'),
+    revokedAt: text('revoked_at'),
+    createdAt: text('created_at').notNull().default(now),
+  },
+  (t) => [
+    uniqueIndex('api_token_hash_uq').on(t.tokenHash),
+    index('api_token_user_idx').on(t.userId),
+  ],
+);

@@ -10,6 +10,11 @@ declare global {
     interface Request {
       user?: PublicUser;
       sessionId?: string;
+      /**
+       * True when this user came from the local-mode bypass rather than from a
+       * session anybody actually signed into. The public API refuses it.
+       */
+      implicitUser?: boolean;
     }
   }
 }
@@ -19,6 +24,7 @@ export async function attachUser(req: Request, _res: Response, next: NextFunctio
   try {
     if (env.AUTH_MODE === 'local') {
       req.user = await getLocalUser();
+      req.implicitUser = true;
       next();
       return;
     }

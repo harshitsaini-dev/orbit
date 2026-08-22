@@ -441,6 +441,92 @@ so somebody can find out whether a job works rather than waiting until 2am to di
 Channel pub/sub. Client frames: `{"type":"subscribe","channel":"..."}`, `unsubscribe`, `ping`.
 Server frames: `upload:progress`, `upload:complete`, `upload:error`, `sync:status`.
 
+## The public API — `/v1`
+
+A separate surface from `/api`, for a program rather than for the app. `/api` ships with its
+only client and is free to change shape whenever the app needs it to; `/v1` is promised not to,
+and a breaking change means `/v2`.
+
+**Authentication.** A personal access token, created in the Developer tab:
+
+```
+Authorization: Bearer orbit_pat_<43 chars>
+```
+
+A session cookie also works, so the documentation's own examples are runnable while signed in.
+What does *not* work is local mode's implicit user: a public API that authenticates itself is
+not one, and a client written against that would work locally and fail on a real deployment.
+
+**Scopes.** A token carries the ones it was granted; a request outside them is `403
+insufficient_scope`, not `401` - the credential is real and retrying will not change it.
+
+| Scope | Grants |
+|---|---|
+| `files:read` | List folders, read file details |
+| `files:download` | Stream file contents |
+| `files:write` | Create folders, rename |
+| `files:delete` | Delete files and folders |
+| `accounts:read` | List connected accounts and storage |
+| `accounts:write` | Connect and disconnect accounts |
+| `shares:read` / `shares:write` | Read, create and revoke share links |
+
+There is deliberately no scope that hands over a provider's own credentials. Orbit proxies every
+byte, so a token reaches files without ever exposing the Google or Dropbox token behind them.
+
+**Rate limit.** Counted per token rather than per IP - an address limit punishes everyone behind
+one NAT and does nothing against a client spread across several. `RateLimit-*` headers on every
+response.
+
+### `GET /v1/me`
+`{ user, scopes }`. `scopes` is the list a token carries, or `"session"` for a signed-in browser.
+Lets a program find out what it may do without discovering it one 403 at a time.
+
+### `GET /v1/accounts` · `accounts:read`
+Every connected account, with quota and status.
+
+### `GET /v1/files?accountId=&path=&cursor=` · `files:read`
+One folder. Answers `{ accountId, path, files, nextCursor }`; `nextCursor` is `null` when the
+listing is finished. Cursors, never offsets - the drive changes under a reader, so page 3 of a
+shifted list is not page 3 of anything.
+
+### `GET /v1/files/:id?accountId=` · `files:read`
+One file's metadata.
+
+### `GET /v1/files/:id/content?accountId=` · `files:download`
+The bytes, proxied. Honours `Range`, so a client can seek a video rather than downloading it.
+
+### `POST /v1/files/folder` · `files:write`
+Body `{ accountId, path, name }`. `201 { file }`.
+
+### `PATCH /v1/files/:id` · `files:write`
+Body `{ accountId, name }`. Renames, and returns the file as it now is.
+
+### `DELETE /v1/files` · `files:delete`
+Body `{ accountId, remoteIds: [] }`, up to 200. Answers `{ succeeded, failed }` - a bulk delete
+where one file was already gone is not a failed request, and a program deserves to know which of
+the two hundred actually went.
+
+### `GET /v1/shares` · `shares:read` · `POST /v1/shares` · `DELETE /v1/shares/:shortId` · `shares:write`
+Share links, the same ones the app creates.
+
+## Managing tokens — `/api/tokens`
+
+Session-only, deliberately: a token must not be able to mint another token, or a leaked
+read-only token could issue itself a delete-everything one.
+
+### `GET /api/tokens`
+`{ tokens, scopes }` - the caller's live tokens and the full list of scopes Orbit issues. Each
+token shows its name, its last six characters, its scopes and when it was last used.
+
+### `POST /api/tokens`
+Body `{ name, scopes: [], expiresInDays? }`. Answers `201 { token, record }`. **`token` is
+shown exactly once and is not recoverable**; only a SHA-256 fingerprint is stored. An unknown
+scope is refused rather than filtered out.
+
+### `DELETE /api/tokens/:id`
+`204`. The token stops working immediately. The row is kept as revoked rather than deleted, so
+a later audit can still explain requests made with it.
+
 ## Planned
 
 | Route | Phase |

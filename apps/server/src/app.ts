@@ -12,6 +12,7 @@ import { accountsRouter } from './routes/accounts.js';
 import { adminRouter } from './routes/admin.js';
 import { authRouter } from './routes/auth.js';
 import { collectionsRouter } from './routes/collections.js';
+import { developerRouter } from './routes/developer.js';
 import { filesRouter } from './routes/files.js';
 import { membersRouter } from './routes/members.js';
 import { schedulesRouter } from './routes/schedules.js';
@@ -20,6 +21,7 @@ import { profileRouter } from './routes/profile.js';
 import { sharesRouter } from './routes/shares.js';
 import { transfersRouter } from './routes/transfers.js';
 import { uploadsRouter } from './routes/uploads.js';
+import { v1Router } from './routes/v1.js';
 import { healthRouter } from './routes/health.js';
 
 /**
@@ -196,6 +198,8 @@ export function createApp(): Express {
   app.use(profileRouter);
   app.use(sharesRouter);
   app.use(collectionsRouter);
+  app.use(developerRouter);
+  app.use(v1Router);
   app.use(transfersRouter);
   app.use(uploadsRouter);
 
