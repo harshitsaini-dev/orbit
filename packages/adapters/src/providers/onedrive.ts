@@ -1,4 +1,4 @@
-import { categorise } from '@orbit/shared-types';
+import { mimeForName } from '@orbit/shared-types';
 import type {
   AccountTokens,
   AuthType,
@@ -544,12 +544,14 @@ export function graphToOrbitFile(item: GraphItem, virtualPath: string): OrbitFil
   return file;
 }
 
+/**
+ * This provider says only "image" or "video", so the extension has to supply
+ * the actual type. It used to return `image/*`, which is a match pattern rather
+ * than a media type - meaningless in a `<video>` source and false to anything
+ * comparing against a specific type.
+ */
 function guessMime(name: string): string {
-  const category = categorise(undefined, name);
-  if (category === 'image') return 'image/*';
-  if (category === 'video') return 'video/*';
-  if (category === 'audio') return 'audio/*';
-  return 'application/octet-stream';
+  return mimeForName(name);
 }
 
 function requireEnv(name: string): string {

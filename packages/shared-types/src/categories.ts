@@ -154,3 +154,107 @@ export function summarise(
 
   return [...byCategory.values()].sort((a, b) => b.sizeBytes - a.sizeBytes || b.fileCount - a.fileCount);
 }
+
+/**
+ * Real media types by extension, for providers that report none.
+ *
+ * Dropbox and OneDrive describe a file only as "image" or "video", and the
+ * adapters turned that into `image/*`. That is a match pattern, not a media
+ * type: it is meaningless in a `<video>` source, in a `Content-Type`, and to
+ * anything that compares against a specific type rather than a prefix.
+ *
+ * Only the types worth naming are here. Anything else stays
+ * `application/octet-stream`, which is at least honest.
+ */
+const MIME_BY_EXTENSION: Record<string, string> = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  avif: 'image/avif',
+  bmp: 'image/bmp',
+  tif: 'image/tiff',
+  tiff: 'image/tiff',
+  svg: 'image/svg+xml',
+  ico: 'image/x-icon',
+  heic: 'image/heic',
+  heif: 'image/heif',
+
+  mp4: 'video/mp4',
+  m4v: 'video/mp4',
+  webm: 'video/webm',
+  ogv: 'video/ogg',
+  mov: 'video/quicktime',
+  mkv: 'video/x-matroska',
+  avi: 'video/x-msvideo',
+  mpg: 'video/mpeg',
+  mpeg: 'video/mpeg',
+  '3gp': 'video/3gpp',
+
+  mp3: 'audio/mpeg',
+  wav: 'audio/wav',
+  flac: 'audio/flac',
+  aac: 'audio/aac',
+  ogg: 'audio/ogg',
+  oga: 'audio/ogg',
+  opus: 'audio/opus',
+  m4a: 'audio/mp4',
+  aiff: 'audio/aiff',
+  mid: 'audio/midi',
+  midi: 'audio/midi',
+
+  pdf: 'application/pdf',
+  txt: 'text/plain',
+  md: 'text/markdown',
+  csv: 'text/csv',
+  tsv: 'text/tab-separated-values',
+  rtf: 'application/rtf',
+  doc: 'application/msword',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls: 'application/vnd.ms-excel',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ppt: 'application/vnd.ms-powerpoint',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  odt: 'application/vnd.oasis.opendocument.text',
+  ods: 'application/vnd.oasis.opendocument.spreadsheet',
+  odp: 'application/vnd.oasis.opendocument.presentation',
+  epub: 'application/epub+zip',
+
+  zip: 'application/zip',
+  rar: 'application/vnd.rar',
+  '7z': 'application/x-7z-compressed',
+  tar: 'application/x-tar',
+  gz: 'application/gzip',
+  tgz: 'application/gzip',
+  bz2: 'application/x-bzip2',
+  xz: 'application/x-xz',
+  zst: 'application/zstd',
+
+  json: 'application/json',
+  xml: 'application/xml',
+  html: 'text/html',
+  htm: 'text/html',
+  css: 'text/css',
+  js: 'text/javascript',
+  mjs: 'text/javascript',
+  ts: 'text/typescript',
+  yml: 'application/yaml',
+  yaml: 'application/yaml',
+
+  ttf: 'font/ttf',
+  otf: 'font/otf',
+  woff: 'font/woff',
+  woff2: 'font/woff2',
+};
+
+/**
+ * A media type for a file whose provider did not give one.
+ *
+ * Falls back to `application/octet-stream` rather than to a wildcard: a
+ * consumer can reason about "unknown", but `image/*` claims to be a type and
+ * then fails every comparison made against it.
+ */
+export function mimeForName(name: string): string {
+  return MIME_BY_EXTENSION[extensionOf(name)] ?? 'application/octet-stream';
+}
