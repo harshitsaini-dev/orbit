@@ -3780,3 +3780,100 @@ body {
     display: none;
   }
 }
+
+/* --- everything Orbit knows about one file -------------------------------- */
+
+.details {
+  display: grid;
+  gap: 1rem;
+}
+
+.details__head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.details__head > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.details__head strong {
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+.details__head span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.details__list {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+}
+
+/* Label and value on one line, the label a fixed column so the values line up
+   down the panel rather than starting wherever the label happened to end. */
+.details__row {
+  display: grid;
+  grid-template-columns: 8.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
+.details__row dt {
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.details__row dd {
+  margin: 0;
+  font-size: 13.5px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.details__row code {
+  font-size: 12.5px;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+}
+
+/* A hash is long, and wrapping it mid-run is better than a scrollbar. */
+.details__checksum {
+  word-break: break-all;
+}
+
+.details__where {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.details__shares {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.details__shares > span {
+  display: grid;
+  gap: 1px;
+}
+
+.details__shares span span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+@media (max-width: 30rem) {
+  .details__row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1px;
+  }
+}

@@ -9,6 +9,7 @@ import { Checkbox } from '../components/Checkbox.js';
 import { ContextMenu, useContextMenu, type MenuItem } from '../components/ContextMenu.js';
 import { DropZone } from '../components/DropZone.js';
 import { AddToCollection } from '../components/AddToCollection.js';
+import { FileDetails } from '../components/FileDetails.js';
 import { FolderPicker } from '../components/FolderPicker.js';
 import { TransferDialog } from '../components/TransferDialog.js';
 import { ShareDialog } from '../components/ShareDialog.js';
@@ -23,6 +24,7 @@ import {
   UploadFolderIcon,
   CopyIcon,
   MoveIcon,
+  InfoIcon,
 } from '../components/Icons.js';
 import { ViewToggle, useViewMode } from '../components/ViewToggle.js';
 import { ConfirmDialog, NameDialog } from '../components/NameDialog.js';
@@ -368,6 +370,7 @@ export function MyDrive() {
   const [relocating, setRelocating] = useState<{ file: OrbitFile; mode: 'copy' | 'move' } | null>(
     null,
   );
+  const [detailing, setDetailing] = useState<OrbitFile | null>(null);
 
   /**
    * What the right-click menu offers for one file. Built here rather than in
@@ -453,6 +456,11 @@ export function MyDrive() {
         label: 'Rename',
         icon: <RenameIcon />,
         onSelect: () => setDialog({ kind: 'rename', file }),
+      },
+      {
+        label: 'Details',
+        icon: <InfoIcon />,
+        onSelect: () => setDetailing(file),
       },
       {
         label: 'Delete',
@@ -1089,6 +1097,14 @@ export function MyDrive() {
           accounts={accounts ?? []}
           onClose={() => setTransferring(null)}
           onQueued={() => undefined}
+        />
+      )}
+
+      {detailing && (
+        <FileDetails
+          file={detailing}
+          account={accounts?.find((entry) => entry.id === accountId)}
+          onClose={() => setDetailing(null)}
         />
       )}
 

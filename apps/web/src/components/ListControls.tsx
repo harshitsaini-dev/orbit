@@ -235,23 +235,24 @@ export function ViewToggle({
 /**
  * The filter box.
  *
- * Appears only once there is enough to need it. A search box above four files
- * is furniture, and it invites people to type into it rather than just read.
+ * Shown wherever there is anything to filter, rather than only above a long
+ * list. Hiding it under a threshold was the wrong call: somebody who has
+ * learned that a page has a search box should find it there every time, and a
+ * control that comes and goes with the number of rows reads as missing rather
+ * than as unnecessary.
  */
 export function FilterBox({
   value,
   onChange,
   count,
   noun = 'files',
-  minimum = 8,
 }: {
   value: string;
   onChange: (value: string) => void;
   count: number;
   noun?: string;
-  minimum?: number;
 }) {
-  if (count < minimum) return null;
+  if (count === 0) return null;
 
   return (
     <input

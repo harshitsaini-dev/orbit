@@ -211,3 +211,10 @@ export const SharedDrivesIcon = ({ size }: IconProps) => (
     <path d="M14.6 7.1a2.1 2.1 0 1 0-1.5-3.6" />
   </Icon>
 );
+
+export const InfoIcon = ({ size }: IconProps) => (
+  <Icon size={size}>
+    <circle cx="12" cy="12" r="8.6" />
+    <path d="M12 11.2v5M12 7.9h.01" />
+  </Icon>
+);

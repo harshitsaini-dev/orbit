@@ -35,6 +35,18 @@ function usable(account: AccountRow, sizeBytes: number): boolean {
   return account.quotaBytes - account.usedBytes >= sizeBytes;
 }
 
+/**
+ * Whether this user has asked to pick the destination themselves.
+ *
+ * Separate from `chooseAccount` returning null so the two reasons for having no
+ * account stay tellable apart: "nothing has room" is a problem to report, and
+ * "you asked to be asked" is a question to put.
+ */
+export async function wantsToChoose(userId: string): Promise<boolean> {
+  const [user] = await db().select().from(users).where(eq(users.id, userId)).limit(1);
+  return user?.allocationStrategy === 'ask';
+}
+
 export async function chooseAccount(
   userId: string,
   sizeBytes: number,
@@ -47,6 +59,16 @@ export async function chooseAccount(
     .from(accounts)
     .where(eq(accounts.userId, userId))
     .orderBy(asc(accounts.priorityOrder));
+
+  /*
+   * "Ask me" is answered by refusing to answer.
+   *
+   * Returning null here is what makes the client show a picker instead of
+   * uploading somewhere. It is deliberately checked before the shortcuts
+   * below - somebody who asked to be asked means it even when there happens to
+   * be only one account with room today.
+   */
+  if (user.allocationStrategy === 'ask') return null;
 
   const candidates = all.filter((account) => usable(account, sizeBytes));
 

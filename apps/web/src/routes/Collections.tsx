@@ -82,6 +82,7 @@ export function Collections() {
   const [error, setError] = useState<Error | null>(null);
   const [viewMode, setViewMode] = useListView('collection');
   const [previewing, setPreviewing] = useState<Item | null>(null);
+  const [listFilter, setListFilter] = useState('');
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState<Collection | null>(null);
   const [deleting, setDeleting] = useState<Collection | null>(null);
@@ -362,6 +363,11 @@ export function Collections() {
 
   // --- the list ------------------------------------------------------------
 
+  const needle = listFilter.trim().toLowerCase();
+  const shownCollections = (collections ?? []).filter((collection) =>
+    collection.name.toLowerCase().includes(needle),
+  );
+
   return (
     <div style={{ display: 'grid', gap: '1rem' }}>
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
@@ -384,6 +390,15 @@ export function Collections() {
             New collection
           </button>
         </div>
+
+        {/* Fifty collections is a list you look things up in too, not only the
+            files inside one. */}
+        <FilterBox
+          value={listFilter}
+          onChange={setListFilter}
+          count={collections?.length ?? 0}
+          noun="collections"
+        />
       </section>
 
       {collections?.length === 0 && (
@@ -399,9 +414,17 @@ export function Collections() {
         </section>
       )}
 
-      {collections && collections.length > 0 && (
+      {shownCollections.length === 0 && (collections?.length ?? 0) > 0 && (
+        <section className="clay" style={{ padding: '1.25rem', textAlign: 'center' }}>
+          <p style={{ color: 'var(--text-muted)', margin: 0 }}>
+            No collection matches “{listFilter}”.
+          </p>
+        </section>
+      )}
+
+      {shownCollections.length > 0 && (
         <ul className="collection-grid">
-          {collections.map((collection) => (
+          {shownCollections.map((collection) => (
             <li key={collection.id}>
               <button type="button" onClick={() => setParams({ id: collection.id })}>
                 <span className="collection-card__icon">

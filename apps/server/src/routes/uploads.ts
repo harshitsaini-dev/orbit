@@ -4,7 +4,7 @@ import { z } from 'zod';
 import type { UploadSession } from '@orbit/shared-types';
 import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
-import { chooseAccount, recordUpload } from '../services/allocation.js';
+import { chooseAccount, recordUpload, wantsToChoose } from '../services/allocation.js';
 import { forgetBreakdown } from '../services/breakdown.js';
 import { hub } from '../lib/ws.js';
 
@@ -61,6 +61,18 @@ uploadsRouter.post('/api/uploads', requireAuth, async (req, res, next) => {
     let accountId = parsed.data.accountId;
 
     if (!accountId) {
+      // Asked for rather than assumed: a picker is the answer here, not an
+      // error, and the two must not arrive looking the same.
+      if (await wantsToChoose(req.user!.id)) {
+        res.status(409).json({
+          error: {
+            code: 'choose_account',
+            message: 'You have asked to choose where uploads go. Pick a drive and a folder.',
+          },
+        });
+        return;
+      }
+
       const chosen = await chooseAccount(req.user!.id, parsed.data.sizeBytes);
       if (!chosen) {
         // Told before a byte moves rather than partway through the transfer.

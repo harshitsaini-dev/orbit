@@ -4,7 +4,7 @@ import { beforeEach, describe, it } from 'node:test';
 process.env.AUTH_MODE = 'local';
 process.env.TOKEN_ENCRYPTION_KEY ??= Buffer.alloc(32, 7).toString('base64');
 
-const { chooseAccount, recordUpload, setAccountWeight, setStrategy } = await import(
+const { chooseAccount, recordUpload, setAccountWeight, setStrategy, wantsToChoose } = await import(
   './allocation.js'
 );
 const { createAccount } = await import('./accounts.js');
@@ -205,5 +205,35 @@ describe('recordUpload', () => {
     const { userId } = await seed('mine');
     await recordUpload(userId, 'someone-elses', 400);
     // No throw, and nothing written.
+  });
+});
+
+describe('asking instead of choosing', () => {
+  it('declines to pick, so the caller can put the question', async () => {
+    // Returning null is what makes the client show a picker rather than
+    // uploading somewhere. It is not "no room" and must not be reported as it.
+    const { userId } = await seed('one', { quotaBytes: 1_000_000 });
+    await seed('two', { quotaBytes: 1_000_000 });
+
+    await setStrategy(userId, 'ask');
+
+    assert.equal(await wantsToChoose(userId), true);
+    assert.equal(await chooseAccount(userId, 100), null);
+  });
+
+  it('still declines when only one account could have taken it', async () => {
+    // Somebody who asked to be asked means it even when the answer looks
+    // obvious today.
+    const { userId } = await seed('only', { quotaBytes: 1_000_000 });
+    await setStrategy(userId, 'ask');
+
+    assert.equal(await chooseAccount(userId, 100), null);
+  });
+
+  it('leaves every other strategy picking as before', async () => {
+    const { userId } = await seed('only', { quotaBytes: 1_000_000 });
+
+    assert.equal(await wantsToChoose(userId), false);
+    assert.ok(await chooseAccount(userId, 100));
   });
 });
