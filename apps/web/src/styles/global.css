@@ -2462,6 +2462,27 @@ body {
   gap: 0.6rem;
 }
 
+/*
+ * On a phone it hangs from the viewport, not from the button.
+ *
+ * Anchored to the chip's right edge, a 360-pixel panel opened leftwards from
+ * wherever the chip happened to be - and the chip sits in the middle of a
+ * phone's header, so the panel's left half was off the side of the screen.
+ * There is no room to be clever at this width: it spans the screen with a
+ * margin either side.
+ */
+@media (max-width: 40rem) {
+  .upload-pop {
+    position: fixed;
+    top: calc(var(--topbar-h) + 0.25rem);
+    left: 0.5rem;
+    right: 0.5rem;
+    width: auto;
+    max-height: calc(100dvh - var(--topbar-h) - 1.5rem);
+    overflow-y: auto;
+  }
+}
+
 .upload-pop header {
   display: flex;
   align-items: center;
