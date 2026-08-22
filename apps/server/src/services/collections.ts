@@ -17,6 +17,15 @@ export interface CollectionSummary {
   name: string;
   colour: string | null;
   itemCount: number;
+  /** What the collection points at, added up. */
+  totalBytes: number;
+  /**
+   * Which services it spans, for the icons on the card.
+   *
+   * A collection's whole point is holding files from more than one place, so
+   * the card says which without having to open it.
+   */
+  services: string[];
   createdAt: string;
 }
 
@@ -51,11 +60,17 @@ export async function listCollections(userId: string): Promise<CollectionSummary
 
   if (rows.length === 0) return [];
 
-  // One query for every count rather than one per collection: a sidebar with a
-  // dozen collections would otherwise be a dozen round trips to the database.
+  // One query for every summary rather than one per collection: fifty
+  // collections would otherwise be fifty round trips to draw a list of cards.
   const items = await db()
-    .select({ collectionId: collectionItems.collectionId })
+    .select({
+      collectionId: collectionItems.collectionId,
+      sizeBytes: collectionItems.sizeBytes,
+      catalogueKey: accounts.catalogueKey,
+      provider: accounts.provider,
+    })
     .from(collectionItems)
+    .innerJoin(accounts, eq(accounts.id, collectionItems.accountId))
     .where(
       inArray(
         collectionItems.collectionId,
@@ -63,18 +78,33 @@ export async function listCollections(userId: string): Promise<CollectionSummary
       ),
     );
 
-  const counts = new Map<string, number>();
+  const summaries = new Map<string, { count: number; bytes: number; services: Set<string> }>();
+
   for (const item of items) {
-    counts.set(item.collectionId, (counts.get(item.collectionId) ?? 0) + 1);
+    const current = summaries.get(item.collectionId) ?? {
+      count: 0,
+      bytes: 0,
+      services: new Set<string>(),
+    };
+
+    current.count += 1;
+    current.bytes += item.sizeBytes;
+    current.services.add(item.catalogueKey ?? item.provider);
+    summaries.set(item.collectionId, current);
   }
 
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    colour: row.colour,
-    itemCount: counts.get(row.id) ?? 0,
-    createdAt: row.createdAt,
-  }));
+  return rows.map((row) => {
+    const summary = summaries.get(row.id);
+    return {
+      id: row.id,
+      name: row.name,
+      colour: row.colour,
+      itemCount: summary?.count ?? 0,
+      totalBytes: summary?.bytes ?? 0,
+      services: [...(summary?.services ?? [])],
+      createdAt: row.createdAt,
+    };
+  });
 }
 
 export async function createCollection(
@@ -94,6 +124,8 @@ export async function createCollection(
     name: row.name,
     colour: row.colour,
     itemCount: 0,
+    totalBytes: 0,
+    services: [],
     createdAt: row.createdAt,
   };
 }
@@ -152,6 +184,10 @@ export async function readCollection(
       name: row.name,
       colour: row.colour,
       itemCount: items.length,
+      totalBytes: items.reduce((sum, { item }) => sum + item.sizeBytes, 0),
+      services: [
+        ...new Set(items.map(({ catalogueKey, provider }) => catalogueKey ?? provider)),
+      ],
       createdAt: row.createdAt,
     },
     items: items.map(({ item, nickname, provider, catalogueKey }) => ({
