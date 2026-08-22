@@ -222,31 +222,6 @@ export const PROVIDER_CATALOGUE: CatalogueEntry[] = [
  * through the API so the connect dialog can say why, rather than silently
  * omitting them and looking incomplete.
  */
-export interface UnavailableProvider {
-  key: string;
-  label: string;
-  reason: string;
-  /** What would have to change for this to become possible. */
-  unblockedBy: string;
-}
-
-export const UNAVAILABLE_PROVIDERS: UnavailableProvider[] = [
-  {
-    key: 'icloud_drive',
-    label: 'iCloud Drive',
-    reason:
-      'Apple publishes no API that lets a third-party application read or write a user\'s iCloud Drive. CloudKit reaches an app\'s own container, not the user\'s Drive documents.',
-    unblockedBy: 'Apple shipping a public iCloud Drive API with third-party OAuth.',
-  },
-  {
-    key: 'proton_drive',
-    label: 'Proton Drive',
-    reason:
-      'Proton publishes no public API for Drive. The only working integrations reverse-engineer the private one, which means handling Proton\'s SRP login and end-to-end encryption against an interface that can change without notice.',
-    unblockedBy: 'Proton publishing a documented Drive API, or shipping an official SDK.',
-  },
-];
-
 export function catalogueEntry(key: string): CatalogueEntry | undefined {
   return PROVIDER_CATALOGUE.find((entry) => entry.key === key);
 }

@@ -245,10 +245,6 @@ distinct provider API:
 What the user picks from is a separate, longer list — the **provider catalogue** — because six
 services share the `s3` adapter and differ only in endpoint. See ADR 0007.
 
-**Not supported:** iCloud Drive and Proton Drive. Neither publishes an API that allows
-third-party access; both are surfaced in the connect dialog with the reason rather than omitted.
-See ADR 0007.
-
 ---
 
 ## 5. Auth: multi-step email OTP (fully passwordless, hosted mode)

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { createServer, type Server } from 'node:http';
 import { after, before, describe, it } from 'node:test';
-import { PROVIDER_CATALOGUE, PROVIDER_IDS, UNAVAILABLE_PROVIDERS } from '@orbit/shared-types';
+import { PROVIDER_CATALOGUE, PROVIDER_IDS } from '@orbit/shared-types';
 import { createApp } from './app.js';
 import { useTestDatabase } from './test-utils.js';
 
@@ -63,17 +63,6 @@ describe('GET /api/catalogue', () => {
     for (const entry of body.entries) {
       assert.equal(typeof entry.capabilities.rangeRequests, 'boolean', `${entry.key} has no capabilities`);
     }
-  });
-
-  it('reports the services Orbit cannot support, with reasons', async () => {
-    const res = await fetch(`${baseUrl}/api/catalogue`);
-    const body = (await res.json()) as { unavailable: Array<{ key: string; reason: string }> };
-
-    assert.deepEqual(
-      body.unavailable.map((entry) => entry.key).sort(),
-      UNAVAILABLE_PROVIDERS.map((entry) => entry.key).sort(),
-    );
-    for (const entry of body.unavailable) assert.ok(entry.reason.length > 0);
   });
 
   it('never exposes a stored credential', async () => {

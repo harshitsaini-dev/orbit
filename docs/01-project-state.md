@@ -65,9 +65,6 @@ already works.
   those adapters. Amazon S3, Cloudflare R2, Supabase Storage, DigitalOcean Spaces and Backblaze
   B2 all route to the `s3` adapter with their own endpoint template and field list, so adding an
   S3-compatible service is a data change rather than new code (ADR 0007).
-- iCloud Drive and Proton Drive are listed as **not supported**, with the reason, because neither
-  publishes an API for third-party access. See ADR 0007.
-
 ### Phase 1 — Auth
 - Passwordless 6-digit email OTP: scrypt-hashed at rest, 5-minute expiry, 5-attempt cap,
   60-second resend cooldown.

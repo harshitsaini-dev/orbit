@@ -44,6 +44,11 @@ uploads), Azure Blob, and Bunny Edge Storage.
 
 ## iCloud Drive and Proton Drive
 
+> **Removed 2026-08-22.** The `UNAVAILABLE_PROVIDERS` list, its landing-page section and its API
+> field are gone at the owner's request. The reasoning below is kept because it is still true and
+> is why neither was built — but Orbit no longer advertises services it does not offer, and an
+> always-empty list plus the UI and tests around it is worse than no list.
+
 Both were requested and neither can be supported:
 
 - **iCloud Drive** — Apple publishes no API for third-party access to a user's Drive. CloudKit

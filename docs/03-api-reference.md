@@ -68,9 +68,6 @@ Everything "Connect an account" offers, plus what it cannot. Longer than
     "fields": [{ "name": "accountId", "label": "Cloudflare account ID" }],
     "capabilities": { "nativeFolders": false, "reportsQuota": false }
   }],
-  "unavailable": [{ "key": "icloud_drive", "label": "iCloud Drive",
-    "reason": "Apple publishes no API for third-party access to a user's Drive.",
-    "unblockedBy": "Apple shipping a public iCloud Drive API with third-party OAuth." }]
 }
 ```
 

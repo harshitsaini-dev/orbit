@@ -12,7 +12,7 @@ test.describe('landing page', () => {
     await expect(page.getByRole('link', { name: /sign in/i }).first()).toBeVisible();
   });
 
-  test('lists what Orbit supports, and says what it cannot', async ({ page }) => {
+  test('lists what Orbit supports', async ({ page }) => {
     await page.goto('/');
 
     // The catalogue comes from GET /api/catalogue - proves web -> api wiring
@@ -20,10 +20,6 @@ test.describe('landing page', () => {
     await expect(page.getByRole('listitem').filter({ hasText: 'Google Drive' })).toBeVisible();
     await expect(page.getByRole('listitem').filter({ hasText: 'Cloudflare R2' })).toBeVisible();
     await expect(page.getByRole('listitem').filter({ hasText: 'Azure Blob' })).toBeVisible();
-
-    // Services Orbit cannot support are shown with a reason rather than hidden.
-    await expect(page.getByRole('listitem').filter({ hasText: 'iCloud Drive' })).toBeVisible();
-    await expect(page.getByRole('listitem').filter({ hasText: 'Proton Drive' })).toBeVisible();
   });
 
   test('the workspace is still closed to a visitor', async ({ page }) => {

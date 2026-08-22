@@ -1,5 +1,5 @@
 import { getAdapter, listAdapters } from '@orbit/adapters';
-import { PROVIDER_CATALOGUE, UNAVAILABLE_PROVIDERS } from '@orbit/shared-types';
+import { PROVIDER_CATALOGUE } from '@orbit/shared-types';
 import { Router } from 'express';
 import { env } from '../lib/env.js';
 import { hub } from '../lib/ws.js';
@@ -43,6 +43,5 @@ healthRouter.get('/api/catalogue', (_req, res) => {
       capabilities: getAdapter(entry.provider).capabilities,
       authType: getAdapter(entry.provider).authType,
     })),
-    unavailable: UNAVAILABLE_PROVIDERS,
   });
 });

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { CatalogueEntry, UnavailableProvider } from '@orbit/shared-types';
+import type { CatalogueEntry } from '@orbit/shared-types';
 import { BrandMark } from '../components/BrandMark.js';
 import { InstallButton } from '../components/InstallButton.js';
 import { OrbitHero } from '../components/OrbitHero.js';
@@ -17,7 +17,6 @@ const YEAR = new Date().getFullYear();
 
 interface CatalogueResponse {
   entries: CatalogueEntry[];
-  unavailable: UnavailableProvider[];
 }
 
 const GROUPS: Array<{ title: string; keys: string[] }> = [
@@ -214,21 +213,6 @@ export function Landing() {
             </div>
           ))}
 
-        {catalogue && catalogue.unavailable.length > 0 && (
-          <div style={{ marginTop: '1.75rem' }}>
-            <h3>Not supported</h3>
-            <ul className="landing__provider-grid landing__provider-grid--muted">
-              {catalogue.unavailable.map((entry) => (
-                <li key={entry.key}>
-                  <span>
-                    <strong>{entry.label}</strong>
-                    <span>{entry.reason}</span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </section>
 
       <section className="clay landing__closing">

@@ -3,7 +3,6 @@ import { describe, it } from 'node:test';
 import {
   PROVIDER_CATALOGUE,
   PROVIDER_IDS,
-  UNAVAILABLE_PROVIDERS,
   catalogueEntry,
   resolveEndpoint,
 } from '@orbit/shared-types';
@@ -154,18 +153,3 @@ describe('provider catalogue', () => {
   });
 });
 
-describe('unavailable providers', () => {
-  it('does not overlap with the catalogue', () => {
-    const offered = new Set(PROVIDER_CATALOGUE.map((entry) => entry.key));
-    for (const entry of UNAVAILABLE_PROVIDERS) {
-      assert.ok(!offered.has(entry.key), `${entry.key} is both offered and marked unavailable`);
-    }
-  });
-
-  it('gives a reason and an unblocking condition for each', () => {
-    for (const entry of UNAVAILABLE_PROVIDERS) {
-      assert.ok(entry.reason.length > 20, `${entry.key} has no real reason`);
-      assert.ok(entry.unblockedBy.length > 10, `${entry.key} does not say what would unblock it`);
-    }
-  });
-});
