@@ -31,7 +31,11 @@ export type ServerEvent =
   | { type: 'upload:progress'; uploadId: string; uploadedBytes: number; totalBytes: number; pct: number }
   | { type: 'upload:complete'; uploadId: string; file: WorkspaceFile }
   | { type: 'upload:error'; uploadId: string; message: string }
-  | { type: 'sync:status'; accountId: string; status: 'running' | 'ok' | 'error'; deltaCount?: number };
+  | { type: 'sync:status'; accountId: string; status: 'running' | 'ok' | 'error'; deltaCount?: number }
+  // A transfer outlives the request that started it, so its progress can only
+  // reach the browser this way.
+  | { type: 'transfer:progress'; id: string; transferred: number }
+  | { type: 'transfer:done'; id: string };
 
 /** Client -> server WebSocket frames. */
 export type ClientEvent =

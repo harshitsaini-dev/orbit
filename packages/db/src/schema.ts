@@ -290,3 +290,54 @@ export const collectionItems = sqliteTable(
     index('collection_item_idx').on(t.collectionId),
   ],
 );
+
+/**
+ * A file moving from one provider to another.
+ *
+ * Persisted rather than held in memory because it outlives the request that
+ * started it, and because the instance it runs on sleeps after fifteen minutes
+ * idle and restarts on deploy. Keeping the position after every chunk is the
+ * difference between resuming a two-gigabyte transfer and starting it again.
+ *
+ * The bytes stream through and are never written to Orbit's own disk.
+ */
+export const transfers = sqliteTable(
+  'transfers',
+  {
+    id: text('id').primaryKey(),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+
+    sourceAccountId: text('source_account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    sourceRemoteId: text('source_remote_id').notNull(),
+
+    targetAccountId: text('target_account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    targetPath: text('target_path').notNull().default('/'),
+
+    name: text('name').notNull(),
+    mimeType: text('mime_type').notNull().default('application/octet-stream'),
+    sizeBytes: real('size_bytes').notNull().default(0),
+    transferredBytes: real('transferred_bytes').notNull().default(0),
+
+    /** queued | running | paused | done | failed | cancelled */
+    state: text('state').notNull().default('queued'),
+    error: text('error'),
+    /** A move rather than a copy: the source is removed once the copy lands. */
+    deleteSource: integer('delete_source', { mode: 'boolean' }).notNull().default(false),
+    /** The destination's resumable session, as JSON, so a restart can continue. */
+    uploadState: text('upload_state'),
+
+    createdAt: text('created_at').notNull().default(now),
+    updatedAt: text('updated_at').notNull().default(now),
+  },
+  (t) => [
+    index('transfer_owner_idx').on(t.ownerId),
+    // The sweep on wake looks for anything left running when the process died.
+    index('transfer_state_idx').on(t.state),
+  ],
+);

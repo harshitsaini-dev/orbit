@@ -57,6 +57,13 @@
       "when": 1787329387680,
       "tag": "0007_collections",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1787329387681,
+      "tag": "0008_transfers",
+      "breakpoints": true
     }
   ]
 }

@@ -1,6 +1,7 @@
 import { createServer } from 'node:http';
 import { createApp } from './app.js';
 import { assertHostedSecrets, env } from './lib/env.js';
+import { recoverInterrupted } from './services/transfers.js';
 import { hub } from './lib/ws.js';
 import { startSyncScheduler } from './services/sync-scheduler.js';
 
@@ -13,6 +14,13 @@ const scheduler = startSyncScheduler();
 
 server.listen(env.PORT, () => {
   console.log(`orbit api listening on :${env.PORT} (mode=${env.AUTH_MODE})`);
+
+  // A row saying "running" with nothing running is what an interrupted
+  // transfer looks like after a restart, and this instance restarts on every
+  // deploy. Left alone it would sit there claiming progress it is not making.
+  void recoverInterrupted().then((count) => {
+    if (count > 0) console.log(`${count} transfer(s) interrupted by a restart, marked paused`);
+  });
 });
 
 function shutdown(signal: string): void {

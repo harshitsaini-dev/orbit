@@ -308,6 +308,30 @@ account without disconnecting it.
 account it chose. `507 no_room` when nothing has space — said before a byte moves rather than
 partway through the transfer.
 
+### `POST /api/transfers`
+`{ sourceAccountId, sourceRemoteId, targetAccountId, targetPath?, deleteSource? }` →
+`201 { transfer }`, and it starts. The bytes stream through the server and are never written to
+Orbit's disk.
+
+`400` when both ends are the same account — within one account the provider moves it natively,
+without moving any bytes. `400 unsupported` for a folder. Transfers run one at a time across the
+whole process: two at once on a 512MB instance is how both of them fail.
+
+### `GET /api/transfers`
+`{ transfers: [] }`, newest first.
+
+### `POST /api/transfers/:id/resume`
+`202`. Picks up from the recorded position rather than starting again. `409` if it is already
+running or done.
+
+### `DELETE /api/transfers/:id`
+Cancels. `204`. Refuses one that has already finished, since saying it was cancelled would be a lie
+about a file that has moved.
+
+Progress arrives on the WebSocket as `transfer:progress` and `transfer:done`, on the channel
+`transfer:{id}` — a transfer outlives the request that started it, so there is nowhere else to
+report it.
+
 ### `WS /ws`
 Channel pub/sub. Client frames: `{"type":"subscribe","channel":"..."}`, `unsubscribe`, `ping`.
 Server frames: `upload:progress`, `upload:complete`, `upload:error`, `sync:status`.

@@ -12,6 +12,7 @@ import { collectionsRouter } from './routes/collections.js';
 import { filesRouter } from './routes/files.js';
 import { profileRouter } from './routes/profile.js';
 import { sharesRouter } from './routes/shares.js';
+import { transfersRouter } from './routes/transfers.js';
 import { uploadsRouter } from './routes/uploads.js';
 import { healthRouter } from './routes/health.js';
 
@@ -139,6 +140,7 @@ export function createApp(): Express {
   app.use(profileRouter);
   app.use(sharesRouter);
   app.use(collectionsRouter);
+  app.use(transfersRouter);
   app.use(uploadsRouter);
 
   app.use((_req, res) => {
