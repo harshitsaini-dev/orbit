@@ -173,5 +173,16 @@ export function useContextMenu<T>() {
     setState({ anchor: { x: event.clientX, y: event.clientY }, target });
   }
 
-  return { state, open, close: () => setState(null) };
+  /**
+   * The same menu, opened from a button rather than from a right-click.
+   *
+   * A menu belonging to a control should hang under that control rather than
+   * under wherever the pointer happened to be - on a touchscreen those are the
+   * same place, and on a desk they are not.
+   */
+  function openAt(anchor: MenuAnchor, target: T): void {
+    setState({ anchor, target });
+  }
+
+  return { state, open, openAt, close: () => setState(null) };
 }

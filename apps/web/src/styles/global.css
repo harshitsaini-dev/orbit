@@ -5032,13 +5032,38 @@ body {
 }
 
 /* The same idea as Bin's `.trash-all`, on the file list. */
-.list-select-all {
-  padding: 0.15rem 0.5rem 0.5rem;
+.list-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.15rem 0.5rem 0.6rem;
 }
 
-.list-select-all .checkbox__label {
+.list-controls .checkbox__label {
   color: var(--text-muted);
   font-size: 13px;
+}
+
+/* Pushes sort and the view toggle to the far end. */
+.list-controls__spacer {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 30rem) {
+  /*
+   * No gap on a phone: with one, the three controls do not fit on a line and
+   * the toggle drops to a row of its own - which is the row this move was
+   * meant to remove. Left-aligned they all fit.
+   */
+  .list-controls__spacer {
+    display: none;
+  }
+
+  .list-controls {
+    gap: 0.45rem;
+  }
 }
 
 /* Select-all sits above the rows it applies to, and says how many that is —

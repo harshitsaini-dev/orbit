@@ -366,6 +366,14 @@ export function MyDrive() {
   }, [accountId, path, filters, searchActive]);
 
   const menu = useContextMenu<OrbitFile>();
+  /*
+   * The overflow menu behind "More" on a phone.
+   *
+   * Even as icons the four actions wrapped onto two rows there, and the three
+   * behind this one are the rarer three - a folder is created far less often
+   * than a file is uploaded.
+   */
+  const more = useContextMenu<'toolbar'>();
   const [sharing, setSharing] = useState<OrbitFile | null>(null);
   const [collecting, setCollecting] = useState<OrbitFile | null>(null);
   const [transferring, setTransferring] = useState<{ file: OrbitFile; mode: 'copy' | 'move' } | null>(
@@ -810,33 +818,37 @@ export function MyDrive() {
             <UploadFileIcon size={16} />
             Upload files
           </button>
-          <button
-            type="button"
-            className="clay-button icon-button"
-            style={{ padding: '0.4rem 1rem', fontSize: 13 }}
-            // The browser asks for confirmation before handing over a whole
-            // folder, and no page can suppress that - it is a permission
-            // prompt, not a dialog. Saying so beforehand stops it reading as
-            // something Orbit did. Dragging the folder in avoids it entirely,
-            // because a drop carries the files without a picker.
-            title="Your browser will ask before handing over a folder. Dragging it in skips that."
-            aria-label="Upload folder"
-            onClick={() => folderInputRef.current?.click()}
-          >
-            <UploadFolderIcon size={16} />
-            <span className="btn-label">Upload folder</span>
-          </button>
-          <button
-            type="button"
-            className="clay-button icon-button"
-            style={{ padding: '0.4rem 1rem', fontSize: 13 }}
-            disabled={busyId !== null}
-            aria-label="New folder"
-            onClick={() => setDialog({ kind: 'new-folder' })}
-          >
-            <NewFolderIcon size={16} />
-            <span className="btn-label">New folder</span>
-          </button>
+          {!phone && (
+            <>
+              <button
+                type="button"
+                className="clay-button icon-button"
+                style={{ padding: '0.4rem 1rem', fontSize: 13 }}
+                // The browser asks for confirmation before handing over a whole
+                // folder, and no page can suppress that - it is a permission
+                // prompt, not a dialog. Saying so beforehand stops it reading as
+                // something Orbit did. Dragging the folder in avoids it
+                // entirely, because a drop carries the files without a picker.
+                title="Your browser will ask before handing over a folder. Dragging it in skips that."
+                aria-label="Upload folder"
+                onClick={() => folderInputRef.current?.click()}
+              >
+                <UploadFolderIcon size={16} />
+                <span className="btn-label">Upload folder</span>
+              </button>
+              <button
+                type="button"
+                className="clay-button icon-button"
+                style={{ padding: '0.4rem 1rem', fontSize: 13 }}
+                disabled={busyId !== null}
+                aria-label="New folder"
+                onClick={() => setDialog({ kind: 'new-folder' })}
+              >
+                <NewFolderIcon size={16} />
+                <span className="btn-label">New folder</span>
+              </button>
+            </>
+          )}
 
           <input
             ref={fileInputRef}
@@ -862,17 +874,34 @@ export function MyDrive() {
               event.target.value = '';
             }}
           />
-          <button
-            type="button"
-            className="clay-button icon-button"
-            style={{ padding: '0.4rem 1rem', fontSize: 13 }}
-            disabled={loading}
-            aria-label="Refresh this folder"
-            onClick={() => void load()}
-          >
-            <RefreshIcon size={16} />
-            <span className="btn-label">Refresh</span>
-          </button>
+          {phone ? (
+            <button
+              type="button"
+              className="clay-button"
+              style={{ padding: '0.4rem 0.9rem', fontSize: 13 }}
+              aria-haspopup="menu"
+              onClick={(event) => {
+                // Anchored under the button rather than at the pointer: this
+                // menu belongs to a control, not to wherever a finger landed.
+                const rect = event.currentTarget.getBoundingClientRect();
+                more.openAt({ x: rect.left, y: rect.bottom + 4 }, 'toolbar');
+              }}
+            >
+              More
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="clay-button icon-button"
+              style={{ padding: '0.4rem 1rem', fontSize: 13 }}
+              disabled={loading}
+              aria-label="Refresh this folder"
+              onClick={() => void load()}
+            >
+              <RefreshIcon size={16} />
+              <span className="btn-label">Refresh</span>
+            </button>
+          )}
 
           {selectedFiles.length > 0 && (
             <button
@@ -897,25 +926,6 @@ export function MyDrive() {
           fullTextSupported={capabilities?.fullTextSearch ?? false}
         />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-            <span style={{ color: 'var(--text-muted)' }}>Sort</span>
-            <Select
-              label="Sort by"
-              value={sort}
-              onChange={setSort}
-              options={[
-                { value: 'name', label: 'Name' },
-                { value: 'size', label: 'Size' },
-                { value: 'modified', label: 'Modified' },
-              ]}
-            />
-          </span>
-
-          <ViewToggle value={viewMode} onChange={setViewMode} />
-
-        </div>
-
         {error && (
           <p role="alert" style={{ color: 'var(--danger)', margin: 0, fontSize: 14 }}>
             {error}
@@ -925,14 +935,14 @@ export function MyDrive() {
 
       <section className="clay" style={{ padding: 'clamp(0.75rem, 2vw, 1.25rem)' }}>
         {/*
-          * Select-all belongs to the list, not to the toolbar.
+          * What describes a list belongs on the list.
           *
-          * It was a row of its own above the search box, which on a phone was
-          * another thirty-six pixels of chrome - and it was describing rows the
-          * reader could not see yet. Bin has always had it here; now they agree.
+          * Select-all, the sort and the view toggle were two rows of chrome
+          * above the search box, describing rows the reader could not see yet.
+          * Bin has always kept its select-all here; now they agree.
           */}
         {visible.length > 0 && (
-          <div className="list-select-all">
+          <div className="list-controls">
             <Checkbox
               checked={allVisibleSelected}
               onChange={toggleSelectAll}
@@ -944,6 +954,24 @@ export function MyDrive() {
                     : `Select all ${visible.length}`
               }
             />
+
+            <span className="list-controls__spacer" />
+
+            <Select
+              label="Sort by"
+              value={sort}
+              onChange={setSort}
+              // Narrower than the default: the three controls have to share one
+              // line on a phone, and the widest option here is "Modified".
+              minWidth={phone ? 104 : 132}
+              options={[
+                { value: 'name', label: 'Name' },
+                { value: 'size', label: 'Size' },
+                { value: 'modified', label: 'Modified' },
+              ]}
+            />
+
+            <ViewToggle value={viewMode} onChange={setViewMode} />
           </div>
         )}
 
@@ -1242,6 +1270,33 @@ export function MyDrive() {
           items={menuItemsFor(menu.state.target)}
           onClose={menu.close}
           label={`Actions for ${menu.state.target.name}`}
+        />
+      )}
+
+      {more.state && (
+        <ContextMenu
+          anchor={more.state.anchor}
+          onClose={more.close}
+          label="More actions"
+          items={[
+            {
+              label: 'Upload folder',
+              icon: <UploadFolderIcon size={16} />,
+              onSelect: () => folderInputRef.current?.click(),
+            },
+            {
+              label: 'New folder',
+              icon: <NewFolderIcon size={16} />,
+              disabled: busyId !== null,
+              onSelect: () => setDialog({ kind: 'new-folder' }),
+            },
+            {
+              label: 'Refresh',
+              icon: <RefreshIcon size={16} />,
+              disabled: loading,
+              onSelect: () => void load(),
+            },
+          ]}
         />
       )}
 
