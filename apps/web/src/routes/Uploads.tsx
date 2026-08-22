@@ -91,6 +91,20 @@ export function Uploads() {
   const { filter, setFilter, shown } = useFileFilter(searchable);
   const { sort, setSort, descending, toggleDirection, sorted } = useFileSort('uploads', shown);
 
+  /*
+   * The same filter over the copies between clouds.
+   *
+   * They are on this page too, and a search box that quietly ignores half of
+   * what is on screen is worse than none - somebody who filters and sees a
+   * transfer still listed will conclude the filter is broken.
+   */
+  const shownTransfers = useMemo(() => {
+    const needle = filter.trim().toLowerCase();
+    if (!needle) return transfers;
+
+    return transfers.filter((transfer) => transfer.name.toLowerCase().includes(needle));
+  }, [transfers, filter]);
+
   return (
     <div style={{ display: 'grid', gap: '1rem' }}>
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
@@ -106,7 +120,7 @@ export function Uploads() {
 
           <span style={{ flex: 1 }} />
 
-          {jobs.length > 1 && (
+          {(jobs.length > 0 || transfers.length > 0) && (
             <SortControl
               sort={sort}
               onSort={setSort}
@@ -127,10 +141,15 @@ export function Uploads() {
           )}
         </div>
 
-        <FilterBox value={filter} onChange={setFilter} count={jobs.length} noun="uploads" />
+        <FilterBox
+          value={filter}
+          onChange={setFilter}
+          count={jobs.length + transfers.length}
+          noun="jobs"
+        />
       </section>
 
-      {transfers.length > 0 && (
+      {shownTransfers.length > 0 && (
         <section className="clay" style={{ padding: '0.75rem' }}>
           <div className="collection-head">
             <strong>Between clouds</strong>
@@ -140,7 +159,7 @@ export function Uploads() {
           </div>
 
           <ul className="upload-list">
-            {transfers.map((transfer) => {
+            {shownTransfers.map((transfer) => {
               const percent =
                 transfer.sizeBytes > 0
                   ? Math.round((transfer.transferredBytes / transfer.sizeBytes) * 100)

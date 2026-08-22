@@ -21,7 +21,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 5 | Upload system + WebSocket progress + allocation | 🟢 Done |
 | 6 | Sync engine | 🟢 Done |
 | 7 | Sharing + QR | 🟢 Done |
-| 8 | RBAC + superadmin | 🟡 Per-drive grants done · superadmin console pending |
+| 8 | RBAC + superadmin | 🟡 Per-drive grants and audit trail done · superadmin console pending |
 | 9 | Design pass (Claymorphism, three.js, PWA) | ⚪ Not started |
 | 10 | Hardening + deploy | ⚪ Not started |
 | 11 | Developer platform (public API, tokens, OAuth apps, API docs tab) | ⚪ Designed, not started |
@@ -509,8 +509,21 @@ What is enforced, and where:
   automatic upload placement picks among your own drives, so Orbit never quietly puts your files
   into somebody else's storage.
 
-Still to do: a superadmin console, and an audit trail of who did what on a shared drive
-(`audit_log` exists and is unwritten).
+**The audit trail is written now.** It exists for a reason it did not before: with guests on a
+drive, "who deleted this" has an answer other than "you" and nowhere else to ask it. Recorded are
+deletions, moves, renames, uploads, links published and revoked, access given and taken away, and
+drives connected and disconnected. Reads deliberately are not — they would be most of the rows and
+none of the answers, and a log of everything a colleague opened is surveillance rather than an
+audit trail.
+
+Three things its shape had to get right: an entry outlives its actor (the id nulls rather than
+cascades, and the address recorded at the time survives), recording never throws (a delete must not
+fail because a row could not be inserted), and disconnecting is recorded against the person rather
+than the drive, since a drive's rows cascade away with it.
+
+Read from the members panel, gated on `manage` like the member list.
+
+Still to do: the superadmin console.
 
 ## Phase 19 — scheduled jobs
 

@@ -10,6 +10,7 @@ import { ConfirmDialog } from '../components/NameDialog.js';
 import { AccountCardsSkeleton } from '../components/Skeleton.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { StorageBar } from '../components/StorageBar.js';
+import { StorageGroups } from '../components/StorageGroups.js';
 import { api, ApiError } from '../lib/api.js';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -188,6 +189,8 @@ export function Quota() {
           />
         )}
       </section>
+
+      <StorageGroups />
 
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
         <h2 style={{ fontSize: '1.1rem' }}>Connected accounts</h2>

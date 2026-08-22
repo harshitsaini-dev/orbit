@@ -3,6 +3,7 @@ import { accounts, filesMirror } from '@orbit/db';
 import { summarise, type CategoryTotal } from '@orbit/shared-types';
 import { eq } from 'drizzle-orm';
 import { db } from '../lib/db.js';
+import { useAccount } from './accounts.js';
 
 /**
  * What is stored, grouped by the kind of storage it is in.
@@ -48,8 +49,27 @@ export interface StorageGroup {
   fileCount: number;
 }
 
+export interface SharedDriveEntry {
+  accountId: string;
+  accountNickname: string;
+  name: string;
+  path: string;
+}
+
 export interface StorageSummary {
   groups: StorageGroup[];
+  /**
+   * Drives that belong to an organisation, listed but not measured.
+   *
+   * Named here because leaving them out of the storage views entirely was the
+   * other way to be wrong: they are not part of anybody's allowance, but a
+   * person looking at their storage still wants to know they exist and where.
+   *
+   * No size: Google reports no quota for a shared drive - the organisation's
+   * storage is pooled - so the only way to a number is enumerating the whole
+   * drive, which is not something to do on every dashboard load.
+   */
+  sharedDrives: SharedDriveEntry[];
   /** Everything at once, for the one figure that answers "how much have I got". */
   overall: {
     usedBytes: number;
@@ -60,6 +80,47 @@ export interface StorageSummary {
   /** How many accounts have nothing indexed, so a partial answer says so. */
   unindexed: number;
 }
+
+/**
+ * The shared drives visible to these accounts.
+ *
+ * One extra request per Google account and nothing at all for the rest, which
+ * is what makes it affordable to include here. An account with none - the
+ * usual case - answers with an empty list rather than an error.
+ */
+async function sharedDrivesFor(
+  userId: string,
+  rows: Array<typeof accounts.$inferSelect>,
+): Promise<SharedDriveEntry[]> {
+  const found = await Promise.all(
+    rows
+      .filter((row) => row.provider === 'google_drive')
+      .map(async (row) => {
+        try {
+          const active = await useAccount(userId, row.id, 'read');
+          if (!active) return [];
+
+          const page = await active.adapter.listFolder(active.tokens, SHARED_DRIVES_PATH);
+
+          return page.files.map((file) => ({
+            accountId: row.id,
+            accountNickname: row.nickname,
+            name: file.name,
+            path: file.virtualPath,
+          }));
+        } catch {
+          // An account with none answers 404 for that folder. That is the
+          // ordinary case, not a failure worth surfacing.
+          return [];
+        }
+      }),
+  );
+
+  return found.flat();
+}
+
+/** Orbit's own name for the folder it synthesises to hold them. */
+const SHARED_DRIVES_PATH = '/Shared drives';
 
 export async function storageSummary(userId: string): Promise<StorageSummary> {
   const rows = await db().select().from(accounts).where(eq(accounts.userId, userId));
@@ -138,6 +199,7 @@ export async function storageSummary(userId: string): Promise<StorageSummary> {
 
   return {
     groups: ordered,
+    sharedDrives: await sharedDrivesFor(userId, rows),
     overall: {
       usedBytes: ordered.reduce((sum, group) => sum + group.usedBytes, 0),
       quotaBytes: ordered.reduce((sum, group) => sum + group.quotaBytes, 0),

@@ -45,8 +45,16 @@ interface StorageGroup {
   fileCount: number;
 }
 
+interface SharedDrive {
+  accountId: string;
+  accountNickname: string;
+  name: string;
+  path: string;
+}
+
 interface Summary {
   groups: StorageGroup[];
+  sharedDrives: SharedDrive[];
   overall: { usedBytes: number; quotaBytes: number; totals: CategoryTotal[]; fileCount: number };
   unindexed: number;
 }
@@ -145,6 +153,46 @@ export function StorageGroups() {
           </p>
         )}
       </section>
+
+      {/* Listed, not counted. Leaving them out of the storage views entirely
+          was the other way to be wrong: they are nobody's allowance, but a
+          person looking at their storage still wants to know they exist. */}
+      {summary.sharedDrives.length > 0 && (
+        <section className="clay storage-group" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
+          <header>
+            <h2>Shared drives</h2>
+            <span>
+              {summary.sharedDrives.length}{' '}
+              {summary.sharedDrives.length === 1 ? 'drive' : 'drives'} · not counted above
+            </span>
+          </header>
+
+          <p className="share-hint" style={{ margin: 0 }}>
+            These belong to an organisation. Google pools their storage and reports no quota per
+            drive, so Orbit does not show a size for one — measuring it would mean listing the
+            whole drive. Nothing here counts against your own allowance.
+          </p>
+
+          <ul className="storage-group__accounts">
+            {summary.sharedDrives.map((drive) => (
+              <li key={`${drive.accountId}:${drive.name}`}>
+                <ProviderIcon provider="google_drive" size={17} />
+                <span className="storage-group__name">
+                  <strong>{drive.name}</strong>
+                  <span>via {drive.accountNickname}</span>
+                </span>
+                <span />
+                <a
+                  className="link-button"
+                  href={`/my-drive?account=${encodeURIComponent(drive.accountId)}&path=${encodeURIComponent(drive.path)}`}
+                >
+                  Open
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {summary.groups.map((group) => (
         <section
