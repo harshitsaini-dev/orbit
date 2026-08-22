@@ -435,6 +435,47 @@ describe('GET /s/:shortId/content', () => {
   });
 });
 
+describe('when the provider stops mid-stream', () => {
+  it('ends that one response instead of the process', async () => {
+    /*
+     * This took the deployed service down. A provider body that goes quiet is
+     * destroyed by undici after five minutes, and an 'error' on a Node stream
+     * with no listener is thrown - which, uncaught, exits the process and has
+     * the platform restart it. One stalled download is not a reason for
+     * everybody else's requests to end.
+     */
+    stubFile();
+    const account = await seedAccount();
+
+    const created = await fetch(`${baseUrl}/api/shares`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ accountId: account.id, remoteId: 'file-1' }),
+    });
+    const { share } = (await created.json()) as { share: { shortId: string } };
+
+    (drive as unknown as Record<string, unknown>)['getFileStream'] = async () => ({
+      stream: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('the first part'));
+          // What a timed-out body looks like from here.
+          controller.error(new Error('terminated'));
+        },
+      }),
+      contentType: 'image/jpeg',
+    });
+
+    // Either the connection is cut mid-body or a truncated body arrives; both
+    // are correct. What matters is that the server is still there afterwards.
+    await fetch(`${baseUrl}/s/${share.shortId}/content`)
+      .then((res) => res.arrayBuffer())
+      .catch(() => undefined);
+
+    const after = await fetch(`${baseUrl}/health`);
+    assert.equal(after.status, 200, 'the server went away with the stream');
+  });
+});
+
 describe('GET /s/:shortId/qr', () => {
   it('returns an SVG of the link', async () => {
     const { res } = await makeShare();

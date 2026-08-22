@@ -91,17 +91,26 @@ export function Modal({
         className="clay modal-panel"
         style={{
           width: 'min(420px, 100%)',
+          /*
+           * A grid item's automatic minimum is its content, and a file name
+           * with no spaces in it has no place to break - so a dialog titled
+           * with one grew past the screen and took its own buttons with it.
+           */
+          maxWidth: '100%',
+          minWidth: 0,
           padding: 'clamp(1.25rem, 4vw, 1.75rem)',
           display: 'grid',
           gap: '1rem',
         }}
       >
-        <div style={{ display: 'grid', gap: 4 }}>
-          <h2 id={titleId} style={{ fontSize: '1.15rem' }}>
+        <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>
+          <h2 id={titleId} style={{ fontSize: '1.15rem', overflowWrap: 'anywhere' }}>
             {title}
           </h2>
           {description && (
-            <p style={{ color: 'var(--text-muted)', fontSize: 14, margin: 0 }}>{description}</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: 14, margin: 0, overflowWrap: 'anywhere' }}>
+              {description}
+            </p>
           )}
         </div>
         {children}
@@ -112,8 +121,6 @@ export function Modal({
 
 export function DialogActions({ children }: { children: ReactNode }) {
   return (
-    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-      {children}
-    </div>
+    <div className="dialog-actions">{children}</div>
   );
 }

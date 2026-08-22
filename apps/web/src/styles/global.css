@@ -5287,6 +5287,16 @@ body {
   animation: panel-in var(--dur-base) var(--ease-clay);
 }
 
+/* The row of buttons a dialog ends with. It wraps rather than pushing the
+   dialog wider, which on a phone is what took "Revoke link" off the screen. */
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
 /* Faster, and from where it was opened: a menu is attached to the thing that
    opened it, so it should look like it came from there. */
 .context-menu {

@@ -343,7 +343,27 @@ sharesRouter.get('/s/:shortId/content', async (req, res, next) => {
       res.setHeader('content-length', String(stream.contentLength));
     }
 
-    Readable.fromWeb(stream.stream as never).pipe(res);
+    /*
+     * The error and close handlers are not optional here.
+     *
+     * A provider's body can stall - undici gives up on one after five minutes
+     * and destroys it - and an 'error' on a Node stream with no listener is
+     * thrown, which as an uncaught exception took the whole service down and
+     * had Render restart it. One stranger's stalled download is not a reason
+     * for everybody else's requests to end.
+     */
+    const body = Readable.fromWeb(stream.stream as never);
+
+    // A visitor who closed the tab should stop costing the provider.
+    res.on('close', () => body.destroy());
+
+    body.on('error', () => {
+      // Nothing to say to the client: either the bytes have started, in which
+      // case the connection is the message, or the page will retry.
+      res.destroy();
+    });
+
+    body.pipe(res);
     void recordAccess(shortId);
     // Only a real download, not the viewer fetching a range to render a page.
     if (req.query.download !== undefined) void recordView(shortId, 'download', req.get('user-agent'));

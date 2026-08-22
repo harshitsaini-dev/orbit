@@ -106,10 +106,20 @@ export function useFileSort<T extends Sortable>(
   const storageKey = `orbit.sort.${key}`;
   const stored = localStorage.getItem(storageKey)?.split(':') ?? [];
 
+  /*
+   * Newest first, until somebody says otherwise.
+   *
+   * A file manager is opened to find what was touched recently far more often
+   * than to find something alphabetically - and an alphabetical list of a real
+   * drive puts "1-й семестр" and "200+ gb Asset pack" at the top, which is
+   * nobody's idea of what matters.
+   */
+  const remembered = SORTS.some((option) => option.value === stored[0]);
+
   const [sort, setSortState] = useState<SortKey>(
-    SORTS.some((option) => option.value === stored[0]) ? (stored[0] as SortKey) : 'name',
+    remembered ? (stored[0] as SortKey) : 'modified',
   );
-  const [descending, setDescending] = useState(stored[1] === 'desc');
+  const [descending, setDescending] = useState(remembered ? stored[1] === 'desc' : true);
 
   const remember = useCallback(
     (next: SortKey, down: boolean) => {
