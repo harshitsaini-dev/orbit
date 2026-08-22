@@ -21,7 +21,7 @@ import { useAccount } from './accounts.js';
  * would not scan. Twelve of 32 is 60 bits - not guessable, and short enough to
  * be a link rather than a paragraph.
  */
-const newShortId = customAlphabet('23456789abcdefghijkmnpqrstuvwxyz', 12);
+const newShortId = customAlphabet('23456789abcdefghjkmnpqrstuvwxyz', 12);
 
 export interface PublicShare {
   shortId: string;
@@ -34,7 +34,7 @@ export interface PublicShare {
   accessCount: number;
   lastAccessedAt: string | null;
   createdAt: string;
-  /** Where the file lives. Owner-only: never sent to a visitor. */
+  /** Which account holds it. The provider's own id is deliberately absent. */
   accountId: string;
 }
 
@@ -138,6 +138,28 @@ export async function createShare(input: CreateShareInput): Promise<PublicShare 
     .returning();
 
   return created ? toPublicShare(created) : null;
+}
+
+/** The live link for one file, if there is one. */
+export async function findShare(
+  userId: string,
+  accountId: string,
+  remoteId: string,
+): Promise<PublicShare | null> {
+  const [row] = await db()
+    .select()
+    .from(shareLinks)
+    .where(
+      and(
+        eq(shareLinks.ownerId, userId),
+        eq(shareLinks.accountId, accountId),
+        eq(shareLinks.remoteId, remoteId),
+        isNull(shareLinks.revokedAt),
+      ),
+    )
+    .limit(1);
+
+  return row ? toPublicShare(row) : null;
 }
 
 export async function listShares(userId: string): Promise<PublicShare[]> {

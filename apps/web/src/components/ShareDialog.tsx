@@ -56,14 +56,16 @@ export function ShareDialog({
   const [error, setError] = useState<string | null>(null);
 
   // A link may already exist for this file; showing "create" over one that is
-  // already public would be a lie.
+  // already public would be a lie. Asked for by account and remote id, not by
+  // name - two files in different folders can share a name.
   useEffect(() => {
     const controller = new AbortController();
+    const query = new URLSearchParams({ accountId, remoteId: file.remoteId });
 
-    api<{ shares: Share[] }>('/api/shares', { signal: controller.signal })
+    api<{ shares: Share[] }>(`/api/shares?${query.toString()}`, { signal: controller.signal })
       .then(({ shares }) => {
-        const match = shares.find((share) => share.name === file.name);
-        setExisting(match ?? null);
+        const match = shares[0] ?? null;
+        setExisting(match);
         if (match) {
           setAllowDownload(match.permission === 'download');
           setUsePassword(match.hasPassword);
@@ -74,7 +76,7 @@ export function ShareDialog({
       });
 
     return () => controller.abort();
-  }, [file.name]);
+  }, [accountId, file.remoteId]);
 
   async function create(): Promise<void> {
     setBusy(true);

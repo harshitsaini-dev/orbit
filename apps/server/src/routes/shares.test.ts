@@ -383,3 +383,29 @@ describe('GET /s/:shortId/qr', () => {
     assert.equal((await fetch(`${baseUrl}/s/nosuchlink123/qr`)).status, 404);
   });
 });
+
+describe('finding the link for one file', () => {
+  it('narrows by account and remote id rather than by name', async () => {
+    // Two files in different folders can share a name; matching on it would
+    // show the wrong link, and revoking it would revoke the wrong file's.
+    stubFile({ name: 'report.pdf' });
+    const account = await seedAccount();
+
+    for (const remoteId of ['file-a', 'file-b']) {
+      await fetch(`${baseUrl}/api/shares`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ accountId: account.id, remoteId }),
+      });
+    }
+
+    const query = new URLSearchParams({ accountId: account.id, remoteId: 'file-b' });
+    const body = await (await fetch(`${baseUrl}/api/shares?${query.toString()}`)).text();
+    const { shares } = JSON.parse(body) as { shares: Array<{ shortId: string }> };
+
+    assert.equal(shares.length, 1);
+    // Narrowed server-side: the provider's id is what the proxy keeps off the
+    // client, so it must not come back even here.
+    assert.ok(!body.includes('file-b'));
+  });
+});

@@ -8,6 +8,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
 import {
   createShare,
+  findShare,
   listShares,
   lookupShare,
   recordAccess,
@@ -62,7 +63,21 @@ sharesRouter.post('/api/shares', requireAuth, async (req, res, next) => {
 
 sharesRouter.get('/api/shares', requireAuth, async (req, res, next) => {
   try {
-    res.json({ shares: (await listShares(req.user!.id)).map(withUrl) });
+    const all = await listShares(req.user!.id);
+
+    // Optional narrowing to one file. The share dialog needs "is this file
+    // already shared", and matching on the name instead would show the wrong
+    // link for two files that happen to share a name in different folders.
+    const accountId = typeof req.query.accountId === 'string' ? req.query.accountId : null;
+    const remoteId = typeof req.query.remoteId === 'string' ? req.query.remoteId : null;
+
+    // Narrowed here rather than by returning the provider's id and letting the
+    // caller match: that id is exactly what the proxy exists to keep off the
+    // client.
+    const narrowed = accountId && remoteId ? await findShare(req.user!.id, accountId, remoteId) : null;
+    const shares = accountId && remoteId ? (narrowed ? [narrowed] : []) : all;
+
+    res.json({ shares: shares.map(withUrl) });
   } catch (err) {
     next(err);
   }
