@@ -197,27 +197,16 @@ describe('GET /api/files/:id/content', () => {
     assert.match(download.headers.get('content-disposition') ?? '', /my%20report\.pdf/);
   });
 
-  it('lets the app frame a download, and nothing else', async () => {
+  it('refuses to be framed, download or not', async () => {
     stub('getFileStream', streamOf('data'));
 
-    // Several files at once means one hidden frame each, and the blanket
-    // SAMEORIGIN would refuse every one of them.
+    // Downloads are fetched and handed over as a blob, so nothing here ever
+    // needs to be framed - and a file behind somebody's session should not be.
     const download = await fetch(
       `${baseUrl}/api/files/f1/content?accountId=${accountId}&download=1&name=a.txt`,
     );
 
-    assert.equal(download.headers.get('x-frame-options'), null);
-    assert.match(
-      download.headers.get('content-security-policy') ?? '',
-      /frame-ancestors 'self' http:\/\/localhost:5173/,
-    );
-  });
-
-  it('still refuses to be framed when it is not a download', async () => {
-    stub('getFileStream', streamOf('data'));
-
-    const plain = await fetch(`${baseUrl}/api/files/f1/content?accountId=${accountId}`);
-    assert.equal(plain.headers.get('x-frame-options'), 'SAMEORIGIN');
+    assert.equal(download.headers.get('x-frame-options'), 'SAMEORIGIN');
   });
 });
 

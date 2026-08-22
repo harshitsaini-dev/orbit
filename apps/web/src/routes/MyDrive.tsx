@@ -388,37 +388,70 @@ export function MyDrive() {
   const [detailing, setDetailing] = useState<OrbitFile | null>(null);
 
   /**
-   * Downloading one file, or twenty.
-   *
-   * A hidden iframe each, rather than a hidden anchor each. The anchor works
-   * for one file and quietly loses the rest: the content URL is on the API's
-   * own origin, and the `download` attribute is ignored cross-origin - so each
-   * click is a top-level navigation, and starting the second one aborts the
-   * first before the server has answered it. Four files asked for, one file
-   * downloaded.
-   *
-   * An iframe is its own browsing context, so four of them do not cancel each
-   * other; the response says `content-disposition: attachment`, so nothing is
-   * ever rendered in one. They are still spaced out, because a burst reads as a
-   * popup, and removed after long enough for the download to have started -
-   * the transfer belongs to the browser by then, not to the frame.
-   *
-   * There is no archive to offer instead: Orbit never holds the bytes to build
-   * one from. Chrome asks once whether the site may download several files;
-   * refusing that permission stops everything after the first, and no code here
-   * can work around it.
+   * Downloading one file. A link, which is the cheapest thing that works: the
+   * browser streams it straight to disk and Orbit never holds any of it.
    */
-  function downloadAll(files: OrbitFile[]): void {
-    files.forEach((file, index) => {
-      setTimeout(() => {
-        const frame = document.createElement('iframe');
-        frame.hidden = true;
-        frame.src = contentUrl(file, true);
-        document.body.append(frame);
+  function downloadOne(file: OrbitFile): void {
+    const link = document.createElement('a');
+    link.href = contentUrl(file, true);
+    link.download = file.name;
+    link.click();
+  }
 
-        setTimeout(() => frame.remove(), 60_000);
-      }, index * 320);
-    });
+  /**
+   * Downloading several.
+   *
+   * Not several links. The content URL is on the API's own origin, a link's
+   * `download` attribute is ignored cross-origin, so each click is a top-level
+   * navigation - and starting the second aborts the first before the provider
+   * has answered. Four files asked for, one file downloaded.
+   *
+   * Nor several hidden frames: that worked in principle and depended on the
+   * API's framing headers being exactly right, which is a lot of distance
+   * between pressing Download and a file appearing.
+   *
+   * So each file is fetched and handed to the browser as a blob. A blob URL is
+   * same-origin, which makes `download` mean something again - real filenames,
+   * no navigation, nothing to cancel. One at a time, and each released as soon
+   * as it is handed over, so only one file is ever held in memory.
+   *
+   * There is still no archive to offer instead: Orbit holds no bytes to build
+   * one from. Chrome asks once whether the site may download several files at
+   * once; refusing that stops everything after the first, and nothing here can
+   * work around it.
+   */
+  async function downloadAll(files: OrbitFile[]): Promise<void> {
+    if (files.length === 1 && files[0]) {
+      downloadOne(files[0]);
+      return;
+    }
+
+    setBusyId('download');
+
+    try {
+      for (const file of files) {
+        const response = await fetch(contentUrl(file, true), { credentials: 'include' });
+        if (!response.ok) throw new Error(file.name);
+
+        const url = URL.createObjectURL(await response.blob());
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = file.name;
+        link.click();
+
+        // Long enough for the browser to have taken the bytes, and short
+        // enough that twenty files do not sit in memory together.
+        setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error && err.message
+          ? `Could not download ${err.message}`
+          : 'Could not download those files',
+      );
+    } finally {
+      setBusyId(null);
+    }
   }
 
   /**
@@ -459,7 +492,7 @@ export function MyDrive() {
         icon: <DownloadIcon />,
         // A hidden anchor rather than location.assign, so the download does
         // not count as a navigation and the page stays where it is.
-        onSelect: () => downloadAll(streamable),
+        onSelect: () => void downloadAll(streamable),
         disabled: streamable.length === 0,
       },
       {
@@ -790,6 +823,37 @@ export function MyDrive() {
       />
 
       <section className="clay" style={{ padding: 'clamp(1rem, 3vw, 1.5rem)', display: 'grid', gap: '0.9rem' }}>
+        {/*
+          * Which drive this is, always.
+          *
+          * The switcher only appeared with two accounts connected, so with one
+          * the page never said whose drive it was showing or which provider it
+          * was on - and on a phone, where the sidebar is gone too, there was
+          * nothing on the screen naming it at all.
+          */}
+        {accounts && accounts.length === 1 && accounts[0] && (
+          <p
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              margin: 0,
+              fontSize: 13,
+              color: 'var(--text-muted)',
+            }}
+          >
+            <ProviderIcon
+              provider={accounts[0].catalogueKey ?? accounts[0].provider}
+              size={18}
+            />
+            <span style={{ fontWeight: 600, color: 'var(--text)' }}>
+              {catalogueEntry(accounts[0].catalogueKey ?? accounts[0].provider)?.label ??
+                accounts[0].provider}
+            </span>
+            <span style={{ overflowWrap: 'anywhere' }}>{accounts[0].nickname}</span>
+          </p>
+        )}
+
         {accounts && accounts.length > 1 && (
           /*
            * A row of drives on a desk, one menu on a phone.
@@ -799,17 +863,33 @@ export function MyDrive() {
            * under the navigation - which is also a horizontal scroller there -
            * so the page had two of them stacked and a sideways swipe was a
            * guess about which one would move.
+           *
+           * The icon beside it is the provider, which the nickname alone does
+           * not give away: two Google accounts and a Dropbox all read as an
+           * email address.
            */
           phone ? (
-            <Select
-              label="Drive"
-              value={accountId ?? ''}
-              onChange={(next) => navigate({ account: next, path: '/' })}
-              options={accounts.map((account) => ({
-                value: account.id,
-                label: account.nickname,
-              }))}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <ProviderIcon
+                provider={
+                  accounts.find((entry) => entry.id === accountId)?.catalogueKey ??
+                  accounts.find((entry) => entry.id === accountId)?.provider ??
+                  ''
+                }
+                size={18}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <Select
+                  label="Drive"
+                  value={accountId ?? ''}
+                  onChange={(next) => navigate({ account: next, path: '/' })}
+                  options={accounts.map((account) => ({
+                    value: account.id,
+                    label: account.nickname,
+                  }))}
+                />
+              </div>
+            </div>
           ) : (
             <div className="scroll-x" style={{ display: 'flex', gap: 8, paddingBottom: 4 }}>
               {accounts.map((account) => (
@@ -983,17 +1063,40 @@ export function MyDrive() {
             </button>
           )}
 
-          {selectedFiles.length > 0 && (
-            <button
-              type="button"
-              className="clay-button icon-button"
-              style={{ padding: '0.4rem 1rem', fontSize: 13, color: 'var(--danger)' }}
-              disabled={busyId !== null}
-              onClick={() => setDialog({ kind: 'delete', files: selectedFiles })}
-            >
-              <TrashIcon size={16} />
-              {capabilities?.trash ? 'Bin' : 'Delete'} {selectedFiles.length}
-            </button>
+          {selectedFiles.length > 0 && selectedFiles[0] && (
+            <>
+              {/*
+                * A phone has no right button, and every action beyond delete
+                * lived behind one - so copy, move, share and the rest were
+                * simply unreachable on a touch screen. This opens the same
+                * menu, which means there is one list of actions rather than a
+                * second one that drifts.
+                */}
+              <button
+                type="button"
+                className="clay-button"
+                style={{ padding: '0.4rem 1rem', fontSize: 13 }}
+                aria-haspopup="menu"
+                disabled={busyId !== null}
+                onClick={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  menu.openAt({ x: rect.left, y: rect.bottom + 4 }, selectedFiles[0]!);
+                }}
+              >
+                Actions
+              </button>
+
+              <button
+                type="button"
+                className="clay-button icon-button"
+                style={{ padding: '0.4rem 1rem', fontSize: 13, color: 'var(--danger)' }}
+                disabled={busyId !== null}
+                onClick={() => setDialog({ kind: 'delete', files: selectedFiles })}
+              >
+                <TrashIcon size={16} />
+                {capabilities?.trash ? 'Bin' : 'Delete'} {selectedFiles.length}
+              </button>
+            </>
           )}
         </div>
 

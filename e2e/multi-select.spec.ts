@@ -162,10 +162,10 @@ test.describe('right-clicking a selection', () => {
     await page.getByRole('menuitem', { name: 'Download 3 files' }).click();
 
     /*
-     * A frame each, spaced out. An anchor each is what this replaced: the
-     * download attribute is ignored cross-origin, so every click was a
-     * top-level navigation and each one aborted the last - four files asked
-     * for, one file downloaded.
+     * Fetched and handed over as a blob each. A link each is what this
+     * replaced: the download attribute is ignored cross-origin, so every click
+     * was a top-level navigation and each one aborted the last - four files
+     * asked for, one file downloaded.
      */
     await expect.poll(() => asked.length, { timeout: 10_000 }).toBe(3);
     expect(asked.sort()).toEqual(['alpha.txt', 'beta.txt', 'gamma.txt']);
@@ -211,5 +211,39 @@ test.describe('dragging inside the grid', () => {
     });
 
     await expect(page.locator('.dropzone')).toBeVisible();
+  });
+});
+
+test.describe('acting on a selection without a right button', () => {
+  test.use({ viewport: { width: 393, height: 850 }, hasTouch: true });
+
+  test.beforeEach(async ({ page }) => {
+    await signIn(page);
+    await stubDrive(page);
+    await page.goto('/my-drive');
+    await expect(page.getByText('alpha.txt')).toBeVisible();
+  });
+
+  test('offers the same menu behind a button', async ({ page }) => {
+    // Everything except delete lived behind the right button, which a phone
+    // does not have - so copy, move and share were simply unreachable there.
+    // Forced because the real input is visually hidden behind its drawn box,
+    // which is how every checkbox in the app is built.
+    await page.getByRole('checkbox', { name: /alpha\.txt/i }).first().check({ force: true });
+
+    await page.getByRole('button', { name: 'Actions' }).click();
+
+    const menu = page.getByRole('menu');
+    await expect(menu.getByText('Copy to folder…')).toBeVisible();
+    await expect(menu.getByText('Move to folder…')).toBeVisible();
+    await expect(menu.getByText('Share link')).toBeVisible();
+    await expect(menu.getByText('Add to collection')).toBeVisible();
+  });
+
+  test('names the drive and its provider', async ({ page }) => {
+    // With one account connected the switcher never appeared, so on a phone -
+    // no sidebar either - nothing on the screen said whose drive this was.
+    await expect(page.getByText('Google Drive')).toBeVisible();
+    await expect(page.getByText('stub@example.com')).toBeVisible();
   });
 });
