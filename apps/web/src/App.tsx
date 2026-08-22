@@ -32,6 +32,7 @@ import { Account } from './routes/Account.js';
 import { Dashboard } from './routes/Dashboard.js';
 import { Landing } from './routes/Landing.js';
 import { Login } from './routes/Login.js';
+import { Privacy, Terms } from './routes/Legal.js';
 import { MyDrive } from './routes/MyDrive.js';
 import { ApiDocs } from './routes/ApiDocs.js';
 import { Developer } from './routes/Developer.js';
@@ -289,6 +290,11 @@ export function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      {/* Public on purpose. A consent screen links to the privacy policy for
+          somebody who has not signed in and may be deciding not to, and a
+          policy behind a sign-in wall is no policy at all. */}
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
       {/* The root is the only address that differs by who is asking: a pitch
           for a visitor, their own storage for a signed-in user. */}
       <Route path="/" element={user ? workspace : <Landing />} />

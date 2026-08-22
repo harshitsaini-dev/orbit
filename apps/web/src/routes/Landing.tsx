@@ -274,6 +274,12 @@ export function Landing() {
                 Self-host it
               </a>
             </div>
+
+            <div>
+              <h3>Legal</h3>
+              <Link to="/privacy">Privacy</Link>
+              <Link to="/terms">Terms of use</Link>
+            </div>
           </nav>
         </div>
 

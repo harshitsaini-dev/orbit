@@ -5329,3 +5329,90 @@ body {
     animation-iteration-count: infinite !important;
   }
 }
+
+/* -------------------------------------------------------------------------
+   Privacy and terms.
+
+   One narrow column of prose, because that is all these pages are. The width
+   is in characters rather than pixels: a legal page that runs the width of a
+   desktop monitor is a legal page nobody finishes a paragraph of.
+   ------------------------------------------------------------------------- */
+
+.legal {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: clamp(1rem, 4vw, 2.5rem) clamp(1rem, 4vw, 1.5rem) 3rem;
+  display: grid;
+  gap: 1.25rem;
+}
+
+.legal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.legal__brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.legal__sheet {
+  padding: clamp(1.25rem, 4vw, 2.25rem);
+  display: grid;
+  gap: 0.9rem;
+}
+
+.legal__sheet h1 {
+  margin: 0;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  letter-spacing: -0.03em;
+}
+
+.legal__sheet h2 {
+  margin: 1.1rem 0 0;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.legal__sheet p,
+.legal__sheet li {
+  margin: 0;
+  max-width: 68ch;
+  line-height: 1.7;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.legal__sheet strong {
+  color: var(--text);
+}
+
+.legal__sheet ul {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.legal__updated {
+  font-size: 13px;
+}
+
+.legal__lead {
+  font-size: 1.02rem;
+  color: var(--text) !important;
+}
+
+.legal__foot {
+  margin-top: 1.25rem !important;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
