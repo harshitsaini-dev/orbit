@@ -184,3 +184,19 @@ export const MoveIcon = ({ size }: IconProps) => (
     <path d="M12 9.4v6M9.4 12.8L12 15.4l2.6-2.6" />
   </Icon>
 );
+
+export const ListViewIcon = ({ size }: IconProps) => (
+  <Icon size={size}>
+    <path d="M8.4 6.6h11.2M8.4 12h11.2M8.4 17.4h11.2" />
+    <path d="M4.4 6.6h.01M4.4 12h.01M4.4 17.4h.01" />
+  </Icon>
+);
+
+export const GridViewIcon = ({ size }: IconProps) => (
+  <Icon size={size}>
+    <rect x="4.2" y="4.2" width="6.4" height="6.4" rx="1.6" />
+    <rect x="13.4" y="4.2" width="6.4" height="6.4" rx="1.6" />
+    <rect x="4.2" y="13.4" width="6.4" height="6.4" rx="1.6" />
+    <rect x="13.4" y="13.4" width="6.4" height="6.4" rx="1.6" />
+  </Icon>
+);

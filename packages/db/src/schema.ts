@@ -440,3 +440,31 @@ export const accountGrants = sqliteTable(
     index('account_grant_user_idx').on(t.userId),
   ],
 );
+
+/**
+ * Duplicate sets the user has said are not duplicates.
+ *
+ * Two files can share a size and a name and be genuinely different, and a
+ * report that keeps insisting otherwise every time it is opened is a report
+ * people stop reading. Dismissing one is therefore remembered.
+ *
+ * Keyed by what identifies the set rather than by the files in it: a checksum
+ * and a size for a certain match, a size and a name for a guess. Both survive a
+ * re-scan, which is the point - the same set has to still be recognised as the
+ * one that was dismissed.
+ */
+export const ignoredDuplicates = sqliteTable(
+  'ignored_duplicates',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    /** `identical:<checksum>:<size>` or `probable:<size>:<name>`. */
+    groupKey: text('group_key').notNull(),
+    /** Kept only so the list of dismissals can be read back by a human. */
+    label: text('label').notNull(),
+    createdAt: text('created_at').notNull().default(now),
+  },
+  (t) => [uniqueIndex('ignored_duplicate_uq').on(t.userId, t.groupKey)],
+);

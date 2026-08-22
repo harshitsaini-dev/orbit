@@ -122,7 +122,75 @@ export function Quota() {
       )}
 
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
-        <h1 style={{ fontSize: '1.4rem' }}>Connected accounts</h1>
+        <h1 style={{ fontSize: '1.4rem' }}>Connect an account</h1>
+        <ul
+          style={{
+            listStyle: 'none',
+            padding: 0,
+            margin: '1rem 0 0',
+            display: 'grid',
+            gap: 10,
+            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+          }}
+        >
+          {connectable.map((entry) => {
+            const face = (
+              <>
+                <ProviderIcon provider={entry.key} size={28} />
+                <span style={{ display: 'grid', gap: 3, minWidth: 0 }}>
+                  <span>{entry.label}</span>
+                  <span style={{ color: 'var(--text-muted)', fontSize: 12, fontWeight: 400 }}>{entry.blurb}</span>
+                </span>
+              </>
+            );
+
+            const shared = {
+              className: 'clay-button',
+              style: {
+                display: 'flex',
+                gap: 12,
+                alignItems: 'center',
+                textDecoration: 'none',
+                textAlign: 'left' as const,
+                width: '100%',
+              },
+            };
+
+            return (
+              <li key={entry.key}>
+                {/* A store with fields to fill in stays in the app; an OAuth
+                    provider has to leave it, which needs a real navigation. */}
+                {entry.fields?.length ? (
+                  <button type="button" {...shared} onClick={() => setConnecting(entry)}>
+                    {face}
+                  </button>
+                ) : (
+                  <a {...shared} href={`${API_BASE}/auth/connect/${entry.provider}`}>
+                    {face}
+                  </a>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: '1rem' }}>
+          More providers arrive as their adapters land. See Home for the full list.
+        </p>
+
+        {connecting && (
+          <ConnectDialog
+            entry={connecting}
+            onClose={() => setConnecting(null)}
+            onConnected={() => {
+              setConnecting(null);
+              void load();
+            }}
+          />
+        )}
+      </section>
+
+      <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
+        <h2 style={{ fontSize: '1.1rem' }}>Connected accounts</h2>
         <p style={{ color: 'var(--text-muted)', marginTop: '0.4rem' }}>
           Orbit holds only an encrypted token for each account. Your files stay where they are.
         </p>
@@ -200,74 +268,6 @@ export function Quota() {
               </li>
             ))}
           </ul>
-        )}
-      </section>
-
-      <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
-        <h2 style={{ fontSize: '1.1rem' }}>Connect an account</h2>
-        <ul
-          style={{
-            listStyle: 'none',
-            padding: 0,
-            margin: '1rem 0 0',
-            display: 'grid',
-            gap: 10,
-            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-          }}
-        >
-          {connectable.map((entry) => {
-            const face = (
-              <>
-                <ProviderIcon provider={entry.key} size={28} />
-                <span style={{ display: 'grid', gap: 3, minWidth: 0 }}>
-                  <span>{entry.label}</span>
-                  <span style={{ color: 'var(--text-muted)', fontSize: 12, fontWeight: 400 }}>{entry.blurb}</span>
-                </span>
-              </>
-            );
-
-            const shared = {
-              className: 'clay-button',
-              style: {
-                display: 'flex',
-                gap: 12,
-                alignItems: 'center',
-                textDecoration: 'none',
-                textAlign: 'left' as const,
-                width: '100%',
-              },
-            };
-
-            return (
-              <li key={entry.key}>
-                {/* A store with fields to fill in stays in the app; an OAuth
-                    provider has to leave it, which needs a real navigation. */}
-                {entry.fields?.length ? (
-                  <button type="button" {...shared} onClick={() => setConnecting(entry)}>
-                    {face}
-                  </button>
-                ) : (
-                  <a {...shared} href={`${API_BASE}/auth/connect/${entry.provider}`}>
-                    {face}
-                  </a>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-        <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: '1rem' }}>
-          More providers arrive as their adapters land. See Home for the full list.
-        </p>
-
-        {connecting && (
-          <ConnectDialog
-            entry={connecting}
-            onClose={() => setConnecting(null)}
-            onConnected={() => {
-              setConnecting(null);
-              void load();
-            }}
-          />
         )}
       </section>
 

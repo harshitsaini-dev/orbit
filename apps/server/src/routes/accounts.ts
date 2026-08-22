@@ -10,7 +10,7 @@ import {
   redirectUriFor,
 } from '../lib/oauth.js';
 import { requireAuth } from '../middleware/auth.js';
-import { findDuplicates } from '../services/duplicates.js';
+import { findDuplicates, ignoreGroup, unignoreGroup } from '../services/duplicates.js';
 import { mirrorSize, recentSyncs, syncAccount } from '../services/sync.js';
 import {
   setAccountPriority,
@@ -382,8 +382,54 @@ accountsRouter.get('/api/duplicates', requireAuth, async (req, res, next) => {
     res.json(
       await findDuplicates(req.user!.id, {
         ...(Number.isFinite(minSizeBytes) ? { minSizeBytes } : {}),
+        // So the page can show what it has been hiding, rather than the
+        // dismissals being a one-way door.
+        includeIgnored: req.query.includeIgnored === '1',
       }),
     );
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Marks a set as not duplicates.
+ *
+ * Two files can share a size and a name and be genuinely different, and a
+ * report that insists otherwise every time it is opened is a report people stop
+ * reading. Nothing is deleted; the set is simply not raised again.
+ */
+accountsRouter.post('/api/duplicates/ignore', requireAuth, async (req, res, next) => {
+  const parsed = z
+    .object({ key: z.string().min(1).max(400), label: z.string().max(255).default('') })
+    .safeParse(req.body);
+
+  if (!parsed.success) {
+    res.status(400).json({ error: { code: 'invalid_request', message: 'A set is required' } });
+    return;
+  }
+
+  try {
+    await ignoreGroup(req.user!.id, parsed.data.key, parsed.data.label);
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+});
+
+accountsRouter.delete('/api/duplicates/ignore', requireAuth, async (req, res, next) => {
+  const parsed = z.object({ key: z.string().min(1) }).safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: { code: 'invalid_request', message: 'A set is required' } });
+    return;
+  }
+
+  try {
+    if (!(await unignoreGroup(req.user!.id, parsed.data.key))) {
+      res.status(404).json({ error: { code: 'not_found', message: 'That set was not dismissed' } });
+      return;
+    }
+    res.status(204).end();
   } catch (err) {
     next(err);
   }

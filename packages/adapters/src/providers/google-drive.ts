@@ -255,7 +255,15 @@ export class GoogleDriveAdapter extends BaseAdapter {
         name: drive.name,
         mimeType: GOOGLE_DRIVE_FOLDER_MIME,
       }));
-    } catch {
+    } catch (err) {
+      // Not fatal - My Drive should still list - but said out loud rather than
+      // swallowed. A silent catch here means "no shared drives" and "the call
+      // failed" look identical, and there is no way to tell which one is
+      // happening from the outside.
+      console.warn(
+        'google_drive: could not list shared drives -',
+        err instanceof Error ? err.message : err,
+      );
       return [];
     }
   }
@@ -343,6 +351,7 @@ export class GoogleDriveAdapter extends BaseAdapter {
       query.orderBy = 'name_natural';
     } else if (view === 'shared') {
       query.q = 'sharedWithMe = true and trashed = false';
+
       query.orderBy = 'sharedWithMeTime desc';
     } else {
       // Folders are excluded: "recent" means recent work, and a folder's
