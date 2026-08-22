@@ -16,7 +16,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 0 | Foundation (monorepo, CI, docs, infra accounts) | 🟢 Code done · infra accounts pending |
 | 1 | Auth (email OTP, sessions, local-mode bypass) | 🟢 Done |
 | 2 | First adapter — Google Drive | 🟢 Done |
-| 3 | Remaining adapters (OneDrive, Dropbox, MEGA, pCloud, S3) | 🟡 S3, OneDrive, Dropbox done · GCS, Azure, Bunny, MEGA, pCloud pending |
+| 3 | Remaining adapters | 🟡 Drive, OneDrive, Dropbox, every S3 store, GCS, Azure and Bunny done · pCloud pending · MEGA removed |
 | 4 | Unified workspace views | 🟢 Done |
 | 5 | Upload system + WebSocket progress + allocation | 🟢 Done |
 | 6 | Sync engine | 🟢 Done |

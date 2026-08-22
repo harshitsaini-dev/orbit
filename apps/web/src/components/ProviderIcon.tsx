@@ -18,7 +18,6 @@ export type ProviderIconKey =
   | 'google_drive'
   | 'onedrive'
   | 'dropbox'
-  | 'mega'
   | 'pcloud'
   | 'gcs'
   | 'azure_blob'
@@ -71,15 +70,6 @@ const MARKS: Record<ProviderIconKey, Mark> = {
     ),
   },
 
-  mega: {
-    colour: '#d9272e',
-    render: () => (
-      <>
-        <circle cx="12" cy="12" r="9.2" fill="#d9272e" opacity="0.16" />
-        <path d="M6 16.5v-9l6 5 6-5v9" stroke="#d9272e" strokeWidth="2.1" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      </>
-    ),
-  },
 
   pcloud: {
     colour: '#00a3e0',

@@ -42,6 +42,18 @@ uploads), Azure Blob, and Bunny Edge Storage.
   synthesised from key prefixes) and `reportsQuota` (false: a bucket reports bytes stored, not an
   allowance) — so the UI can adapt rather than showing an empty quota bar.
 
+## MEGA
+
+> **Removed 2026-08-22.** For the same reason as the two below, and it belongs with them.
+>
+> MEGA publishes no official API. Every working integration reverse-engineers the private one and
+> implements MEGA's client-side cryptography against an interface that can change without notice.
+> That is a large, security-sensitive body of code that could not be verified against a real
+> account here, and offering it in the catalogue would have advertised something Orbit does not do.
+>
+> This is not blocked on OAuth verification, or on anything else Orbit can do. It is blocked on
+> MEGA publishing a documented API or an official SDK.
+
 ## iCloud Drive and Proton Drive
 
 > **Removed 2026-08-22.** The `UNAVAILABLE_PROVIDERS` list, its landing-page section and its API

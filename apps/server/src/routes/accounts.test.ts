@@ -320,12 +320,17 @@ describe('POST /api/accounts/connect', () => {
     assert.equal(res.status, 400);
   });
 
-  it('refuses a catalogue entry with no adapter behind it', async () => {
-    // Listed on the landing page as intended, but connecting would dead-end.
+  it('refuses a catalogue entry whose adapter is still a scaffold', async () => {
+    /*
+     * pCloud is listed as intended and is not built, so connecting would dead
+     * end. The example used to be Azure, and this test is what noticed Azure
+     * had been implemented - which is the point of deriving the connectable
+     * list from the adapters rather than keeping one by hand.
+     */
     const res = await fetch(`${baseUrl}/api/accounts/connect`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ catalogueKey: 'azure_blob', values }),
+      body: JSON.stringify({ catalogueKey: 'pcloud', values }),
     });
 
     assert.equal(res.status, 404);

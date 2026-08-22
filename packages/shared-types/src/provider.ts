@@ -8,7 +8,6 @@ export const PROVIDER_IDS = [
   'google_drive',
   'onedrive',
   'dropbox',
-  'mega',
   'pcloud',
   'azure_blob',
   'bunny',
@@ -24,7 +23,7 @@ export interface AccountTokens {
   accessToken?: string;
   refreshToken?: string;
   expiresAt?: number;
-  /** Account/password providers (Mega, pCloud legacy). */
+  /** Account/password providers, where one is ever added. */
   username?: string;
   password?: string;
   /** S3-compatible providers. */

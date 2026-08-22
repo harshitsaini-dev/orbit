@@ -44,7 +44,7 @@ export const accounts = sqliteTable(
       // GCS is absent on purpose: it is reached through the s3 adapter over
       // its interoperability endpoint, so it never had a provider id of its
       // own to store.
-      enum: ['google_drive', 'onedrive', 'dropbox', 'mega', 'pcloud', 'azure_blob', 'bunny', 's3'],
+      enum: ['google_drive', 'onedrive', 'dropbox', 'pcloud', 'azure_blob', 'bunny', 's3'],
     }).notNull(),
     nickname: text('nickname').notNull(),
     /**

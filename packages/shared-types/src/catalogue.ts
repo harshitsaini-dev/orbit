@@ -74,16 +74,6 @@ export const PROVIDER_CATALOGUE: CatalogueEntry[] = [
     provider: 'pcloud',
     blurb: 'pCloud drive, EU or US region.',
   },
-  {
-    key: 'mega',
-    label: 'MEGA',
-    provider: 'mega',
-    blurb: 'MEGA account. Sign in with your email and password.',
-    fields: [
-      { name: 'username', label: 'Email' },
-      { name: 'password', label: 'Password', secret: true },
-    ],
-  },
 
   // --- object storage, S3 API ------------------------------------------------
   {
