@@ -51,7 +51,13 @@ test.describe('status screens', () => {
       const box = shell.getBoundingClientRect();
       const style = getComputedStyle(shell);
       return {
-        fillsViewport: box.width >= window.innerWidth && box.height >= window.innerHeight,
+        /*
+         * A pixel of slack. Under mobile emulation the device pixel ratio puts
+         * a fixed, inset-0 element at 393.6 against an innerWidth of 394, and
+         * a strict comparison fails a screen that is visibly full. What is
+         * being asserted is that nothing shows around it, not arithmetic.
+         */
+        fillsViewport: box.width >= window.innerWidth - 1 && box.height >= window.innerHeight - 1,
         background: style.backgroundColor,
         // What is actually painted at the top-left, where the navigation is.
         onTop: document.elementFromPoint(60, 300)?.closest('.status-shell') !== null,

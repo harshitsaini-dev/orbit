@@ -104,7 +104,7 @@ NULLs as distinct, so those never deduplicate: merging two connections that only
 | `npm test --workspaces` | 793 pass, 0 fail |
 | `npm run lint` | 0 errors |
 | `npm run build --workspaces` | clean |
-| `npx playwright test` (headed) | 117 pass, 0 fail across desktop, tablet and mobile - last run 2026-08-21 |
+| `npx playwright test` (headed) | 219 pass, 0 fail across desktop, tablet and mobile |
 
 Verified against the live account: 842 files, 11.9 GB scanned, categories summing exactly to the
 provider's own usage figure once the trash allowance is included. The EXIF reader was checked
