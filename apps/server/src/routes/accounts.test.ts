@@ -18,6 +18,8 @@ const { getLocalUser } = await import('../services/users.js');
 const { decryptTokens } = await import('../lib/crypto.js');
 const { db } = await import('../lib/db.js');
 const { accounts } = await import('@orbit/db');
+const { PROVIDER_CATALOGUE } = await import('@orbit/shared-types');
+const { isImplemented } = await import('@orbit/adapters');
 const { hostLabel, resolveEndpoint } = await import('./accounts.js');
 
 let server: Server;
@@ -320,17 +322,23 @@ describe('POST /api/accounts/connect', () => {
     assert.equal(res.status, 400);
   });
 
-  it('refuses a catalogue entry whose adapter is still a scaffold', async () => {
+  it('offers nothing it cannot actually connect', async () => {
     /*
-     * pCloud is listed as intended and is not built, so connecting would dead
-     * end. The example used to be Azure, and this test is what noticed Azure
-     * had been implemented - which is the point of deriving the connectable
-     * list from the adapters rather than keeping one by hand.
+     * The catalogue is what the menu shows; the adapters are what exists. This
+     * used to be checked by naming whichever provider was still a scaffold -
+     * Azure, then pCloud - and the naming is what noticed each time one got
+     * built. Nothing is a scaffold any more, so the rule itself is asserted:
+     * every entry offered has a real adapter behind it, and a key that is not
+     * in the catalogue at all is refused.
      */
+    for (const entry of PROVIDER_CATALOGUE) {
+      assert.equal(isImplemented(entry.provider), true, `${entry.key} is offered but not built`);
+    }
+
     const res = await fetch(`${baseUrl}/api/accounts/connect`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ catalogueKey: 'pcloud', values }),
+      body: JSON.stringify({ catalogueKey: 'icloud', values }),
     });
 
     assert.equal(res.status, 404);

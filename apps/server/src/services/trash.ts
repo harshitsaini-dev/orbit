@@ -92,13 +92,19 @@ async function forgetDeleted(accountId: string, remoteId: string): Promise<void>
 /**
  * How long a provider keeps a deleted file before destroying it.
  *
- * Both are thirty days and both are the provider's published policy rather than
- * something Orbit controls; a provider missing from here simply reports no
- * deadline.
+ * Each is the provider's published policy rather than something Orbit
+ * controls; a provider missing from here simply reports no deadline.
+ *
+ * pCloud is the one that depends on the plan - fifteen days on the free tier,
+ * thirty on a paid one - and Orbit cannot see which plan an account is on. The
+ * shorter is used, so the deadline shown is never later than the real one: a
+ * file that outlives its countdown is a pleasant surprise, one destroyed before
+ * it is not.
  */
 const RETENTION_DAYS: Record<string, number> = {
   google_drive: 30,
   dropbox: 30,
+  pcloud: 15,
 };
 
 export interface TrashResult {

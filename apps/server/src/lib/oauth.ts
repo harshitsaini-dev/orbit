@@ -45,6 +45,22 @@ export const OAUTH_PROVIDERS: Partial<Record<ProviderId, OAuthProviderConfig>> =
     clientIdEnv: 'ONEDRIVE_CLIENT_ID',
     clientSecretEnv: 'ONEDRIVE_CLIENT_SECRET',
   },
+  pcloud: {
+    /*
+     * my.pcloud.com works for both regions.
+     *
+     * pCloud runs a US and an EU service on separate hosts, and which one an
+     * account lives on is not knowable before signing in - the token response
+     * says. So authorisation goes through the common host and the adapter
+     * stores the API host pCloud names.
+     */
+    authorizeUrl: 'https://my.pcloud.com/oauth2/authorize',
+    // pCloud has no scope parameter: an app is granted full access to the
+    // account it is authorised against, and asking for less is not offered.
+    scopes: [],
+    clientIdEnv: 'PCLOUD_CLIENT_ID',
+    clientSecretEnv: 'PCLOUD_CLIENT_SECRET',
+  },
   dropbox: {
     authorizeUrl: 'https://www.dropbox.com/oauth2/authorize',
     // Dropbox scopes are per-endpoint rather than broad; these are exactly the
@@ -128,7 +144,9 @@ export function beginAuthorisation(
   url.searchParams.set('client_id', clientId);
   url.searchParams.set('redirect_uri', redirectUriFor(provider));
   url.searchParams.set('response_type', 'code');
-  url.searchParams.set('scope', config.scopes.join(' '));
+  // Omitted rather than sent empty: pCloud has no scopes, and `scope=` is a
+  // request for no permissions rather than the absence of the question.
+  if (config.scopes.length > 0) url.searchParams.set('scope', config.scopes.join(' '));
   url.searchParams.set('state', state);
   url.searchParams.set('code_challenge', challenge);
   url.searchParams.set('code_challenge_method', 'S256');
