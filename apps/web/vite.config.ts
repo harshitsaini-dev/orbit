@@ -54,10 +54,13 @@ export default defineConfig({
        *
        * Without this the dialog's <img> asks Vite for /s/<id>/qr, gets the SPA
        * index.html back, and shows a broken image - only in development, since
-       * production serves both from one origin. That is exactly the kind of
-       * thing that looks like a broken feature rather than a missing proxy.
+       * production serves both from one origin.
+       *
+       * A regex, not the string '/s'. Vite matches a string key by prefix, and
+       * it serves its own modules from /src/ - so '/s' sent the entire
+       * application to the API and left a blank page.
        */
-      '/s': { target: API_TARGET, changeOrigin: true },
+      '^/s/': { target: API_TARGET, changeOrigin: true },
       '/ws': { target: `ws://localhost:${API_PORT}`, ws: true },
     },
   },

@@ -18,6 +18,8 @@ export class AzureBlobAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: false,
+    trash: false,
+    purgeTrash: false,
     relocate: false,
     thumbnails: false,
     search: false,

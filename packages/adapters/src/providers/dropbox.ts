@@ -75,6 +75,8 @@ export class DropboxAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: true,
+    trash: true,
+    purgeTrash: false,
     relocate: true,
     thumbnails: true,
     search: true,
@@ -380,6 +382,53 @@ export class DropboxAdapter extends BaseAdapter {
     );
 
     return dropboxToOrbitFile(result.metadata);
+  }
+
+  /**
+   * Deleted files, which Dropbox keeps for thirty days.
+   *
+   * There is no bin to list: Dropbox answers with deleted entries mixed into an
+   * ordinary recursive listing when asked, so they are filtered out here. That
+   * is why this is a whole-account walk rather than a cheap query.
+   */
+  async listTrash(tokens: AccountTokens, pageToken?: string): Promise<OrbitFilePage> {
+    const page = pageToken
+      ? await this.rpc<ListResult>(tokens, '/files/list_folder/continue', { cursor: pageToken })
+      : await this.rpc<ListResult>(tokens, '/files/list_folder', {
+          path: '',
+          recursive: true,
+          include_deleted: true,
+          limit: 1000,
+        });
+
+    const deleted = (page.entries ?? []).filter((entry) => entry['.tag'] === 'deleted');
+
+    return {
+      files: deleted.map((entry) => dropboxToOrbitFile(entry)),
+      ...(page.has_more ? { nextPageToken: page.cursor } : {}),
+    };
+  }
+
+  /**
+   * Restores the most recent version of a deleted path.
+   *
+   * Dropbox restores by revision rather than by path, so the revision has to be
+   * looked up first - and a path with no revisions was never a file, which is
+   * worth saying rather than failing obscurely.
+   */
+  async restoreFromTrash(tokens: AccountTokens, remoteId: string): Promise<void> {
+    const history = await this.rpc<{ entries?: Array<{ rev?: string }> }>(
+      tokens,
+      '/files/list_revisions',
+      { path: remoteId, mode: { '.tag': 'path' }, limit: 1 },
+    );
+
+    const rev = history.entries?.[0]?.rev;
+    if (!rev) {
+      throw new ProviderError(this.id, 404, `Dropbox has no version of ${remoteId} to restore`);
+    }
+
+    await this.rpc(tokens, '/files/restore', { path: remoteId, rev });
   }
 
   override async remove(tokens: AccountTokens, remoteIds: string[]): Promise<BulkResult> {

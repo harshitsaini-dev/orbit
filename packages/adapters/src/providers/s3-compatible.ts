@@ -66,6 +66,8 @@ export class S3CompatibleAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: false,
+    trash: false,
+    purgeTrash: false,
     relocate: true,
     thumbnails: false,
     // The store has no search endpoint, but the adapter can still answer a

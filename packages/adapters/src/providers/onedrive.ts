@@ -74,6 +74,8 @@ export class OneDriveAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: true,
+    trash: false,
+    purgeTrash: false,
     relocate: true,
     thumbnails: true,
     search: true,

@@ -54,6 +54,8 @@ export class BunnyAdapter extends BaseAdapter {
     resumableUpload: false,
     rangeRequests: true,
     nativeFolders: true,
+    trash: false,
+    purgeTrash: false,
     /** A move would be a download and a re-upload, which is not a move. */
     relocate: false,
     thumbnails: false,

@@ -381,6 +381,30 @@ Progress arrives on the WebSocket as `transfer:progress` and `transfer:done`, on
 `transfer:{id}` — a transfer outlives the request that started it, so there is nowhere else to
 report it.
 
+## The bin
+
+Deleted files that the provider has not yet destroyed, across every drive that keeps one.
+
+Providers disagree about what a bin is, and two capabilities say so rather than one pretending
+they agree: `trash` is whether a delete can be undone, `purgeTrash` is whether an ordinary account
+may destroy a file early. Drive has both. Dropbox holds deleted files for thirty days and will
+restore one, but only a business plan may empty its bin — so `trash` is true and `purgeTrash` is
+false. An object store has neither: a delete there is final.
+
+### `GET /api/trash?cursor=`
+`{ files, noBin, problems, nextCursor }`. Paged on the same per-account cursor the merged views
+use. `noBin` names the drives that keep none, so a delete that cannot be undone is said before
+somebody makes one rather than after. Each file carries `canPurge`.
+
+### `POST /api/trash/restore`
+`{ accountId, remoteId }` → `204`. Needs **`write`**, not `delete`: restoring adds a file to the
+drive rather than taking one away, and somebody trusted to upload is trusted to undo a deletion.
+`400 unsupported` where the drive keeps no bin.
+
+### `DELETE /api/trash`
+`{ accountId, remoteId }` → `204`. Needs `delete`, and is gated again on `purgeTrash`. This is the
+one operation in Orbit with nothing behind it.
+
 ## Schedules
 
 Jobs that run again on their own, described by a preset and a time rather than a cron expression.

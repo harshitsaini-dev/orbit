@@ -13,6 +13,7 @@ import { collectionsRouter } from './routes/collections.js';
 import { filesRouter } from './routes/files.js';
 import { membersRouter } from './routes/members.js';
 import { schedulesRouter } from './routes/schedules.js';
+import { trashRouter } from './routes/trash.js';
 import { profileRouter } from './routes/profile.js';
 import { sharesRouter } from './routes/shares.js';
 import { transfersRouter } from './routes/transfers.js';
@@ -142,6 +143,7 @@ export function createApp(): Express {
   app.use(adminRouter);
   app.use(membersRouter);
   app.use(schedulesRouter);
+  app.use(trashRouter);
   app.use(filesRouter);
   app.use(profileRouter);
   app.use(sharesRouter);

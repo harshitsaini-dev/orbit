@@ -18,6 +18,7 @@ import {
   SharedIcon,
   StarOutlineIcon,
   LinkIcon,
+  TrashBinIcon,
 } from './components/Icons.js';
 import { StatusScreen } from './components/StatusScreen.js';
 import { Spotlight, useSpotlightShortcut } from './components/Spotlight.js';
@@ -38,6 +39,7 @@ import { Quota } from './routes/Quota.js';
 import { Uploads } from './routes/Uploads.js';
 import { Admin } from './routes/Admin.js';
 import { Links } from './routes/Links.js';
+import { Trash } from './routes/Trash.js';
 import { Schedules } from './routes/Schedules.js';
 import { SharedDrives } from './routes/SharedDrives.js';
 import { WorkspaceViewPage } from './routes/WorkspaceView.js';
@@ -50,6 +52,7 @@ const NAV = [
   { to: '/collections', label: 'Collections', Icon: CollectionsIcon },
   { to: '/duplicates', label: 'Duplicates', Icon: DuplicatesIcon },
   { to: '/links', label: 'Links', Icon: LinkIcon },
+  { to: '/trash', label: 'Bin', Icon: TrashBinIcon },
   { to: '/schedules', label: 'Schedules', Icon: SchedulesIcon },
   { to: '/shared-with-me', label: 'Shared with me', Icon: SharedIcon },
   { to: '/shared-drives', label: 'Shared drives', Icon: SharedDrivesIcon },
@@ -116,6 +119,7 @@ const PATHS = new Set([
   '/collections',
   '/duplicates',
   '/links',
+  '/trash',
   '/schedules',
   '/quota',
   '/uploads',
@@ -215,6 +219,7 @@ function Workspace({ online }: { online: boolean }) {
             <Route path="/collections" element={<Collections />} />
             <Route path="/duplicates" element={<Duplicates />} />
             <Route path="/links" element={<Links />} />
+            <Route path="/trash" element={<Trash />} />
             <Route path="/schedules" element={<Schedules />} />
             <Route path="/quota" element={<Quota />} />
             <Route path="/uploads" element={<Uploads />} />

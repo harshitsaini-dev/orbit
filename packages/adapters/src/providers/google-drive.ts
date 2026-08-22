@@ -87,6 +87,8 @@ export class GoogleDriveAdapter extends BaseAdapter {
     resumableUpload: true,
     rangeRequests: true,
     nativeFolders: true,
+    trash: true,
+    purgeTrash: true,
     relocate: true,
     thumbnails: true,
     search: true,
@@ -746,6 +748,57 @@ export class GoogleDriveAdapter extends BaseAdapter {
     });
 
     return toOrbitFile(moved, joinPath(targetPath, moved.name ?? ''));
+  }
+
+  /**
+   * What Drive is holding in its bin.
+   *
+   * `trashed = true` with the user's own corpus: a shared drive has its own
+   * bin, and mixing them would offer to restore a file into somebody else's
+   * drive from a page about this account's storage.
+   */
+  async listTrash(tokens: AccountTokens, pageToken?: string): Promise<OrbitFilePage> {
+    const page = await providerJson<DriveList>(this.id, `${API}/files`, {
+      headers: this.auth(tokens),
+      query: {
+        q: 'trashed = true',
+        fields: `nextPageToken,files(${FILE_FIELDS},trashedTime)`,
+        pageSize: 200,
+        pageToken,
+        corpora: 'user',
+        orderBy: 'recency desc',
+        supportsAllDrives: true,
+      },
+    });
+
+    return {
+      files: (page.files ?? []).map((file) => toOrbitFile(file, `/${file.name ?? ''}`)),
+      nextPageToken: page.nextPageToken,
+    };
+  }
+
+  /**
+   * Puts it back.
+   *
+   * Drive restores to wherever it came from, which is the only sensible answer
+   * and not one Orbit gets to choose - so there is no destination to pass.
+   */
+  async restoreFromTrash(tokens: AccountTokens, remoteId: string): Promise<void> {
+    await providerJson<DriveFile>(this.id, `${API}/files/${remoteId}`, {
+      method: 'PATCH',
+      headers: { ...this.auth(tokens), 'content-type': 'application/json' },
+      query: { supportsAllDrives: true },
+      body: JSON.stringify({ trashed: false }),
+    });
+  }
+
+  /** Destroys it. There is no bin behind the bin. */
+  async purgeFromTrash(tokens: AccountTokens, remoteId: string): Promise<void> {
+    await providerFetch(this.id, `${API}/files/${remoteId}`, {
+      method: 'DELETE',
+      headers: this.auth(tokens),
+      query: { supportsAllDrives: true },
+    });
   }
 
   override async remove(tokens: AccountTokens, remoteIds: string[]): Promise<BulkResult> {

@@ -4173,3 +4173,71 @@ body {
     grid-column: 1 / -1;
   }
 }
+
+/* --- what has been deleted but not destroyed ------------------------------ */
+
+.trash-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.trash-list > li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius-sm);
+}
+
+/* Dimmed while its own request is in flight, so two clicks on one row are
+   visibly one action rather than two. */
+.trash-list > li[data-busy] {
+  opacity: 0.55;
+}
+
+.trash-list__what {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.trash-list__what strong {
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trash-list__what > span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.trash-list__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.trash-list__actions button {
+  padding: 0.28rem 0.75rem;
+  font-size: 12.5px;
+}
+
+@media (max-width: 40rem) {
+  .trash-list > li {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .trash-list__actions {
+    grid-column: 1 / -1;
+  }
+}

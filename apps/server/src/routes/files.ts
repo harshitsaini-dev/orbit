@@ -7,27 +7,11 @@ import { record } from '../services/audit.js';
 import { sharedRemoteIds } from '../services/shares.js';
 import { renderThumbnail } from '../services/thumbnails.js';
 import { forgetBreakdown } from '../services/breakdown.js';
+import { sendProviderError } from '../lib/provider-error.js';
 import { searchWorkspace } from '../services/search.js';
 import { listWorkspaceView } from '../services/views.js';
 
 export const filesRouter: Router = Router();
-
-/** Maps the errors that mean something specific onto a status the UI can act on. */
-function sendProviderError(err: unknown, res: import('express').Response): boolean {
-  if (err instanceof Error && err.message === 'needs_reauth') {
-    res.status(409).json({
-      error: { code: 'needs_reauth', message: 'This account needs to be reconnected' },
-    });
-    return true;
-  }
-  if (err instanceof Error && err.name === 'NotImplementedError') {
-    res.status(501).json({
-      error: { code: 'unsupported', message: 'This provider does not support that action' },
-    });
-    return true;
-  }
-  return false;
-}
 
 const listQuery = z.object({
   accountId: z.string().min(1),

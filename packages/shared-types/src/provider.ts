@@ -194,6 +194,18 @@ export interface ProviderCapabilities {
   /** Object stores have no real folders; Orbit synthesises them from key prefixes. */
   nativeFolders: boolean;
   /**
+   * Whether a delete goes to a bin the file can be brought back from.
+   *
+   * Separate from `purgeTrash` because the two are separate promises and
+   * providers keep them apart: Dropbox holds deleted files for thirty days and
+   * will restore one, but only a business plan may destroy one early. Saying
+   * "there is a bin" and "you may empty it" with one flag would offer a button
+   * that fails on most accounts.
+   */
+  trash: boolean;
+  /** Whether a file in the bin can be destroyed before the provider expires it. */
+  purgeTrash: boolean;
+  /**
    * Whether a file can be moved or copied to another folder **within the same
    * account**, without the bytes travelling through Orbit.
    *
@@ -277,6 +289,23 @@ export interface ProviderAdapter {
     rootId: string,
     pageToken?: string,
   ): Promise<OrbitFilePage>;
+
+  /**
+   * What is in the bin. Gated by the `trash` capability.
+   *
+   * Paged like any other listing: a bin is where a folder somebody deleted by
+   * accident went, and those are not small.
+   */
+  listTrash?(tokens: AccountTokens, pageToken?: string): Promise<OrbitFilePage>;
+  /** Puts a file back where it was. Gated by `trash`. */
+  restoreFromTrash?(tokens: AccountTokens, remoteId: string): Promise<void>;
+  /**
+   * Destroys a file in the bin, before the provider would have.
+   *
+   * Gated by `purgeTrash`, which is false on providers that keep a bin but do
+   * not let an ordinary account empty it early.
+   */
+  purgeFromTrash?(tokens: AccountTokens, remoteId: string): Promise<void>;
 
   createFolder(tokens: AccountTokens, path: string, name: string): Promise<OrbitFile>;
   rename(tokens: AccountTokens, remoteId: string, newName: string): Promise<void>;

@@ -226,3 +226,12 @@ export const LinkIcon = ({ size }: IconProps) => (
     <path d="M13.6 10.4a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1.7-1.7" />
   </Icon>
 );
+
+export const TrashBinIcon = ({ size }: IconProps) => (
+  <Icon size={size}>
+    {/* A bin with a lid: things in it are still things, until they are not. */}
+    <path d="M4.6 7.2h14.8" />
+    <path d="M9.4 7.2V5.4a1.4 1.4 0 0 1 1.4-1.4h2.4a1.4 1.4 0 0 1 1.4 1.4v1.8" />
+    <path d="M6.6 7.2l.8 11.4a2 2 0 0 0 2 1.8h5.2a2 2 0 0 0 2-1.8l.8-11.4" />
+  </Icon>
+);
