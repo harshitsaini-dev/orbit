@@ -4,6 +4,7 @@ import type { ThemeMode } from '@orbit/shared-types';
 import { Avatar } from './Avatar.js';
 import { api } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
+import { cacheSize, clearCache } from '../lib/cache.js';
 import { ACCENTS, useTheme } from '../lib/theme.js';
 
 /**
@@ -14,12 +15,25 @@ import { ACCENTS, useTheme } from '../lib/theme.js';
  */
 export function AccountMenu() {
   const { user, mode, logout, refresh } = useAuth();
+  /**
+   * How much of the directory tree is held locally.
+   *
+   * Offered here because a cache nobody can see or clear is a cache people stop
+   * trusting the moment anything looks stale.
+   */
+  const [cached, setCached] = useState({ folders: 0, files: 0 });
   const { theme, accent, setTheme, setAccent } = useTheme();
 
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuId = useId();
+
+  // Only while the menu is open: counting on every render would read the whole
+  // store to draw one line.
+  useEffect(() => {
+    if (open) void cacheSize().then(setCached);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -186,6 +200,29 @@ export function AccountMenu() {
           </div>
 
           <div style={{ display: 'grid', gap: 6, borderTop: '1px solid var(--border)', paddingTop: '0.75rem' }}>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                void clearCache().then(() => setCached({ folders: 0, files: 0 }));
+              }}
+              style={{
+                padding: '0.5rem 0.6rem',
+                borderRadius: 'var(--radius-sm)',
+                background: 'none',
+                border: 0,
+                textAlign: 'left',
+                font: 'inherit',
+                fontSize: 14,
+                color: 'var(--text)',
+                cursor: 'pointer',
+              }}
+            >
+              {cached.folders === 0
+                ? 'Nothing cached'
+                : `Clear ${cached.folders} cached ${cached.folders === 1 ? 'folder' : 'folders'}`}
+            </button>
+
             <Link
               to="/account"
               role="menuitem"

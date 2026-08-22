@@ -35,6 +35,7 @@ import { filesFromDataTransfer } from '../lib/upload.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { api, ApiError } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
+import { forgetFolder, readFolder, writeFolder } from '../lib/cache.js';
 import { previewKindFor } from '../lib/preview.js';
 import { useUploads } from '../lib/uploads.js';
 
@@ -116,6 +117,8 @@ export function MyDrive() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [previewing, setPreviewing] = useState<OrbitFile | null>(null);
+  /** A refresh behind a cached listing, which must not blank the page. */
+  const [refreshing, setRefreshing] = useState(false);
 
   // Dialogs replace window.prompt and window.confirm, which the browser draws
   // itself, ignore the theme, and on some platforms suppress outright.
@@ -166,25 +169,43 @@ export function MyDrive() {
   const load = useCallback(async () => {
     if (!accountId) return;
 
-    setLoading(true);
     setError(null);
     setListError(null);
+
+    // Paint from the cache first, then refresh behind it. A folder that was
+    // opened before appears at once instead of after a round trip - and with
+    // several accounts connected, that round trip is per account.
+    const cached = await readFolder(accountId, path);
+    if (cached) {
+      setListing({ files: cached.files, nextCursor: undefined } as Listing);
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
     try {
       const result = await api<Listing>(
         `/api/files?accountId=${encodeURIComponent(accountId)}&path=${encodeURIComponent(path)}`,
       );
       setListing(result);
+      // Marked partial when there is more to fetch, so nothing later mistakes
+      // the first page for the whole folder.
+      void writeFolder(accountId, path, result.files, Boolean(result.nextCursor));
     } catch (err) {
-      setListing(null);
+      if (!cached) setListing(null);
       // A revoked grant has a specific remedy, so it keeps its specific message
       // instead of becoming a generic screen.
       if (err instanceof ApiError && err.code === 'needs_reauth') {
         setError('This account needs reconnecting. Open Quota to reconnect it.');
-      } else {
+      } else if (!cached) {
         setListError(err instanceof Error ? err : new Error('Could not list this folder'));
       }
+      // With a cached copy on screen the failure is not fatal: the folder is
+      // still browsable, it is just not fresh. Replacing it with an error would
+      // take away something that was working.
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [accountId, path]);
 
@@ -403,6 +424,7 @@ export function MyDrive() {
     try {
       await api('/api/files/folder', { method: 'POST', body: { accountId, path, name } });
       setDialog(null);
+      await forgetFolder(accountId, path);
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not create the folder');
@@ -419,6 +441,7 @@ export function MyDrive() {
         body: { accountId, name },
       });
       setDialog(null);
+      await forgetFolder(accountId, path);
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not rename');
@@ -434,6 +457,7 @@ export function MyDrive() {
         method: 'PATCH',
         body: { accountId, starred: !file.starred },
       });
+      await forgetFolder(accountId, path);
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not update');
@@ -453,6 +477,7 @@ export function MyDrive() {
         setError(`${result.failed.length} of ${files.length} could not be deleted.`);
       }
       setDialog(null);
+      await forgetFolder(accountId, path);
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not delete');
@@ -984,7 +1009,9 @@ export function MyDrive() {
 
         {!searchActive && listing && listing.files.length > 0 && (
           <p style={{ color: 'var(--text-muted)', fontSize: 13, padding: '0.75rem' }} aria-live="polite">
-            {loadingMore
+            {refreshing
+              ? `${listing.files.length} items · checking for changes…`
+              : loadingMore
               ? `${listing.files.length} items so far, still loading…`
               : listing.files.length >= MAX_FOLDER_ITEMS
                 ? `Showing ${MAX_FOLDER_ITEMS.toLocaleString()} items. This folder holds more than Orbit will load at once — use search to find something specific.`

@@ -18,7 +18,9 @@ export function useOnline(): boolean {
     window.addEventListener('online', goOnline);
     window.addEventListener('offline', goOffline);
 
-    // The events can fire between the first render and this effect running.
+    // The events can fire between the first render and this effect running, so
+    // the current state is read once on mount rather than relying only on
+    // having been listening at the right moment.
     setOnline(navigator.onLine);
 
     return () => {

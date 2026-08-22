@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { CatalogueEntry, PublicAccount } from '@orbit/shared-types';
 import { ConnectDialog } from '../components/ConnectDialog.js';
+import { forgetAccount } from '../lib/cache.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { ConfirmDialog } from '../components/NameDialog.js';
 import { AccountCardsSkeleton } from '../components/Skeleton.js';
@@ -64,6 +65,9 @@ export function Quota() {
     setBusyId(account.id);
     try {
       await api(`/api/accounts/${account.id}`, { method: 'DELETE' });
+      // Its folders would otherwise stay browsable from the cache after the
+      // account it came from is gone.
+      await forgetAccount(account.id);
       setDisconnecting(null);
       await load();
     } catch (err) {

@@ -41,11 +41,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const me = await api<{ user: PublicUser }>('/auth/me', { signal: controller.signal });
         setUser(me.user);
       } catch (err) {
-        // A 401 just means "not signed in" - not an error worth surfacing.
-        if (!(err instanceof ApiError) || err.status !== 401) {
-          if ((err as Error).name !== 'AbortError') setMode((current) => current);
-        }
-        setUser(null);
+        // Only a refusal means "not signed in". A request that never reached
+        // the server means we could not tell - and clearing the user over that
+        // signs someone out for losing their connection, which with an offline
+        // workspace is exactly when they need it least.
+        if (err instanceof ApiError && err.status === 401) setUser(null);
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }

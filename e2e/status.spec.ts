@@ -54,12 +54,14 @@ test.describe('status screens', () => {
     await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible();
   });
 
-  test('losing the network shows the offline screen, and regaining it clears', async ({
+  test('shows the offline screen to a visitor with nothing cached to browse', async ({
     page,
     context,
   }) => {
-    await signIn(page);
-    await page.goto('/');
+    // Signed out there is no directory cache and nothing to look at, so the
+    // screen is the honest answer. Signed in it is a bar instead, because the
+    // cached tree still browses - that case is covered in cache.spec.ts.
+    await page.goto('/login');
 
     await context.setOffline(true);
     // Chromium does not always emit the event for a programmatic change, and

@@ -79,7 +79,7 @@ function RequireSuperadmin({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
-function Workspace() {
+function Workspace({ online }: { online: boolean }) {
   return (
     <div className="app-shell">
       <ProfileAppearance />
@@ -102,6 +102,14 @@ function Workspace() {
           <AccountMenu />
         </div>
       </header>
+
+      {!online && (
+        <p className="offline-bar" role="status">
+          <span aria-hidden="true">●</span>
+          Offline — showing folders from this device. Opening and downloading files needs a
+          connection.
+        </p>
+      )}
 
       <div className="app-body">
         <nav className="clay app-nav" aria-label="Workspace">
@@ -145,10 +153,18 @@ export function App() {
   const { user, loading } = useAuth();
   const online = useOnline();
 
-  // Nothing in Orbit works without a network - every byte is fetched from the
-  // provider on demand - so a broken page everywhere is worse than saying so
-  // once. The screen goes away by itself when the connection returns.
-  if (!online) {
+  // Waiting avoids a flash of the landing page for someone already signed in.
+  if (loading) return null;
+
+  /*
+   * Offline, a signed-in workspace keeps working: the directory cache holds the
+   * tree, so folders still browse and only the bytes are missing. Taking the
+   * whole app away would throw that away to say something a bar can say.
+   *
+   * Signed out there is nothing cached to browse, so the screen is the honest
+   * answer.
+   */
+  if (!online && !user) {
     return (
       <div className="status-shell">
         <StatusScreen kind="offline" standalone />
@@ -156,12 +172,9 @@ export function App() {
     );
   }
 
-  // Waiting avoids a flash of the landing page for someone already signed in.
-  if (loading) return null;
-
   const workspace = (
     <RequireAuth>
-      <Workspace />
+      <Workspace online={online} />
     </RequireAuth>
   );
 

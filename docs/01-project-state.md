@@ -25,7 +25,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 9 | Design pass (Claymorphism, three.js, PWA) | ⚪ Not started |
 | 10 | Hardening + deploy | ⚪ Not started |
 | 11 | Developer platform (public API, tokens, OAuth apps, API docs tab) | ⚪ Designed, not started |
-| 12 | Instant directory cache + offline browsing | ⚪ Designed, not started |
+| 12 | Instant directory cache + offline browsing | 🟢 Done |
 | 13 | Spotlight (Ctrl/Cmd + K) | ⚪ Designed, not started |
 | 14 | Unified storage dashboard | ⚪ Designed, not started |
 | 15 | Collections (virtual folders) | ⚪ Designed, not started |
@@ -238,6 +238,27 @@ provider's own usage figure once the trash allowance is included.
 Every viewer says what it is not showing. Someone looking at a spreadsheet
 whose charts are the point should not conclude the file is broken when Orbit
 simply is not drawing them.
+
+## The directory cache
+
+Folder listings - names, paths, sizes, timestamps, never contents - are mirrored
+into IndexedDB. A folder paints from the cache immediately and refreshes from
+the provider behind a quiet line in the footer. Measured against the connected
+Drive: **3,584ms cold, 153ms warm.**
+
+Everything in it is stale by definition, so it decides what to *draw* and never
+what to *do*. A download, a rename or a delete goes to the provider and reports
+what the provider says; anything that changes a folder drops its cached copy
+first, or the refresh would paint the stale version back over the change.
+
+Offline, a signed-in workspace stays up: the tree still browses and only the
+bytes are missing, so there is a bar rather than a screen. Signed out there is
+nothing cached to browse, and the screen is the honest answer. A failed session
+read no longer signs anyone out - only a refusal does, since a request that
+never reached the server means we could not tell.
+
+The cache is visible and clearable from the account menu. One that nobody can
+see or clear is one people stop trusting the moment anything looks stale.
 
 ## Uploads
 - Upload files, upload a folder, or drag either onto the page. A dropped folder is walked
