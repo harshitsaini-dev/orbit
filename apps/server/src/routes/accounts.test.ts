@@ -223,7 +223,9 @@ describe('POST /api/accounts/connect', () => {
 
   const values = {
     accountId: 'acct123',
-    accessKeyId: 'AKIA',
+    // 32 hex characters, which is the shape R2 actually issues - the connect
+    // route refuses anything else before it reaches the network.
+    accessKeyId: 'fcab9d45a289252eb22621053c0d1e2f',
     secretAccessKey: SECRET_KEY,
     bucket: 'photos',
   };
@@ -293,7 +295,10 @@ describe('POST /api/accounts/connect', () => {
     const res = await fetch(`${baseUrl}/api/accounts/connect`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ catalogueKey: 'cloudflare_r2', values: { accessKeyId: 'AKIA' } }),
+      body: JSON.stringify({
+        catalogueKey: 'cloudflare_r2',
+        values: { accessKeyId: 'fcab9d45a289252eb22621053c0d1e2f' },
+      }),
     });
 
     assert.equal(res.status, 400);
@@ -384,5 +389,73 @@ describe('building an endpoint from what someone pasted', () => {
       resolveEndpoint('https://{accountId}.r2.cloudflarestorage.com', { accountId: 'acct123' }),
       'https://acct123.r2.cloudflarestorage.com',
     );
+  });
+});
+
+describe('catching a pasted value that cannot work', () => {
+  it('recognises an R2 API token in the access key field', async () => {
+    // R2 shows the token, the access key and the secret together, so pasting
+    // the wrong one is a slip - and Cloudflare answers it with "length 53,
+    // should be 32", which names a length rather than a field.
+    const res = await fetch(`${baseUrl}/api/accounts/connect`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        catalogueKey: 'cloudflare_r2',
+        values: {
+          accountId: '41cb48f3cd244cd4fe1f1f64c5e88332',
+          accessKeyId: 'cfat_NabOmBzrPyuZmnkB63KL2oJ4JBeubZGYpu',
+          secretAccessKey: 'whatever',
+          bucket: 'portfolio-media',
+        },
+      }),
+    });
+
+    assert.equal(res.status, 400);
+    const body = (await res.json()) as { error: { message: string } };
+    assert.match(body.error.message, /API token/);
+    assert.match(body.error.message, /32-character/);
+  });
+
+  it('accepts a real R2 access key id', async () => {
+    // 32 hex characters, which is what R2 issues.
+    const res = await fetch(`${baseUrl}/api/accounts/connect`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        catalogueKey: 'cloudflare_r2',
+        values: {
+          accountId: '41cb48f3cd244cd4fe1f1f64c5e88332',
+          accessKeyId: 'fcab9d45a289252eb22621053c0d1e2f',
+          secretAccessKey: 'whatever',
+          bucket: 'portfolio-media',
+        },
+      }),
+    });
+
+    // It gets as far as the network - a refusal from there reads differently
+    // from a refusal here, which is all this test claims.
+    const body = (await res.json()) as { error: { message: string } };
+    assert.doesNotMatch(body.error.message, /API token|32-character/);
+  });
+
+  it('recognises a Supabase project key in the access key field', async () => {
+    const res = await fetch(`${baseUrl}/api/accounts/connect`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        catalogueKey: 'supabase_storage',
+        values: {
+          projectRef: 'abcdef',
+          region: 'ap-south-1',
+          accessKeyId: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9',
+          secretAccessKey: 'whatever',
+          bucket: 'test',
+        },
+      }),
+    });
+
+    assert.equal(res.status, 400);
+    assert.match(((await res.json()) as { error: { message: string } }).error.message, /S3 access key/);
   });
 });

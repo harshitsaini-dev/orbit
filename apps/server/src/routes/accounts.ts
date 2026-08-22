@@ -308,6 +308,12 @@ accountsRouter.post('/api/accounts/connect', requireAuth, async (req, res, next)
     return;
   }
 
+  const wrongField = obviouslyWrong(entry.key, values);
+  if (wrongField) {
+    res.status(400).json({ error: { code: 'invalid_request', message: wrongField } });
+    return;
+  }
+
   try {
     const adapter = getAdapter(entry.provider);
     const region = values['region']?.trim() || entry.defaultRegion;
@@ -484,6 +490,37 @@ accountsRouter.put('/api/allocation/order', requireAuth, async (req, res, next) 
     next(err);
   }
 });
+
+/**
+ * Mistakes worth catching before the request leaves.
+ *
+ * Not validation for its own sake: each of these is a value the provider hands
+ * out beside the right one, so pasting it is a slip rather than carelessness -
+ * and the provider's own answer names a length rather than a field.
+ */
+function obviouslyWrong(key: string, values: Record<string, string>): string | null {
+  const accessKeyId = values['accessKeyId']?.trim() ?? '';
+
+  if (key === 'cloudflare_r2') {
+    // R2 shows three values together: an API token, an access key id and a
+    // secret. Only the last two work here, and Cloudflare answers the first
+    // with "Credential access key has length 53, should be 32".
+    if (accessKeyId.startsWith('cfat_')) {
+      return 'That is the API token value, which is for Cloudflare’s own API. The access key ID is the 32-character hex value shown beside it.';
+    }
+    if (accessKeyId !== '' && !/^[0-9a-f]{32}$/i.test(accessKeyId)) {
+      return `An R2 access key ID is 32 hexadecimal characters; this one is ${accessKeyId.length}. Check it is the "Access Key ID" and not the token value.`;
+    }
+  }
+
+  if (key === 'supabase_storage' && /^(eyJ|sb[ps]?_)/.test(accessKeyId)) {
+    // The anon and service_role keys are JWTs and sit on the same settings
+    // page as the S3 keys.
+    return 'That looks like a project API key. The S3 access key comes from Project Settings, Storage, S3 access keys.';
+  }
+
+  return null;
+}
 
 /**
  * Turns a store's refusal into the field to go and check.

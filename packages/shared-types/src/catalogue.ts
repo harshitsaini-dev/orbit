@@ -109,7 +109,16 @@ export const PROVIDER_CATALOGUE: CatalogueEntry[] = [
         label: 'Cloudflare account ID',
         help: 'Shown on the R2 overview page, and in the S3 endpoint it gives you.',
       },
-      ...ACCESS_KEY_FIELDS,
+      // R2 hands out three values at once and only two of them work here, so
+      // the fields say which is which rather than leaving Cloudflare to answer
+      // with "length 53, should be 32".
+      {
+        name: 'accessKeyId',
+        label: 'Access key ID',
+        help: 'The 32-character hex value labelled "Access Key ID" — not the token value beginning cfat_, which is for Cloudflare’s own API.',
+      },
+      { name: 'secretAccessKey', label: 'Secret access key', secret: true },
+      { name: 'bucket', label: 'Bucket name' },
     ],
   },
   {
