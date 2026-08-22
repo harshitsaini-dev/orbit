@@ -210,11 +210,7 @@ export const PROVIDER_CATALOGUE: CatalogueEntry[] = [
   },
 ];
 
-/**
- * Services people ask for that Orbit cannot support, with the reason. Surfaced
- * through the API so the connect dialog can say why, rather than silently
- * omitting them and looking incomplete.
- */
+/** One entry by its catalogue key, which is not the same as its provider id. */
 export function catalogueEntry(key: string): CatalogueEntry | undefined {
   return PROVIDER_CATALOGUE.find((entry) => entry.key === key);
 }

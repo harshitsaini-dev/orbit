@@ -58,8 +58,6 @@ healthRouter.get('/health/providers', (_req, res) => {
 /**
  * What "Connect an account" offers. Several entries share the s3 adapter and
  * differ only in endpoint, so this is a longer list than /health/providers.
- * Also reports the services Orbit cannot support, with the reason, so the UI
- * can say so instead of just omitting them.
  */
 healthRouter.get('/api/catalogue', (_req, res) => {
   res.json({
