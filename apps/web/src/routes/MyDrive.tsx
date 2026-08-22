@@ -27,6 +27,7 @@ import {
   MoveIcon,
   InfoIcon,
 } from '../components/Icons.js';
+import { SortControl, useFileSort } from '../components/ListControls.js';
 import { ViewToggle, useViewMode } from '../components/ViewToggle.js';
 import { PHONE, useMediaQuery } from '../lib/media.js';
 import { useRangeSelection } from '../lib/selection.js';
@@ -149,7 +150,7 @@ export function MyDrive() {
   const [filters, setFilters] = useState<SearchFilters>(EMPTY_FILTERS);
   const [results, setResults] = useState<WorkspaceSearchFile[] | null>(null);
   const [searching, setSearching] = useState(false);
-  const [sort, setSort] = useState<'name' | 'size' | 'modified'>('name');
+
   const [viewMode, setViewMode] = useViewMode();
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -374,55 +375,88 @@ export function MyDrive() {
    * than a file is uploaded.
    */
   const more = useContextMenu<'toolbar'>();
-  const [sharing, setSharing] = useState<OrbitFile | null>(null);
-  const [collecting, setCollecting] = useState<OrbitFile | null>(null);
-  const [transferring, setTransferring] = useState<{ file: OrbitFile; mode: 'copy' | 'move' } | null>(
-    null,
-  );
-  const [relocating, setRelocating] = useState<{ file: OrbitFile; mode: 'copy' | 'move' } | null>(
-    null,
-  );
+  const [sharing, setSharing] = useState<OrbitFile[] | null>(null);
+  const [collecting, setCollecting] = useState<OrbitFile[] | null>(null);
+  const [transferring, setTransferring] = useState<{
+    files: OrbitFile[];
+    mode: 'copy' | 'move';
+  } | null>(null);
+  const [relocating, setRelocating] = useState<{
+    files: OrbitFile[];
+    mode: 'copy' | 'move';
+  } | null>(null);
   const [detailing, setDetailing] = useState<OrbitFile | null>(null);
 
   /**
-   * What the right-click menu offers for one file. Built here rather than in
-   * the menu so the list and the grid cannot drift apart, and so an action the
-   * provider cannot do is shown greyed rather than hidden - absence looks like
-   * a bug, a disabled row reads as a limit.
+   * Downloading several things at once.
+   *
+   * One anchor per file, spaced out: browsers treat a burst of clicks as a
+   * popup and drop all but the first, and there is no archive to offer instead
+   * because Orbit never holds the bytes to build one from.
    */
-  function menuItemsFor(file: OrbitFile): MenuItem[] {
+  function downloadAll(files: OrbitFile[]): void {
+    files.forEach((file, index) => {
+      setTimeout(() => {
+        const link = document.createElement('a');
+        link.href = contentUrl(file, true);
+        link.download = file.name;
+        link.click();
+      }, index * 320);
+    });
+  }
+
+  /**
+   * What the right-click menu offers. Built here rather than in the menu so the
+   * list and the grid cannot drift apart, and so an action the provider cannot
+   * do is shown greyed rather than hidden - absence looks like a bug, a
+   * disabled row reads as a limit.
+   *
+   * Right-clicking something that is part of a selection acts on the whole
+   * selection; right-clicking outside one acts on just what was clicked. That
+   * is what every file manager does, and the alternative - a menu that quietly
+   * ignores the other nineteen selected files - is how people lose work.
+   */
+  function menuItemsFor(target: OrbitFile): MenuItem[] {
+    const acting =
+      selected.has(target.remoteId) && selectedFiles.length > 1 ? selectedFiles : [target];
+    const file = target;
+    const many = acting.length > 1;
+
+    // Folders have no single stream, so anything that streams bytes works on
+    // the files in the selection and says how many that is.
+    const streamable = acting.filter((entry) => !entry.isFolder);
+    const suffix = many ? ` (${acting.length})` : '';
+    const allStarred = acting.every((entry) => entry.starred);
+
     return [
       {
         label: file.isFolder ? 'Open' : 'Preview',
         icon: <OpenIcon />,
         onSelect: () =>
           file.isFolder ? navigate({ path: file.virtualPath }) : setPreviewing(file),
-        disabled: !file.isFolder && previewKindFor(file) === 'none',
+        // Opening twenty things at once means nothing, so this one stays
+        // singular even when a selection is what was clicked.
+        disabled: many || (!file.isFolder && previewKindFor(file) === 'none'),
       },
       {
-        label: 'Download',
+        label: many ? `Download ${streamable.length} files` : 'Download',
         icon: <DownloadIcon />,
-        onSelect: () => {
-          // A hidden anchor rather than location.assign, so the download does
-          // not count as a navigation and the page stays where it is.
-          const link = document.createElement('a');
-          link.href = contentUrl(file, true);
-          link.download = file.name;
-          link.click();
-        },
-        disabled: file.isFolder,
+        // A hidden anchor rather than location.assign, so the download does
+        // not count as a navigation and the page stays where it is.
+        onSelect: () => downloadAll(streamable),
+        disabled: streamable.length === 0,
       },
       {
-        label: file.starred ? 'Remove star' : 'Add star',
-        icon: <StarIcon filled={file.starred} />,
-        onSelect: () => void toggleStar(file),
+        label: `${allStarred ? 'Remove star' : 'Add star'}${suffix}`,
+        icon: <StarIcon filled={allStarred} />,
+        onSelect: () => void starAll(acting, !allStarred),
       },
       {
-        label: 'Share link',
+        label: many ? `Share ${streamable.length} links` : 'Share link',
         icon: <ShareIcon />,
-        onSelect: () => setSharing(file),
+        onSelect: () => setSharing(streamable),
         // A folder has no single stream to serve, so there is nothing to share.
-        disabled: file.isFolder,
+        disabled: streamable.length === 0,
       },
       /*
        * Four ways to put a file somewhere else, split along the two axes that
@@ -435,52 +469,55 @@ export function MyDrive() {
        * a checkbox somebody might not read.
        */
       {
-        label: 'Copy to folder…',
+        label: `Copy to folder…${suffix}`,
         icon: <CopyIcon />,
-        onSelect: () => setRelocating({ file, mode: 'copy' }),
+        onSelect: () => setRelocating({ files: acting, mode: 'copy' }),
         disabled: !capabilities?.relocate,
       },
       {
-        label: 'Move to folder…',
+        label: `Move to folder…${suffix}`,
         icon: <MoveIcon />,
-        onSelect: () => setRelocating({ file, mode: 'move' }),
+        onSelect: () => setRelocating({ files: acting, mode: 'move' }),
         disabled: !capabilities?.relocate,
       },
       {
-        label: 'Copy to another cloud',
+        label: many ? `Copy ${streamable.length} to another cloud` : 'Copy to another cloud',
         icon: <TransferIcon />,
-        onSelect: () => setTransferring({ file, mode: 'copy' }),
+        onSelect: () => setTransferring({ files: streamable, mode: 'copy' }),
         // A folder has no single stream to move; the files inside it do.
-        disabled: file.isFolder || (accounts?.length ?? 0) < 2,
+        disabled: streamable.length === 0 || (accounts?.length ?? 0) < 2,
       },
       {
-        label: 'Move to another cloud',
+        label: many ? `Move ${streamable.length} to another cloud` : 'Move to another cloud',
         icon: <TransferIcon />,
-        onSelect: () => setTransferring({ file, mode: 'move' }),
-        disabled: file.isFolder || (accounts?.length ?? 0) < 2,
+        onSelect: () => setTransferring({ files: streamable, mode: 'move' }),
+        disabled: streamable.length === 0 || (accounts?.length ?? 0) < 2,
       },
       {
-        label: 'Add to collection',
+        label: `Add to collection${suffix}`,
         icon: <CollectionsIcon size={16} />,
-        onSelect: () => setCollecting(file),
+        onSelect: () => setCollecting(acting),
       },
       {
         label: 'Rename',
         icon: <RenameIcon />,
         onSelect: () => setDialog({ kind: 'rename', file }),
+        // One new name cannot be twenty new names.
+        disabled: many,
       },
       {
         label: 'Details',
         icon: <InfoIcon />,
         onSelect: () => setDetailing(file),
+        disabled: many,
       },
       {
         // Named for what it does on this provider, not for what delete usually
         // means: on a bucket there is no bin behind it.
-        label: capabilities?.trash ? 'Move to bin' : 'Delete for ever',
+        label: `${capabilities?.trash ? 'Move to bin' : 'Delete for ever'}${suffix}`,
         icon: <TrashIcon />,
         danger: true,
-        onSelect: () => setDialog({ kind: 'delete', files: [file] }),
+        onSelect: () => setDialog({ kind: 'delete', files: acting }),
       },
     ];
   }
@@ -526,12 +563,27 @@ export function MyDrive() {
   }
 
   async function toggleStar(file: OrbitFile) {
-    setBusyId(file.remoteId);
+    await starAll([file], !file.starred);
+  }
+
+  /**
+   * Starring or unstarring a set, to one state rather than each flipped: a
+   * mixed selection told to star should end up starred, not inverted.
+   */
+  async function starAll(files: OrbitFile[], starred: boolean) {
+    const first = files[0];
+    if (!first) return;
+
+    setBusyId(first.remoteId);
     try {
-      await api(`/api/files/${encodeURIComponent(file.remoteId)}`, {
-        method: 'PATCH',
-        body: { accountId, starred: !file.starred },
-      });
+      for (const file of files) {
+        if (file.starred === starred) continue;
+        await api(`/api/files/${encodeURIComponent(file.remoteId)}`, {
+          method: 'PATCH',
+          body: { accountId, starred },
+        });
+      }
+
       await forgetFolder(accountId, path);
       await load();
     } catch (err) {
@@ -612,17 +664,20 @@ export function MyDrive() {
   }
 
   /** Search results when a search is running, otherwise the loaded folder. */
-  const visible = useMemo(() => {
-    const files: OrbitFile[] = searchActive ? (results ?? []) : (listing?.files ?? []);
+  const found = useMemo<OrbitFile[]>(
+    () => (searchActive ? (results ?? []) : (listing?.files ?? [])),
+    [listing, results, searchActive],
+  );
 
-    return [...files].sort((a, b) => {
-      // Folders stay above files whatever the sort, the way a file manager does.
-      if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
-      if (sort === 'size') return b.sizeBytes - a.sizeBytes;
-      if (sort === 'modified') return Date.parse(b.modifiedAt) - Date.parse(a.modifiedAt);
-      return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
-    });
-  }, [listing, results, searchActive, sort]);
+  /*
+   * The same sorting every other list in the app uses, rather than a second
+   * comparator here. This page had its own, which is why it was the one place
+   * that could not be reversed and forgot the choice on reload.
+   */
+  const { sort, setSort, descending, toggleDirection, sorted: visible } = useFileSort(
+    'my-drive',
+    found,
+  );
 
   // Selection follows what is on screen: selecting all while a search is
   // running should mean the results, not the folder behind them.
@@ -966,18 +1021,12 @@ export function MyDrive() {
 
             <span className="list-controls__spacer" />
 
-            <Select
-              label="Sort by"
-              value={sort}
-              onChange={setSort}
-              // Narrower than the default: the three controls have to share one
-              // line on a phone, and the widest option here is "Modified".
-              minWidth={phone ? 104 : 132}
-              options={[
-                { value: 'name', label: 'Name' },
-                { value: 'size', label: 'Size' },
-                { value: 'modified', label: 'Modified' },
-              ]}
+            <SortControl
+              sort={sort}
+              onSort={setSort}
+              descending={descending}
+              onToggleDirection={toggleDirection}
+              compact={phone}
             />
 
             <ViewToggle value={viewMode} onChange={setViewMode} />
@@ -1231,7 +1280,7 @@ export function MyDrive() {
 
       {transferring && (
         <TransferDialog
-          file={transferring.file}
+          files={transferring.files}
           mode={transferring.mode}
           fromAccountId={accountId}
           accounts={accounts ?? []}
@@ -1250,7 +1299,7 @@ export function MyDrive() {
 
       {relocating && (
         <FolderPicker
-          file={relocating.file}
+          files={relocating.files}
           accountId={accountId}
           mode={relocating.mode}
           currentFolder={path}
@@ -1263,12 +1312,16 @@ export function MyDrive() {
       )}
 
       {collecting && (
-        <AddToCollection file={collecting} accountId={accountId} onClose={() => setCollecting(null)} />
+        <AddToCollection
+          files={collecting}
+          accountId={accountId}
+          onClose={() => setCollecting(null)}
+        />
       )}
 
       {sharing && (
         <ShareDialog
-          file={sharing}
+          files={sharing}
           accountId={accountId}
           apiBase={API_BASE}
           onClose={() => setSharing(null)}
@@ -1280,7 +1333,11 @@ export function MyDrive() {
           anchor={menu.state.anchor}
           items={menuItemsFor(menu.state.target)}
           onClose={menu.close}
-          label={`Actions for ${menu.state.target.name}`}
+          label={
+            selected.has(menu.state.target.remoteId) && selectedFiles.length > 1
+              ? `Actions for ${selectedFiles.length} selected items`
+              : `Actions for ${menu.state.target.name}`
+          }
         />
       )}
 

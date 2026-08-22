@@ -18,11 +18,12 @@ interface Collection {
 }
 
 export function AddToCollection({
-  file,
+  files,
   accountId,
   onClose,
 }: {
-  file: OrbitFile;
+  /** Everything being added. A collection is chosen once for all of it. */
+  files: OrbitFile[];
   accountId: string;
   onClose: () => void;
 }) {
@@ -47,11 +48,13 @@ export function AddToCollection({
     setError(null);
 
     try {
-      await api(`/api/collections/${collectionId}/items`, {
-        method: 'POST',
-        // The provider would need a request per ancestor to work this out.
-        body: { accountId, remoteId: file.remoteId, virtualPath: file.virtualPath },
-      });
+      for (const file of files) {
+        await api(`/api/collections/${collectionId}/items`, {
+          method: 'POST',
+          // The provider would need a request per ancestor to work this out.
+          body: { accountId, remoteId: file.remoteId, virtualPath: file.virtualPath },
+        });
+      }
       setAdded(collectionId);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not add it');
@@ -80,7 +83,11 @@ export function AddToCollection({
 
   return (
     <Modal
-      title={`Add ${file.name} to a collection`}
+      title={
+        files.length > 1
+          ? `Add ${files.length} items to a collection`
+          : `Add ${files[0]?.name ?? ''} to a collection`
+      }
       description="A collection points at the file where it is. Nothing is moved, copied or uploaded."
       onClose={onClose}
     >
@@ -89,7 +96,7 @@ export function AddToCollection({
 
         {collections?.length === 0 && (
           <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: 13.5 }}>
-            No collections yet. Name one below and this file goes straight into it.
+            No collections yet. Name one below and this goes straight into it.
           </p>
         )}
 

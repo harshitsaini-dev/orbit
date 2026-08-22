@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { OrbitFile } from '@orbit/shared-types';
 import { GridViewIcon, ListViewIcon } from './Icons.js';
+import { Select } from './Select.js';
 
 /**
  * The controls every list of files gets.
@@ -175,28 +176,27 @@ export function SortControl({
   onSort,
   descending,
   onToggleDirection,
+  compact = false,
 }: {
   sort: SortKey;
   onSort: (next: SortKey) => void;
   descending: boolean;
   onToggleDirection: () => void;
+  /** Narrower, for a phone where this shares a line with other controls. */
+  compact?: boolean;
 }) {
   return (
     <span className="sort-control">
-      <label>
-        <span>Sort</span>
-        <select
-          className="clay-sunken"
-          value={sort}
-          onChange={(event) => onSort(event.target.value as SortKey)}
-        >
-          {SORTS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      {/* The app's own listbox rather than the browser's: `appearance: none`
+          can restyle a closed select but never its popup, so on a dark theme
+          the menu opens white and reads as a different application. */}
+      <Select
+        label="Sort by"
+        value={sort}
+        onChange={onSort}
+        options={SORTS}
+        minWidth={compact ? 104 : 132}
+      />
 
       <button
         type="button"

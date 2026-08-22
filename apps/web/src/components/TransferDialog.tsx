@@ -17,14 +17,15 @@ import { ProviderIcon } from './ProviderIcon.js';
  */
 
 export function TransferDialog({
-  file,
+  files,
   mode,
   fromAccountId,
   accounts,
   onClose,
   onQueued,
 }: {
-  file: OrbitFile;
+  /** Everything being sent. One destination is chosen for the whole set. */
+  files: OrbitFile[];
   /**
    * Which of the two this is. It arrives already decided, because the menu asks
    * plainly rather than offering one action and a checkbox somebody may not
@@ -36,6 +37,11 @@ export function TransferDialog({
   onClose: () => void;
   onQueued: () => void;
 }) {
+  // Room is checked against the whole set, not one file, so a destination that
+  // can take the first three and not the fourth is not offered.
+  const totalBytes = files.reduce((sum, file) => sum + file.sizeBytes, 0);
+  const many = files.length > 1;
+
   const [target, setTarget] = useState<string | null>(null);
   // Still changeable here - having chosen the wrong one from the menu should
   // not mean closing the dialog and starting again.
@@ -48,7 +54,7 @@ export function TransferDialog({
     if (account.id === fromAccountId) return false;
     if (account.status !== 'ok') return false;
     if (account.quotaBytes <= 0) return true;
-    return account.quotaBytes - account.usedBytes >= file.sizeBytes;
+    return account.quotaBytes - account.usedBytes >= totalBytes;
   });
 
   const blocked = accounts.filter(
@@ -56,7 +62,7 @@ export function TransferDialog({
       account.id !== fromAccountId &&
       account.status === 'ok' &&
       account.quotaBytes > 0 &&
-      account.quotaBytes - account.usedBytes < file.sizeBytes,
+      account.quotaBytes - account.usedBytes < totalBytes,
   );
 
   useEffect(() => {
@@ -69,16 +75,20 @@ export function TransferDialog({
     setError(null);
 
     try {
-      await api('/api/transfers', {
-        method: 'POST',
-        body: {
-          sourceAccountId: fromAccountId,
-          sourceRemoteId: file.remoteId,
-          targetAccountId: target,
-          targetPath: '/',
-          deleteSource: move,
-        },
-      });
+      // One job per file. The queue runs them itself, so this only has to hand
+      // them over; a failure partway leaves the earlier ones already queued.
+      for (const file of files) {
+        await api('/api/transfers', {
+          method: 'POST',
+          body: {
+            sourceAccountId: fromAccountId,
+            sourceRemoteId: file.remoteId,
+            targetAccountId: target,
+            targetPath: '/',
+            deleteSource: move,
+          },
+        });
+      }
       onQueued();
       onClose();
     } catch (err) {
@@ -89,7 +99,11 @@ export function TransferDialog({
 
   return (
     <Modal
-      title={`Send ${file.name} to another cloud`}
+      title={
+        many
+          ? `Send ${files.length} items to another cloud`
+          : `Send ${files[0]?.name ?? ''} to another cloud`
+      }
       description="Orbit streams the file between the two providers. It does not pass through this browser, and nothing is stored on Orbit's own disk."
       onClose={onClose}
     >
@@ -98,7 +112,7 @@ export function TransferDialog({
           <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: 13.5, lineHeight: 1.55 }}>
             {accounts.length <= 1
               ? 'Only one account is connected, so there is nowhere to send it. Connect another under Quota.'
-              : `No other connected account has ${formatBytes(file.sizeBytes)} free.`}
+              : `No other connected account has ${formatBytes(totalBytes)} free.`}
           </p>
         ) : (
           <>
@@ -135,7 +149,7 @@ export function TransferDialog({
             {blocked.length > 0 && (
               <p className="share-hint">
                 {blocked.length} other {blocked.length === 1 ? 'account has' : 'accounts have'} too
-                little room for this file.
+                little room for this.
               </p>
             )}
 
@@ -145,7 +159,9 @@ export function TransferDialog({
             <p className="share-hint">
               {move
                 ? 'The original is deleted only once the copy has landed. If the copy fails, nothing is removed.'
-                : 'The file is copied. The original stays where it is.'}
+                : many
+                  ? 'The files are copied. The originals stay where they are.'
+                  : 'The file is copied. The original stays where it is.'}
             </p>
           </>
         )}

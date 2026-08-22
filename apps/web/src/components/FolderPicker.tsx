@@ -17,7 +17,8 @@ import { Modal } from './Modal.js';
  */
 
 interface Props {
-  file: OrbitFile;
+  /** Everything being put somewhere else. The destination is chosen once. */
+  files: OrbitFile[];
   accountId: string;
   mode: 'copy' | 'move';
   /** Where the file is now, so the picker can refuse to put it back. */
@@ -31,7 +32,9 @@ function parentOf(path: string): string {
   return cut <= 0 ? '/' : path.slice(0, cut);
 }
 
-export function FolderPicker({ file, accountId, mode, currentFolder, onClose, onDone }: Props) {
+export function FolderPicker({ files, accountId, mode, currentFolder, onClose, onDone }: Props) {
+  const one = files[0];
+  const many = files.length > 1;
   const [path, setPath] = useState('/');
   const [folders, setFolders] = useState<OrbitFile[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -43,9 +46,12 @@ export function FolderPicker({ file, accountId, mode, currentFolder, onClose, on
       const query = new URLSearchParams({ accountId, path: target });
 
       const page = await api<{ files: OrbitFile[] }>(`/api/files?${query.toString()}`, { signal });
-      setFolders(page.files.filter((entry) => entry.isFolder && entry.remoteId !== file.remoteId));
+      // A folder cannot be put inside itself, so none of the chosen ones is
+      // offered as a destination.
+      const moving = new Set(files.map((entry) => entry.remoteId));
+      setFolders(page.files.filter((entry) => entry.isFolder && !moving.has(entry.remoteId)));
     },
-    [accountId, file.remoteId],
+    [accountId, files],
   );
 
   useEffect(() => {
@@ -67,10 +73,19 @@ export function FolderPicker({ file, accountId, mode, currentFolder, onClose, on
     setError(null);
 
     try {
-      await api(`/api/files/${encodeURIComponent(file.remoteId)}/relocate`, {
-        method: 'POST',
-        body: { accountId, targetPath: path, copy: mode === 'copy' },
-      });
+      /*
+       * One at a time rather than all at once. A provider that is being asked
+       * to move twenty files answers more reliably in sequence, and a failure
+       * halfway through leaves a state somebody can see and finish by hand
+       * rather than twenty requests in unknown order.
+       */
+      for (const entry of files) {
+        await api(`/api/files/${encodeURIComponent(entry.remoteId)}/relocate`, {
+          method: 'POST',
+          body: { accountId, targetPath: path, copy: mode === 'copy' },
+        });
+      }
+
       onDone();
     } catch (err) {
       setError(
@@ -86,7 +101,11 @@ export function FolderPicker({ file, accountId, mode, currentFolder, onClose, on
 
   return (
     <Modal
-      title={mode === 'copy' ? `Copy “${file.name}”` : `Move “${file.name}”`}
+      title={
+        many
+          ? `${mode === 'copy' ? 'Copy' : 'Move'} ${files.length} items`
+          : `${mode === 'copy' ? 'Copy' : 'Move'} “${one?.name ?? ''}”`
+      }
       onClose={onClose}
     >
       <div className="picker">
@@ -138,7 +157,7 @@ export function FolderPicker({ file, accountId, mode, currentFolder, onClose, on
         <p className="picker__target">
           {isCurrent ? (
             <>
-              <strong>{file.name}</strong> is already here.
+              <strong>{many ? `All ${files.length}` : one?.name}</strong> is already here.
             </>
           ) : (
             <>
