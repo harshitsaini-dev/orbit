@@ -652,6 +652,15 @@ export function MyDrive() {
     onSelect: (keys, additive) =>
       setSelected((current) => (additive ? new Set([...current, ...keys]) : new Set(keys))),
     onClear: () => setSelected(new Set()),
+    // On a phone there is no box to drag; a long press picks one file, and
+    // tapping the rest adds to it the way it does anywhere else.
+    onLongPress: (key) =>
+      setSelected((current) => {
+        const next = new Set(current);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        return next;
+      }),
   });
 
   /*

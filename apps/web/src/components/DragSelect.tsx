@@ -16,6 +16,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
  * - A plain drag replaces the selection; holding shift or ctrl adds to it.
  * - A drag that never really moved is a click on the background, which clears
  *   the selection rather than selecting nothing in a rectangle.
+ *
+ * None of that works with a finger, and it cannot be made to: dragging across
+ * a list *is* scrolling it, and the browser takes the pointer away the moment
+ * it decides a scroll has begun. So on a touchscreen the box is not offered at
+ * all and a long press selects instead - which is what every file manager on a
+ * phone does, and therefore what people already try.
  */
 
 interface Rect {
@@ -28,16 +34,33 @@ interface Rect {
 /** Below this a drag is a click that wobbled, not an attempt to select. */
 const THRESHOLD = 6;
 
+/** Long enough not to fire while somebody is starting a scroll or a tap. */
+const LONG_PRESS_MS = 450;
+
+/** How far a finger may wander during a long press before it is a scroll. */
+const LONG_PRESS_SLOP = 10;
+
 export interface DragSelectOptions {
   /** Called with every key inside the box, as it changes. */
   onSelect: (keys: string[], additive: boolean) => void;
   /** Called when the drag was really a click on empty space. */
   onClear: () => void;
+  /**
+   * A long press on one item, on a touchscreen. Given the item's key, and
+   * expected to toggle it - the first one enters selection mode, and tapping
+   * the rest is the page's own business.
+   */
+  onLongPress?: (key: string) => void;
   /** Off while a dialog is open, or where selection makes no sense. */
   enabled?: boolean;
 }
 
-export function useDragSelect({ onSelect, onClear, enabled = true }: DragSelectOptions) {
+export function useDragSelect({
+  onSelect,
+  onClear,
+  onLongPress,
+  enabled = true,
+}: DragSelectOptions) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<Rect | null>(null);
 
@@ -47,6 +70,17 @@ export function useDragSelect({ onSelect, onClear, enabled = true }: DragSelectO
   const origin = useRef<{ x: number; y: number } | null>(null);
   const additive = useRef(false);
   const moved = useRef(false);
+
+  /** The touch half: a pending long press, and the tap it has to swallow. */
+  const pressTimer = useRef<number | null>(null);
+  const pressOrigin = useRef<{ x: number; y: number } | null>(null);
+  const swallowClick = useRef(false);
+
+  const cancelPress = useCallback(() => {
+    if (pressTimer.current !== null) window.clearTimeout(pressTimer.current);
+    pressTimer.current = null;
+    pressOrigin.current = null;
+  }, []);
 
   const finish = useCallback(() => {
     if (origin.current && !moved.current) onClear();
@@ -66,6 +100,32 @@ export function useDragSelect({ onSelect, onClear, enabled = true }: DragSelectO
     }
 
     function onPointerDown(event: PointerEvent): void {
+      /*
+       * A finger on an item starts a long press instead of a box. The box is
+       * never started from a touch at all: the same gesture is how the list is
+       * scrolled, and fighting the browser for it loses.
+       */
+      if (event.pointerType === 'touch') {
+        const item = (event.target as Element | null)?.closest<HTMLElement>('[data-file]');
+        const key = item?.dataset['file'];
+        if (!key || !onLongPress) return;
+
+        pressOrigin.current = { x: event.clientX, y: event.clientY };
+        pressTimer.current = window.setTimeout(() => {
+          pressTimer.current = null;
+          pressOrigin.current = null;
+          // The tap that would otherwise open the file has to be swallowed:
+          // a long press has already done something with it.
+          swallowClick.current = true;
+          onLongPress(key);
+          // A short buzz, where the device has one, so the mode change is felt
+          // rather than only seen.
+          navigator.vibrate?.(12);
+        }, LONG_PRESS_MS);
+
+        return;
+      }
+
       if (event.button !== 0 || !isBackground(event.target)) return;
 
       origin.current = { x: event.clientX, y: event.clientY };
@@ -74,6 +134,15 @@ export function useDragSelect({ onSelect, onClear, enabled = true }: DragSelectO
     }
 
     function onPointerMove(event: PointerEvent): void {
+      // A finger that has moved is scrolling, not pressing.
+      const press = pressOrigin.current;
+      if (press) {
+        const wandered =
+          Math.abs(event.clientX - press.x) > LONG_PRESS_SLOP ||
+          Math.abs(event.clientY - press.y) > LONG_PRESS_SLOP;
+        if (wandered) cancelPress();
+      }
+
       const start = origin.current;
       if (!start) return;
 
@@ -116,25 +185,43 @@ export function useDragSelect({ onSelect, onClear, enabled = true }: DragSelectO
     }
 
     function onPointerUp(): void {
+      cancelPress();
       document.body.style.userSelect = '';
       finish();
     }
 
+    /*
+     * The click that follows a long press is suppressed here rather than in
+     * the row, because the row does not know a long press happened - it only
+     * sees an ordinary tap, and would open the file the press just selected.
+     */
+    function onClickCapture(event: MouseEvent): void {
+      if (!swallowClick.current) return;
+      swallowClick.current = false;
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
     container.addEventListener('pointerdown', onPointerDown);
+    container.addEventListener('click', onClickCapture, true);
     window.addEventListener('pointermove', onPointerMove);
     window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
     // A drag that ends outside the window must not leave the page in a dragging
     // state with the rectangle still painted.
     window.addEventListener('blur', onPointerUp);
 
     return () => {
+      cancelPress();
       container.removeEventListener('pointerdown', onPointerDown);
+      container.removeEventListener('click', onClickCapture, true);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
       window.removeEventListener('blur', onPointerUp);
       document.body.style.userSelect = '';
     };
-  }, [enabled, finish, onSelect]);
+  }, [cancelPress, enabled, finish, onLongPress, onSelect]);
 
   return { containerRef, box };
 }
