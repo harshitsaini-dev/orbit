@@ -534,3 +534,38 @@ export const sharedDriveStats = sqliteTable(
   },
   (t) => [uniqueIndex('shared_drive_stats_uq').on(t.accountId, t.driveId)],
 );
+
+/**
+ * When Orbit deleted something, so the bin can say how long is left.
+ *
+ * The providers mostly will not say. Dropbox reports a deleted entry with no
+ * timestamp at all, and Drive populates `trashedTime` only for items in a
+ * shared drive - so a file deleted from somebody's own Drive has no knowable
+ * deadline, and a bin that cannot answer "how long have I got" is missing the
+ * one fact the decision turns on.
+ *
+ * Orbit does know, for anything deleted through Orbit: it was the moment the
+ * request succeeded. That is written here and used when the provider is silent.
+ * A file deleted in the provider's own web interface still has no deadline, and
+ * still says so.
+ *
+ * Not a copy of the file - just the fact that it went, and when.
+ */
+export const deletions = sqliteTable(
+  'deletions',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    accountId: text('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    remoteId: text('remote_id').notNull(),
+    deletedAt: text('deleted_at').notNull().default(now),
+  },
+  (t) => [
+    uniqueIndex('deletion_uq').on(t.accountId, t.remoteId),
+    index('deletion_user_idx').on(t.userId),
+  ],
+);

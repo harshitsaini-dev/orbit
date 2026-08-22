@@ -50,13 +50,20 @@ interface TrashedFile extends OrbitFile {
  * showing a number it made up.
  */
 function timeLeft(purgesAt: string | null): { text: string; urgent: boolean } {
-  if (!purgesAt) return { text: 'No deadline reported', urgent: false };
+  if (!purgesAt) return { text: 'Deadline unknown', urgent: false };
 
-  const days = Math.ceil((new Date(purgesAt).getTime() - Date.now()) / 86_400_000);
+  const left = new Date(purgesAt).getTime() - Date.now();
+  const days = Math.floor(left / 86_400_000);
+  const hours = Math.floor((left % 86_400_000) / 3_600_000);
 
-  if (days <= 0) return { text: 'Due to be destroyed', urgent: true };
-  if (days === 1) return { text: '1 day left', urgent: true };
+  if (left <= 0) return { text: 'Due to be destroyed', urgent: true };
+
+  // Hours once it is down to the last day, because "0 days left" is not the
+  // sentence somebody in a hurry needs.
+  if (days === 0) return { text: `${Math.max(hours, 1)}h left`, urgent: true };
+  if (days === 1) return { text: `1 day ${hours}h left`, urgent: true };
   if (days <= 7) return { text: `${days} days left`, urgent: true };
+
   return { text: `${days} days left`, urgent: false };
 }
 
@@ -281,6 +288,17 @@ export function Trash() {
         </div>
 
         <FilterBox value={filter} onChange={setFilter} count={all.length} />
+
+        {/* Why some rows have no countdown. Without this it reads as a broken
+            feature rather than as a provider that will not say. */}
+        {data && data.files.some((file) => file.purgesAt === null) && (
+          <p className="share-hint" style={{ marginTop: '0.7rem' }}>
+            Some of these show no deadline. Providers mostly do not say when a file was deleted —
+            Dropbox reports none at all, and Drive dates only the items in a shared drive — so Orbit
+            counts from its own delete instead. Anything removed before this, or removed in the
+            provider&rsquo;s own website, has no date to count from.
+          </p>
+        )}
 
         {/* Said plainly rather than left to be discovered by a delete that
             cannot be undone. */}

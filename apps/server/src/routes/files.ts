@@ -5,6 +5,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
 import { record } from '../services/audit.js';
 import { sharedRemoteIds } from '../services/shares.js';
+import { noteDeleted } from '../services/trash.js';
 import { renderThumbnail } from '../services/thumbnails.js';
 import { forgetBreakdown } from '../services/breakdown.js';
 import { sendProviderError } from '../lib/provider-error.js';
@@ -485,6 +486,18 @@ filesRouter.delete('/api/files', requireAuth, async (req, res, next) => {
     forgetBreakdown(req.user!.id, parsed.data.accountId);
 
     if (result.succeeded.length > 0) {
+      /*
+       * Noted so the bin can say how long is left.
+       *
+       * The providers mostly will not: Dropbox gives a deleted entry no
+       * timestamp, and Drive only dates trashed items in a shared drive. Orbit
+       * knows, for anything it deleted itself, and that is the moment this
+       * request succeeded.
+       */
+      if (active.adapter.capabilities.trash) {
+        await noteDeleted(req.user!.id, active.row.id, result.succeeded);
+      }
+
       await record({
         actorId: req.user!.id,
         actorEmail: req.user!.email,

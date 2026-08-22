@@ -4,7 +4,7 @@ import { beforeEach, describe, it } from 'node:test';
 process.env.AUTH_MODE = 'local';
 process.env.TOKEN_ENCRYPTION_KEY ??= Buffer.alloc(32, 7).toString('base64');
 
-const { listTrash, purge, restore } = await import('./trash.js');
+const { listTrash, noteDeleted, purge, restore } = await import('./trash.js');
 const { createAccount } = await import('./accounts.js');
 const { getLocalUser } = await import('./users.js');
 const { useTestDatabase } = await import('../test-utils.js');
@@ -179,5 +179,80 @@ describe('restoring and destroying', () => {
       ok: false,
       reason: 'not_found',
     });
+  });
+});
+
+describe('how long is left', () => {
+  it('counts from the provider where it says when', async () => {
+    const { userId } = await seed('google_drive', 'drive');
+    (drive as unknown as Record<string, unknown>).listTrash = async () => ({
+      files: [{ ...file('a.txt'), trashedAt: new Date(Date.now() - 86_400_000).toISOString() }],
+    });
+
+    const result = await listTrash(userId);
+    const days = Math.round(
+      (Date.parse(result.files[0]!.purgesAt!) - Date.now()) / 86_400_000,
+    );
+
+    assert.equal(days, 29, 'thirty days from when it was trashed, one of them gone');
+  });
+
+  it('falls back to Orbit\'s own note when the provider is silent', async () => {
+    /*
+     * The usual case, and the reason the note exists: Dropbox dates nothing,
+     * and Drive dates only items in a shared drive - so a bin with no
+     * countdown is missing the fact the decision turns on.
+     */
+    const { userId, accountId } = await seed('google_drive', 'drive');
+    await noteDeleted(userId, accountId, ['id-a.txt']);
+
+    (drive as unknown as Record<string, unknown>).listTrash = async () => ({
+      files: [file('a.txt')],
+    });
+
+    const result = await listTrash(userId);
+    assert.ok(result.files[0]!.purgesAt, 'a deadline is known after all');
+  });
+
+  it('prefers the provider over the note, where both exist', async () => {
+    // The provider knows about deletes that never went through Orbit, so where
+    // it speaks it is the authority.
+    const { userId, accountId } = await seed('google_drive', 'drive');
+    await noteDeleted(userId, accountId, ['id-a.txt']);
+
+    const trashedAt = new Date(Date.now() - 10 * 86_400_000).toISOString();
+    (drive as unknown as Record<string, unknown>).listTrash = async () => ({
+      files: [{ ...file('a.txt'), trashedAt }],
+    });
+
+    const days = Math.round(
+      (Date.parse((await listTrash(userId)).files[0]!.purgesAt!) - Date.now()) / 86_400_000,
+    );
+    assert.equal(days, 20, 'twenty left of thirty, not thirty from just now');
+  });
+
+  it('reports no deadline for a file nobody dated', async () => {
+    // Honest rather than guessed: somebody told "3 days left" who loses the
+    // file tomorrow was misled by Orbit rather than by the provider.
+    const { userId } = await seed('google_drive', 'drive');
+    (drive as unknown as Record<string, unknown>).listTrash = async () => ({
+      files: [file('a.txt')],
+    });
+
+    assert.equal((await listTrash(userId)).files[0]!.purgesAt, null);
+  });
+
+  it('forgets the note once the file leaves the bin', async () => {
+    // Otherwise deleting the same path again would count from the first time.
+    const { userId, accountId } = await seed('google_drive', 'drive');
+    await noteDeleted(userId, accountId, ['id-a.txt']);
+
+    (drive as unknown as Record<string, unknown>).restoreFromTrash = async () => undefined;
+    (drive as unknown as Record<string, unknown>).listTrash = async () => ({
+      files: [file('a.txt')],
+    });
+
+    await restore(userId, accountId, 'id-a.txt');
+    assert.equal((await listTrash(userId)).files[0]!.purgesAt, null);
   });
 });

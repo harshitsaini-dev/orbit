@@ -1,8 +1,9 @@
 import type { OrbitFile } from '@orbit/shared-types';
 import { useAccount } from './accounts.js';
 import { readableAccountIds } from './sharing.js';
-import { accounts } from '@orbit/db';
-import { inArray } from 'drizzle-orm';
+import { accounts, deletions } from '@orbit/db';
+import { and, eq, inArray } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 import { db } from '../lib/db.js';
 import { decodeCursor, encodeCursor, type Cursor } from '../lib/cursor.js';
 
@@ -46,6 +47,49 @@ export interface TrashedFile extends OrbitFile {
 }
 
 /**
+ * Records that these went, and when.
+ *
+ * Called after a delete has succeeded. Never throws: failing to note the time
+ * must not turn a successful delete into a reported failure, and the worst it
+ * costs is one file in the bin with no deadline beside it.
+ */
+export async function noteDeleted(
+  userId: string,
+  accountId: string,
+  remoteIds: string[],
+): Promise<void> {
+  if (remoteIds.length === 0) return;
+
+  try {
+    await db()
+      .insert(deletions)
+      .values(
+        remoteIds.map((remoteId) => ({ id: nanoid(), userId, accountId, remoteId })),
+      )
+      // Deleting something already noted means it was restored and deleted
+      // again; the second time is the one that counts.
+      .onConflictDoUpdate({
+        target: [deletions.accountId, deletions.remoteId],
+        set: { deletedAt: new Date().toISOString() },
+      });
+  } catch {
+    // Deliberately silent - see above.
+  }
+}
+
+/** Forgets a note, once the file has left the bin one way or the other. */
+async function forgetDeleted(accountId: string, remoteId: string): Promise<void> {
+  try {
+    await db()
+      .delete(deletions)
+      .where(and(eq(deletions.accountId, accountId), eq(deletions.remoteId, remoteId)));
+  } catch {
+    // A stale note is harmless: nothing reads one for a file that is not in
+    // the bin any more.
+  }
+}
+
+/**
  * How long a provider keeps a deleted file before destroying it.
  *
  * Both are thirty days and both are the provider's published policy rather than
@@ -80,6 +124,20 @@ export async function listTrash(
   const nextCursor: Cursor = {};
 
   const result: TrashResult = { files: [], noBin: [], problems: [] };
+
+  // One query for every note this user has, rather than one per file.
+  const noted = new Map(
+    (
+      await db()
+        .select({
+          accountId: deletions.accountId,
+          remoteId: deletions.remoteId,
+          deletedAt: deletions.deletedAt,
+        })
+        .from(deletions)
+        .where(eq(deletions.userId, userId))
+    ).map((row) => [`${row.accountId}:${row.remoteId}`, row.deletedAt]),
+  );
 
   const settled = await Promise.allSettled(
     rows.map(async (row) => {
@@ -123,9 +181,17 @@ export async function listTrash(
 
     for (const file of outcome.value.files ?? []) {
       const days = RETENTION_DAYS[row.provider];
+      /*
+       * The provider's own answer first, then Orbit's own note.
+       *
+       * The provider is authoritative where it speaks - it knows about deletes
+       * that never went through Orbit. It mostly does not speak, and then the
+       * moment Orbit's own delete succeeded is the honest second-best.
+       */
+      const since = file.trashedAt ?? noted.get(`${row.id}:${file.remoteId}`);
       const purgesAt =
-        file.trashedAt && days
-          ? new Date(new Date(file.trashedAt).getTime() + days * 86_400_000).toISOString()
+        since && days
+          ? new Date(new Date(since).getTime() + days * 86_400_000).toISOString()
           : null;
 
       result.files.push({
@@ -260,6 +326,7 @@ export async function restore(
   }
 
   await active.adapter.restoreFromTrash(active.tokens, remoteId);
+  await forgetDeleted(accountId, remoteId);
   return { ok: true };
 }
 
@@ -283,5 +350,6 @@ export async function purge(
   }
 
   await active.adapter.purgeFromTrash(active.tokens, remoteId);
+  await forgetDeleted(accountId, remoteId);
   return { ok: true };
 }
