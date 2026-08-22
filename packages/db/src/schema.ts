@@ -16,7 +16,7 @@ export const users = sqliteTable(
     accent: text('accent').notNull().default('#6c8cff'),
     language: text('language').notNull().default('en'),
     allocationStrategy: text('allocation_strategy', {
-      enum: ['round_robin', 'weighted_round_robin', 'least_used', 'most_free', 'manual'],
+      enum: ['round_robin', 'weighted_round_robin', 'least_used', 'most_free', 'manual', 'ask'],
     })
       .notNull()
       .default('round_robin'),

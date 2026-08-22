@@ -1,5 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  FilterBox,
+  SortControl,
+  useFileFilter,
+  useFileSort,
+} from '../components/ListControls.js';
 import { Row } from '../components/UploadIndicator.js';
 import { api } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
@@ -70,6 +76,21 @@ export function Uploads() {
 
   const finished = jobs.filter((job) => job.state !== 'uploading' && job.state !== 'queued');
 
+  /*
+   * The same filter and sort every other list of files has.
+   *
+   * `virtualPath` is the destination here rather than where a file lives, which
+   * is the useful thing to search a queue by: "everything I sent to the R2
+   * bucket" is a question people ask of this page and of no other.
+   */
+  const searchable = useMemo(
+    () => jobs.map((job) => ({ ...job, virtualPath: `${job.destination}${job.targetPath}` })),
+    [jobs],
+  );
+
+  const { filter, setFilter, shown } = useFileFilter(searchable);
+  const { sort, setSort, descending, toggleDirection, sorted } = useFileSort('uploads', shown);
+
   return (
     <div style={{ display: 'grid', gap: '1rem' }}>
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
@@ -85,6 +106,15 @@ export function Uploads() {
 
           <span style={{ flex: 1 }} />
 
+          {jobs.length > 1 && (
+            <SortControl
+              sort={sort}
+              onSort={setSort}
+              descending={descending}
+              onToggleDirection={toggleDirection}
+            />
+          )}
+
           {active > 0 && (
             <button type="button" className="clay-button" onClick={cancel}>
               Cancel remaining
@@ -96,6 +126,8 @@ export function Uploads() {
             </button>
           )}
         </div>
+
+        <FilterBox value={filter} onChange={setFilter} count={jobs.length} noun="uploads" />
       </section>
 
       {transfers.length > 0 && (
@@ -184,7 +216,7 @@ export function Uploads() {
       ) : (
         <section className="clay" style={{ padding: '0.75rem' }}>
           <ul className="upload-list">
-            {[...jobs].reverse().map((job) => (
+            {sorted.map((job) => (
               <li key={job.id}>
                 <Row job={job} />
               </li>

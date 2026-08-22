@@ -4,7 +4,14 @@ import type { OrbitFile, WorkspaceView as ViewName } from '@orbit/shared-types';
 import { DownloadIcon, StarIcon } from '../components/ActionIcon.js';
 import { FileGrid } from '../components/FileGrid.js';
 import { FileIcon } from '../components/FileIcon.js';
-import { FilterBox, ViewToggle, useFileFilter, useListView } from '../components/ListControls.js';
+import {
+  FilterBox,
+  SortControl,
+  ViewToggle,
+  useFileFilter,
+  useFileSort,
+  useListView,
+} from '../components/ListControls.js';
 import { FilePreview } from '../components/FilePreview.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { FileListSkeleton } from '../components/Skeleton.js';
@@ -116,7 +123,11 @@ export function WorkspaceViewPage({ view }: { view: ViewName }) {
   }
 
   const all = data?.files ?? [];
-  const { filter, setFilter, shown: files } = useFileFilter(all);
+  const { filter, setFilter, shown: matching } = useFileFilter(all);
+  const { sort, setSort, descending, toggleDirection, sorted: files } = useFileSort(
+    `view-${view}`,
+    matching,
+  );
   // Only worth naming the source when more than one account contributed.
   const multipleAccounts = new Set(files.map((file) => file.accountId)).size > 1;
 
@@ -136,6 +147,12 @@ export function WorkspaceViewPage({ view }: { view: ViewName }) {
           <h1 style={{ fontSize: '1.4rem' }}>{copy.title}</h1>
 
           <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <SortControl
+              sort={sort}
+              onSort={setSort}
+              descending={descending}
+              onToggleDirection={toggleDirection}
+            />
             <ViewToggle view={viewMode} onChange={setViewMode} />
             <button
               type="button"

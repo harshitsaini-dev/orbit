@@ -4,7 +4,14 @@ import { catalogueEntry, mimeForName, type OrbitFile } from '@orbit/shared-types
 import { FileGrid } from '../components/FileGrid.js';
 import { FileIcon } from '../components/FileIcon.js';
 import { FilePreview } from '../components/FilePreview.js';
-import { FilterBox, ViewToggle, useFileFilter, useListView } from '../components/ListControls.js';
+import {
+  FilterBox,
+  SortControl,
+  ViewToggle,
+  useFileFilter,
+  useFileSort,
+  useListView,
+} from '../components/ListControls.js';
 import { CollectionsIcon } from '../components/Icons.js';
 import { ConfirmDialog, NameDialog } from '../components/NameDialog.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
@@ -93,7 +100,11 @@ export function Collections() {
     void load();
   }, [load]);
 
-  const { filter, setFilter, shown } = useFileFilter(open?.items ?? []);
+  const { filter, setFilter, shown: matching } = useFileFilter(open?.items ?? []);
+  const { sort, setSort, descending, toggleDirection, sorted: shown } = useFileSort(
+    'collection',
+    matching,
+  );
 
   useEffect(() => {
     if (!openId) {
@@ -182,6 +193,12 @@ export function Collections() {
 
             <span style={{ flex: 1 }} />
 
+            <SortControl
+              sort={sort}
+              onSort={setSort}
+              descending={descending}
+              onToggleDirection={toggleDirection}
+            />
             <ViewToggle view={viewMode} onChange={setViewMode} />
 
             <button type="button" className="clay-button" onClick={() => setRenaming(open.collection)}>

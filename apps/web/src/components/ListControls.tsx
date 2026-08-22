@@ -71,6 +71,136 @@ export function useFileFilter<T extends Pick<OrbitFile, 'name' | 'virtualPath'>>
   return { filter, setFilter, shown };
 }
 
+export type SortKey = 'name' | 'size' | 'modified';
+
+const SORTS: Array<{ value: SortKey; label: string }> = [
+  { value: 'name', label: 'Name' },
+  { value: 'size', label: 'Size' },
+  { value: 'modified', label: 'Modified' },
+];
+
+interface Sortable {
+  name: string;
+  sizeBytes: number;
+  isFolder?: boolean;
+  modifiedAt?: string;
+}
+
+/**
+ * Sorting, remembered per page like the view is.
+ *
+ * Folders stay above files whichever key is chosen. Sorting a folder in among
+ * the files by size - where it has none - reads as a bug, and nobody looking
+ * for "the biggest thing here" means a folder.
+ */
+export function useFileSort<T extends Sortable>(
+  key: string,
+  files: T[],
+): {
+  sort: SortKey;
+  setSort: (next: SortKey) => void;
+  descending: boolean;
+  toggleDirection: () => void;
+  sorted: T[];
+} {
+  const storageKey = `orbit.sort.${key}`;
+  const stored = localStorage.getItem(storageKey)?.split(':') ?? [];
+
+  const [sort, setSortState] = useState<SortKey>(
+    SORTS.some((option) => option.value === stored[0]) ? (stored[0] as SortKey) : 'name',
+  );
+  const [descending, setDescending] = useState(stored[1] === 'desc');
+
+  const remember = useCallback(
+    (next: SortKey, down: boolean) => {
+      localStorage.setItem(storageKey, `${next}:${down ? 'desc' : 'asc'}`);
+    },
+    [storageKey],
+  );
+
+  const setSort = useCallback(
+    (next: SortKey) => {
+      setSortState(next);
+      // Sizes and dates are almost always wanted largest and newest first;
+      // names are not. Choosing a key sets the direction people meant by it,
+      // and the arrow is there for when they meant the other one.
+      const down = next !== 'name';
+      setDescending(down);
+      remember(next, down);
+    },
+    [remember],
+  );
+
+  const toggleDirection = useCallback(() => {
+    setDescending((current) => {
+      remember(sort, !current);
+      return !current;
+    });
+  }, [remember, sort]);
+
+  const sorted = useMemo(() => {
+    const direction = descending ? -1 : 1;
+
+    return [...files].sort((a, b) => {
+      if (Boolean(a.isFolder) !== Boolean(b.isFolder)) return a.isFolder ? -1 : 1;
+
+      if (sort === 'size') return (a.sizeBytes - b.sizeBytes) * direction;
+      if (sort === 'modified') {
+        return (
+          (new Date(a.modifiedAt ?? 0).getTime() - new Date(b.modifiedAt ?? 0).getTime()) *
+          direction
+        );
+      }
+
+      // Numeric so "file 10" follows "file 9" rather than "file 1".
+      return a.name.localeCompare(b.name, undefined, { numeric: true }) * direction;
+    });
+  }, [files, sort, descending]);
+
+  return { sort, setSort, descending, toggleDirection, sorted };
+}
+
+export function SortControl({
+  sort,
+  onSort,
+  descending,
+  onToggleDirection,
+}: {
+  sort: SortKey;
+  onSort: (next: SortKey) => void;
+  descending: boolean;
+  onToggleDirection: () => void;
+}) {
+  return (
+    <span className="sort-control">
+      <label>
+        <span>Sort</span>
+        <select
+          className="clay-sunken"
+          value={sort}
+          onChange={(event) => onSort(event.target.value as SortKey)}
+        >
+          {SORTS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <button
+        type="button"
+        className="clay-button"
+        aria-label={descending ? 'Sort ascending' : 'Sort descending'}
+        title={descending ? 'Largest or newest first' : 'Smallest or oldest first'}
+        onClick={onToggleDirection}
+      >
+        {descending ? '↓' : '↑'}
+      </button>
+    </span>
+  );
+}
+
 export function ViewToggle({
   view,
   onChange,

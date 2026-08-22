@@ -40,6 +40,12 @@ const STRATEGIES: Array<{ value: AllocationStrategy; label: string; blurb: strin
     label: 'Follow my order',
     blurb: 'Always the first account in your list that still has room.',
   },
+  {
+    value: 'ask',
+    label: 'Ask me every time',
+    blurb:
+      'Orbit picks nothing. You choose the drive and the folder before the upload starts. Slower, and the only option that cannot put a file in the wrong cloud.',
+  },
 ];
 
 export function AllocationSettings({

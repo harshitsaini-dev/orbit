@@ -7,6 +7,15 @@ export const ALLOCATION_STRATEGIES = [
   'least_used',
   'most_free',
   'manual',
+  /**
+   * Do not pick at all - ask.
+   *
+   * The right answer for somebody who keeps work and personal storage apart:
+   * any rule Orbit could follow would sometimes put a file in the wrong one,
+   * and a file in the wrong cloud is a nuisance to notice and a nuisance to
+   * undo.
+   */
+  'ask',
 ] as const;
 export type AllocationStrategy = (typeof ALLOCATION_STRATEGIES)[number];
 
