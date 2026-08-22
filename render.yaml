@@ -52,6 +52,9 @@ services:
         sync: false
       - key: RESEND_API_KEY
         sync: false
+      # Orbit's own sending subdomain, separate from anything else on this
+      # Resend account: a deliverability problem with one project's mail then
+      # cannot touch another's.
       - key: RESEND_FROM
         value: Orbit <no-reply@signal.harshitsaini.in>
 

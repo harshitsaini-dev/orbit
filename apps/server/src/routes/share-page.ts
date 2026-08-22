@@ -1,3 +1,4 @@
+import { brandFavicon, brandMark } from '../lib/brand.js';
 import { shareBundle } from '../lib/share-bundle.js';
 import type { PublicShare } from '../services/shares.js';
 
@@ -196,22 +197,20 @@ const STYLES = `
   .qr img { width: 168px; height: 168px; background: #fff; border-radius: 10px; padding: 8px; }
 `;
 
-const MARK = `<svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><circle cx="16" cy="16" r="6" fill="#6c8cff"/><ellipse cx="16" cy="16" rx="14" ry="5.5" fill="none" stroke="#6c8cff" stroke-width="1.6" opacity="0.7" transform="rotate(-22 16 16)"/></svg>`;
-
-/**
- * The same mark again, as a data URI for the tab.
- *
- * Inline rather than a link to /favicon.svg: this page is served by the API,
- * which serves no static files, so a link would 404 and leave a share looking
- * like it came from nowhere. A data URI has no such dependency and costs a few
- * hundred bytes on a page that is already sending an image.
+/*
+ * Both read from the application's own favicon.svg rather than drawn again
+ * here. They were drawn again here, and the result was a share page whose tab
+ * icon and whose heading were both visibly not the logo of the product that
+ * sent them.
  */
-const FAVICON = `data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
-    '<circle cx="16" cy="16" r="6" fill="#6c8cff"/>' +
-    '<ellipse cx="16" cy="16" rx="14" ry="5.5" fill="none" stroke="#6c8cff" stroke-width="1.6" opacity="0.7" transform="rotate(-22 16 16)"/>' +
-    '</svg>',
-)}`;
+const MARK = brandMark(26);
+
+/*
+ * Inline as a data URI rather than a link to /favicon.svg: this page is served
+ * by the API, which serves no static files at that path, so a link would 404
+ * and leave a share looking like it came from nowhere.
+ */
+const FAVICON = brandFavicon();
 
 /**
  * `head` and `tail` carry the viewer bundle, when there is one.

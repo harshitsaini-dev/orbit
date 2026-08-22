@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { OrbitFile } from '@orbit/shared-types';
 import { FileViewer } from './components/FilePreview.js';
+import { BrandMark } from './components/BrandMark.js';
 import { FileIcon } from './components/FileIcon.js';
 import { formatBytes } from './lib/format.js';
 import './styles/global.css';
@@ -93,7 +94,19 @@ function SharePage({ data }: { data: ShareData }) {
         <FileViewer file={file} contentUrl={contentUrl} />
       </div>
 
-      <footer style={{ color: 'var(--text-muted)', fontSize: 12.5, textAlign: 'center' }}>
+      {/* The mark, so the page a stranger opens is visibly from somewhere -
+          the same one the tab icon and the fallback page use. */}
+      <footer
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 7,
+          color: 'var(--text-muted)',
+          fontSize: 12.5,
+        }}
+      >
+        <BrandMark size={16} />
         Shared through Orbit. The file stays in its owner&apos;s own cloud storage.
       </footer>
     </div>

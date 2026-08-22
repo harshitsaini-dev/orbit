@@ -163,9 +163,10 @@ Only needed for hosted mode. Local development prints the code to the server con
 1. Sign up at <https://resend.com/> (GitHub sign-in works; no card).
 2. **Domains → Add domain** → enter **`signal.harshitsaini.in`**.
 
-   Sending from a subdomain rather than the root domain is deliberate: a deliverability problem
-   with application mail then cannot damage the reputation of the root domain, and the DNS
-   records stay scoped to that subdomain.
+   A subdomain rather than the root, and Orbit's own rather than one already on the account:
+   `send.harshitsaini.in` belongs to another project here, and keeping the two apart means a
+   deliverability problem with one cannot touch the other. The root domain stays out of it
+   entirely.
 3. Resend shows a set of DNS records (SPF/TXT, DKIM, and usually a return-path CNAME). Add each
    one in Cloudflare (section 5), then press **Verify**. Propagation is usually minutes.
 4. **API Keys → Create API Key**, permission *Sending access*. Copy it once — it is not shown
