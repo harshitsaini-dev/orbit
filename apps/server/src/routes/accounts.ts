@@ -1,5 +1,5 @@
 import { getAdapter, ProviderError } from '@orbit/adapters';
-import { catalogueEntry } from '@orbit/shared-types';
+import { ALLOCATION_STRATEGIES, catalogueEntry } from '@orbit/shared-types';
 import { Router } from 'express';
 import { z } from 'zod';
 import { env } from '../lib/env.js';
@@ -510,8 +510,10 @@ accountsRouter.get('/api/accounts/:id/sync', requireAuth, async (req, res, next)
 
 // --- where uploads go -----------------------------------------------------
 
+// Derived rather than retyped: this list was a hand-copied duplicate, and it
+// silently rejected a strategy the rest of the app already offered.
 const strategySchema = z.object({
-  strategy: z.enum(['round_robin', 'weighted_round_robin', 'least_used', 'most_free', 'manual']),
+  strategy: z.enum(ALLOCATION_STRATEGIES),
 });
 
 accountsRouter.put('/api/allocation', requireAuth, async (req, res, next) => {
