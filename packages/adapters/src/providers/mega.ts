@@ -434,14 +434,29 @@ export class MegaAdapter extends BaseAdapter {
        * or EFAILED. Worth its own sentence: "wrong password" sends somebody to
        * reset a password that was correct.
        */
-      if (/EMFAREQUIRED|EFAILED|two.?factor|mfa/i.test(message)) {
+      /*
+       * MEGA answers -26 (EMFAREQUIRED) when the account has a second factor
+       * and none was sent. That is not a failure to report as one: it is the
+       * next step, and the route turns it into a `mfa_required` the connect
+       * screen knows to act on.
+       */
+      if (/EMFAREQUIRED|multi-factor/i.test(message)) {
         throw new ProviderError(
           'mega',
           401,
-          'two-factor code required or wrong',
-          code
-            ? 'That two-factor code was not accepted. Codes expire in seconds - try the next one.'
-            : 'This MEGA account has two-factor authentication on. Add the six-digit code from your authenticator app.',
+          'mfa_required',
+          'This account has two-factor authentication on. Enter the current code from your authenticator app.',
+        );
+      }
+
+      // A code that was sent and refused. Distinct, because "wrong password"
+      // would send somebody to reset a password that was correct.
+      if (code && /EFAILED|EARGS/i.test(message)) {
+        throw new ProviderError(
+          'mega',
+          401,
+          'mfa_wrong',
+          'That code was not accepted. They expire in seconds - try the next one.',
         );
       }
 

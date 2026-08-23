@@ -420,8 +420,20 @@ accountsRouter.post('/api/accounts/connect', requireAuth, async (req, res, next)
     if (err instanceof ProviderError) {
       log.error('connect failed', { provider: entry.key, error: err });
 
+      /*
+       * A second factor is a step, not a failure.
+       *
+       * The connect screen reveals the code field on this code and keeps what
+       * was already typed. Sent as `connect_failed` it would read as a refused
+       * password, which is how somebody ends up resetting a password that was
+       * correct.
+       */
+      const code = /^mfa_(required|wrong)$/.test(err.message.replace(/^\w+ \[\d+\]: /, ''))
+        ? err.message.replace(/^\w+ \[\d+\]: /, '')
+        : 'connect_failed';
+
       res.status(400).json({
-        error: { code: 'connect_failed', message: explainConnectFailure(err) },
+        error: { code, message: explainConnectFailure(err) },
       });
       return;
     }
@@ -725,6 +737,16 @@ function obviouslyWrong(key: string, values: Record<string, string>): string | n
  * credential material - `providerFetch` quotes bodies, never headers.
  */
 function explainConnectFailure(err: ProviderError): string {
+  /*
+   * The adapter's own sentence wins, when it has one.
+   *
+   * `userMessage` is set only where the adapter understood the failure well
+   * enough to explain it, and that explanation beats anything guessed from a
+   * string here - the wording below was written for S3 and reads as nonsense
+   * over a MEGA login ("Could not reach that bucket").
+   */
+  if (err.userMessage) return err.userMessage;
+
   const detail = err.message.replace(/^s3 \[\d+\]: /, '').slice(0, 200);
 
   if (/SignatureDoesNotMatch/i.test(detail)) {

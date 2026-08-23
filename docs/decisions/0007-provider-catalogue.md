@@ -71,9 +71,19 @@ uploads), Azure Blob, and Bunny Edge Storage.
 >   and then answered "no permission" to everything: no file listing, no quota, and a nickname
 >   that fell back to "MEGA" because even the identity lookup was refused.
 >
-> **Two-factor is supported.** MEGA's own TOTP, as an optional field at connect. It is used once
-> and never stored, and a wrong or missing code says so rather than reporting a wrong password —
-> which would send somebody to reset a password that was correct.
+> **Two-factor is supported, and asked for at the right moment.** MEGA's own TOTP, used once and
+> never stored.
+>
+> The field is hidden until MEGA says it needs one. Asking up front is asking a question nobody
+> can answer yet: most accounts do not have a second factor, and the ones that do have a code
+> that expires in seconds — it cannot be typed before the password has even been tried. So the
+> first attempt is what discovers it. MEGA answers `EMFAREQUIRED`, the route returns
+> `mfa_required` rather than a generic `connect_failed`, the field appears already focused, and
+> everything typed stays where it is.
+>
+> `revealedBy` is a catalogue field property rather than a MEGA special case, so the next
+> provider with a second factor needs no code here. A wrong code answers `mfa_wrong` and keeps
+> the field open, because by then the one that was typed has expired anyway.
 >
 > **The interface can change without notice.** Nothing here rests on a promise MEGA has made.
 > When it breaks it will break at the SDK, and this adapter is best-effort in a way the OAuth

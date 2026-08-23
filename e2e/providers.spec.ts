@@ -59,5 +59,48 @@ test.describe('the providers on offer', () => {
     // And it says what happens to the password, because "type your password
     // into this other website" deserves an answer.
     await expect(dialog.getByText(/discarded/i)).toBeVisible();
+
+    /*
+     * The two-factor field is not there yet, and that is the point. Asking for
+     * a code up front is asking a question nobody can answer: most accounts do
+     * not have it turned on, and the ones that do have a code that expires in
+     * seconds - it cannot be typed before the password has even been tried.
+     */
+    await expect(dialog.getByText('Two-factor code')).toHaveCount(0);
+  });
+
+  test('asks for a two-factor code only once MEGA says it needs one', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/quota');
+    await page.getByRole('button', { name: /MEGA/ }).click();
+
+    const dialog = page.getByRole('dialog');
+    await dialog.getByLabel('MEGA email').fill('me@example.com');
+    await dialog.getByLabel('MEGA password').fill('hunter2');
+
+    // What MEGA answers for an account with a second factor: not a refusal,
+    // a next step.
+    await page.route('**/api/accounts/connect', (route) =>
+      route.fulfill({
+        status: 400,
+        json: {
+          error: {
+            code: 'mfa_required',
+            message: 'This account has two-factor authentication on. Enter the current code from your authenticator app.',
+          },
+        },
+      }),
+    );
+
+    await dialog.getByRole('button', { name: 'Connect' }).click();
+
+    // The field appears, and what was typed is still there - a form that
+    // cleared itself would be asking for the password a second time.
+    const code = dialog.getByLabel('Two-factor code');
+    await expect(code).toBeVisible();
+    await expect(code).toBeFocused();
+    await expect(dialog.getByLabel('MEGA email')).toHaveValue('me@example.com');
+
+    await expect(dialog.getByText(/two-factor authentication on/i)).toBeVisible();
   });
 });

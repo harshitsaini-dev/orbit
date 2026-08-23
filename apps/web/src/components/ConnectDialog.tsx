@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CatalogueEntry } from '@orbit/shared-types';
 import { Modal } from './Modal.js';
 import { ApiError, api } from '../lib/api.js';
@@ -32,7 +32,26 @@ export function ConnectDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fields = entry.fields ?? [];
+  /*
+   * A second factor is asked for only once the provider has said it needs one.
+   *
+   * Up front it is a question nobody can answer yet: most accounts do not have
+   * it turned on, and the ones that do have a code that expires in seconds -
+   * so it cannot be typed before the password has even been tried. The first
+   * attempt is what discovers it, and everything already typed stays put.
+   */
+  const [needsMfa, setNeedsMfa] = useState(false);
+  const mfaRef = useRef<HTMLInputElement>(null);
+
+  const fields = (entry.fields ?? []).filter(
+    (field) => !field.revealedBy || (field.revealedBy === 'mfa_required' && needsMfa),
+  );
+
+  // Focused as it appears, so the code can be pasted without reaching for the
+  // mouse - which matters when it expires in seconds.
+  useEffect(() => {
+    if (needsMfa) mfaRef.current?.focus();
+  }, [needsMfa]);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -46,6 +65,16 @@ export function ConnectDialog({
       });
       onConnected();
     } catch (err) {
+      /*
+       * `mfa_required` is a step rather than a refusal, so the field appears
+       * and the message explains what to do. `mfa_wrong` keeps it open: the
+       * previous code has expired by now and the next one is a glance away.
+       */
+      if (err instanceof ApiError && (err.code === 'mfa_required' || err.code === 'mfa_wrong')) {
+        setNeedsMfa(true);
+        setValues((current) => ({ ...current, totpCode: '' }));
+      }
+
       setError(err instanceof ApiError ? err.message : 'Could not connect');
     } finally {
       setBusy(false);
@@ -70,6 +99,7 @@ export function ConnectDialog({
             </span>
 
             <input
+              {...(field.revealedBy === 'mfa_required' ? { ref: mfaRef } : {})}
               className="clay-sunken"
               style={{
                 border: 0,
@@ -81,7 +111,18 @@ export function ConnectDialog({
               type={field.secret ? 'password' : 'text'}
               // A secret pasted into a field the browser has offered to
               // remember ends up in a password manager under the wrong name.
-              autoComplete={field.secret ? 'new-password' : 'off'}
+              // A one-time code is the exception: naming it lets a phone offer
+              // the code it has just seen.
+              autoComplete={
+                field.revealedBy === 'mfa_required'
+                  ? 'one-time-code'
+                  : field.secret
+                    ? 'new-password'
+                    : 'off'
+              }
+              {...(field.revealedBy === 'mfa_required'
+                ? { inputMode: 'numeric' as const, maxLength: 8 }
+                : {})}
               spellCheck={false}
               placeholder={field.placeholder ?? ''}
               value={values[field.name] ?? ''}

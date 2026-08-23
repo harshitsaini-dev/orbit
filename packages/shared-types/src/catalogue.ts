@@ -17,6 +17,17 @@ export interface CredentialField {
   help?: string;
   secret?: boolean;
   optional?: boolean;
+  /**
+   * Not shown until the provider says it is needed.
+   *
+   * For a second factor. Asking for one up front is asking a question nobody
+   * can answer yet - most accounts do not have it turned on, and the ones that
+   * do have a code that expires in seconds, so it cannot be typed before the
+   * password has even been tried. The connect attempt is what discovers it:
+   * the provider answers "this needs a code", the field appears, and what was
+   * already typed stays where it is.
+   */
+  revealedBy?: 'mfa_required';
 }
 
 export interface CatalogueEntry {
@@ -92,7 +103,8 @@ export const PROVIDER_CATALOGUE: CatalogueEntry[] = [
         label: 'Two-factor code',
         placeholder: '123456',
         optional: true,
-        help: 'Only if this account has two-factor authentication turned on. Codes expire in seconds, so paste it just before connecting.',
+        revealedBy: 'mfa_required',
+        help: 'From your authenticator app. Codes expire in seconds, so paste the current one.',
       },
     ],
   },
