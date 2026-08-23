@@ -654,3 +654,13 @@ would be storing a user's file, which is the one thing this product does not do.
   TURN is bandwidth somebody pays for. The screen says so and points at upload-and-share.
 - Migrations do not run at boot. A deploy carries the code, not the schema - `npm run db:migrate`
   against the production database is a separate step, and forgetting it is a 500 on a new table.
+- A folder loads in full, so a very large one holds every row in memory and pages over them at
+  a thousand at a time. Selecting all of them selects all of them - a bulk delete across fifty
+  thousand files is fifty thousand provider calls, and there is no undo beyond the provider's
+  own bin.
+- The web app has no unit-test setup; vitest runs server-side only. Front-end behaviour is
+  covered by Playwright or not at all, which leaves anything needing a huge fixture - the
+  pager, cross-page selection - verified by hand.
+- `npm run typecheck` at the repo root fails: the script is `tsc --build` but there is no root
+  `tsconfig.json`, only `tsconfig.base.json`. Typecheck per workspace (`-w @orbit/web`) until
+  the script is fixed.
