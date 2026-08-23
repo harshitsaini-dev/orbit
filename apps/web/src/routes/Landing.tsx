@@ -20,7 +20,7 @@ interface CatalogueResponse {
 }
 
 const GROUPS: Array<{ title: string; keys: string[] }> = [
-  { title: 'Cloud drives', keys: ['google_drive', 'onedrive', 'dropbox', 'pcloud'] },
+  { title: 'Cloud drives', keys: ['google_drive', 'onedrive', 'dropbox', 'pcloud', 'mega'] },
   {
     title: 'Object storage',
     keys: [

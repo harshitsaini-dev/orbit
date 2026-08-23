@@ -55,3 +55,10 @@ and Backblaze B2 each get their own mark even though both route to the `s3` adap
 The icons are decorative: every one is `aria-hidden`, and the provider name always appears as
 text next to it. Nothing is conveyed by icon alone, so colour blindness or a failed image load
 costs nothing.
+
+## MEGA
+
+A red disc with a white **M** cut out of it — MEGA's own mark, drawn rather than
+traced, like every other one here. It is the one provider whose brand is a
+letter rather than a shape, so a generic cloud read as "some cloud service"
+beside eight recognisable marks and was worse than an obvious gap.

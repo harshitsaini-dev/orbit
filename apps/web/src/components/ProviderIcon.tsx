@@ -19,6 +19,7 @@ export type ProviderIconKey =
   | 'onedrive'
   | 'dropbox'
   | 'pcloud'
+  | 'mega'
   | 'gcs'
   | 'azure_blob'
   | 'bunny'
@@ -77,6 +78,24 @@ const MARKS: Record<ProviderIconKey, Mark> = {
       <>
         <path d={cloudPath} fill="#00a3e0" opacity="0.85" />
         <path d="M12 9.2v6M9.4 12.2 12 9.2l2.6 3" stroke="#fff" strokeWidth="1.7" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      </>
+    ),
+  },
+
+  /*
+   * MEGA's own mark is a red circle with a white M cut out of it. Drawn rather
+   * than traced, like every other mark here - see 07-provider-icons.md for why
+   * these are recognisable-but-not-official, and how to swap in the real ones.
+   */
+  mega: {
+    colour: '#d9272e',
+    render: () => (
+      <>
+        <circle cx="12" cy="12" r="9.2" fill="#d9272e" />
+        <path
+          d="M7.1 15.9V8.1h1.7l3.2 3.9 3.2-3.9h1.7v7.8h-1.8v-5l-3.1 3.7-3.1-3.7v5z"
+          fill="#fff"
+        />
       </>
     ),
   },
