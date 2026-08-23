@@ -65,10 +65,23 @@ uploads), Azure Blob, and Bunny Edge Storage.
 > ones are not. That is written in the adapter's own header so nobody later mistakes it for the
 > same class of thing as Drive.
 >
-> Capabilities are claimed narrowly. No thumbnails — a server that cannot read the file cannot
-> draw one. No inbound shares. No resumable upload: MEGA needs the length before the first byte.
-> And no same-account copy, which MEGA has no server-side operation for; refusing is better than
-> a button labelled Copy that quietly downloads and re-uploads.
+> Capabilities are claimed narrowly, and three of them read as limits that turned out not to be:
+>
+> - **Thumbnails.** `thumbnails: false` means *the provider* does not render them, and routes tiles
+>   to Orbit's own renderer — the same path an S3 bucket takes. MEGA cannot draw a thumbnail
+>   because MEGA cannot read the file; Orbit holds the key and can. Tiles work.
+> - **Copying.** MEGA does have a server-side copy: a second node pointing at the same stored
+>   object with the key re-wrapped for its new parent. Copying a two-gigabyte video costs what
+>   copying an empty file costs, which is the opposite of the obvious assumption about an
+>   end-to-end encrypted store.
+> - **Uploads.** MEGA wants the length before the first byte, which looked like it forced the
+>   whole file into memory — but Orbit is told the length at `initUpload` too. The upload is
+>   opened there and the chunks are written into it as they arrive. `resumableUpload` stays false
+>   and honestly: an interrupted upload has to start again. That is a different thing from
+>   buffering it, and only the second was ever fixable here.
+>
+> What is genuinely absent: inbound shares, which are mounts with their own key handling and are
+> not claimed rather than half-supported.
 >
 > **What this cost elsewhere, and gained.** The connect route forwarded five S3-shaped fields and
 > dropped anything else, so MEGA's email and password arrived as `undefined`. It now passes

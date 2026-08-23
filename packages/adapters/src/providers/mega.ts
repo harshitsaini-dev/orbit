@@ -1,4 +1,4 @@
-import { Readable } from 'node:stream';
+import { PassThrough, Readable } from 'node:stream';
 import type {
   AccountTokens,
   AuthType,
@@ -79,6 +79,7 @@ interface Node {
   rename: (name: string) => Promise<unknown>;
   setFavorite: (favourite: boolean) => Promise<unknown>;
   mkdir: (name: string) => Promise<Node>;
+  copyTo: (target: Node) => Promise<Node>;
   upload: (options: { name: string; size: number }, source: NodeJS.ReadableStream) => { complete: Promise<Node> };
 }
 
@@ -107,11 +108,12 @@ interface Session {
 const SESSION_TTL_MS = 3 * 60 * 1000;
 
 /**
- * The size Orbit is asked to hand over at a time.
+ * The size Orbit hands over at a time.
  *
- * It is not a MEGA constraint - MEGA takes the file in one piece - but the
- * whole upload is held in memory until the last chunk arrives, so this only
- * governs how often progress moves.
+ * Not a MEGA constraint. The upload is opened once, at the size the caller
+ * declared, and the chunks are written into it as they arrive - so this governs
+ * how often progress moves and nothing else. It used to govern how much of the
+ * file sat in memory, which is why it mattered rather more.
  */
 const UPLOAD_CHUNK = 8 * 1024 * 1024;
 
@@ -273,7 +275,11 @@ export class MegaAdapter extends BaseAdapter {
     sharedWithMe: false,
     // No change feed. The tree is reloaded, which is why the session is cached.
     delta: false,
-    // The SDK uploads in one pass and needs the size up front.
+    /*
+     * An interrupted MEGA upload starts again; there is nothing to resume into.
+     * That is not the same as buffering it - the file is streamed through, so
+     * this costs restarts rather than memory.
+     */
     resumableUpload: false,
     rangeRequests: true,
     nativeFolders: true,
@@ -283,7 +289,14 @@ export class MegaAdapter extends BaseAdapter {
     reportsQuota: true,
     flatEnumeration: true,
     recentView: true,
-    // MEGA renders none - a server that cannot read the file cannot draw it.
+    /*
+     * False means "the provider does not render them", not "there are none".
+     *
+     * MEGA cannot draw a thumbnail because MEGA cannot read the file - that is
+     * the point of it. Orbit can: it holds the key, so it fetches a prefix,
+     * decrypts it and renders the tile itself, exactly as it does for an object
+     * store. This flag is what routes it down that path.
+     */
     thumbnails: false,
     search: true,
     fullTextSearch: false,
@@ -512,26 +525,32 @@ export class MegaAdapter extends BaseAdapter {
     const target = folderAt(session, targetPath);
 
     /*
-     * Moving is one call; copying is not a call at all.
+     * Both are one request and neither moves a byte.
      *
-     * MEGA has no server-side copy for a node in your own account - a file is
-     * one encrypted object, and a second copy means uploading a second one.
-     * Refusing here is better than silently downloading and re-uploading behind
-     * a button labelled Copy: the transfer engine does that deliberately and
-     * says how long it will take.
+     * A copy adds a second node pointing at the same stored object, with the
+     * file key re-wrapped for its new parent - so copying a two-gigabyte video
+     * is as cheap as copying an empty file. That is worth knowing, because the
+     * obvious assumption about an end-to-end encrypted store is the opposite.
      */
-    if (options.copy) {
-      throw new ProviderError(
-        'mega',
-        501,
-        'copy within account unsupported',
-        'MEGA cannot copy a file within an account. Move it, or send it to another drive.',
-      );
-    }
-
     try {
-      await node.moveTo(target);
-      return toOrbitFile(node, session.root);
+      if (!options.copy) {
+        await node.moveTo(target);
+        return toOrbitFile(node, session.root);
+      }
+
+      const placed = await node.copyTo(target);
+
+      /*
+       * Reloaded, then looked up again.
+       *
+       * The copy is a node the tree in memory has never seen, and the object
+       * `copyTo` hands back is not wired into it - so its parent chain is
+       * empty and the path built from it would be a bare filename at the root.
+       */
+      await session.reload();
+      const fresh = placed.nodeId ? (session.files[placed.nodeId] ?? placed) : placed;
+
+      return toOrbitFile(fresh, session.root);
     } catch (err) {
       throw asProviderError(err);
     }
@@ -605,26 +624,44 @@ export class MegaAdapter extends BaseAdapter {
   }
 
   /**
-   * Uploads arrive whole.
+   * Uploaded as it arrives, not collected and then sent.
    *
-   * MEGA needs the length before the first byte, and the SDK reads a stream to
-   * the end. So the session carries the destination and nothing else, the
-   * chunks are collected here, and the file is written when the last one lands
-   * - which is why `resumableUpload` is false: an interrupted MEGA upload has
-   * nothing to resume from.
+   * MEGA wants the length before the first byte, which is the whole reason
+   * this looked like it had to be buffered - but Orbit is told the length at
+   * `initUpload` too. So the upload is opened there at the declared size, and
+   * each chunk is written straight into it. A two-gigabyte file costs one chunk
+   * of memory rather than two gigabytes of it.
+   *
+   * `resumableUpload` stays false, and honestly: an interrupted MEGA upload
+   * cannot be picked up where it stopped. It has to start again. That is a
+   * different thing from holding the file in memory, and only the second one
+   * was ever fixable here.
    */
-  override initUpload(
+  override async initUpload(
     tokens: AccountTokens,
     path: string,
     meta: UploadMeta,
   ): Promise<UploadSession> {
-    return Promise.resolve({
+    const session = await open(tokens);
+    const folder = folderAt(session, normalisePath(path));
+
+    const body = new PassThrough();
+
+    // Started now and awaited at the end. MEGA reads the stream as Orbit
+    // writes it, so the two run together rather than one after the other.
+    const upload = folder.upload({ name: meta.name, size: meta.sizeBytes }, body).complete;
+
+    // An upload nobody finishes would otherwise leave MEGA holding a request
+    // open for a stream that never ends.
+    upload.catch(() => body.destroy());
+
+    return {
       provider: this.id,
-      // No provider-side handle: there is no session at MEGA to hold one.
+      // No provider-side handle to remember: the open stream is the session.
       remoteSessionId: joinPath(normalisePath(path), meta.name),
       chunkSize: UPLOAD_CHUNK,
-      state: { tokens, path: normalisePath(path), meta, parts: [] as Uint8Array[], seen: 0 },
-    });
+      state: { tokens, body, upload, written: 0, size: meta.sizeBytes },
+    };
   }
 
   override async uploadChunk(
@@ -634,34 +671,39 @@ export class MegaAdapter extends BaseAdapter {
   ): Promise<{ done: boolean; file?: OrbitFile }> {
     const state = session.state as unknown as {
       tokens: AccountTokens;
-      path: string;
-      meta: UploadMeta;
-      parts: Uint8Array[];
-      seen: number;
+      body: PassThrough;
+      upload: Promise<Node>;
+      written: number;
+      size: number;
     };
 
-    state.parts.push(chunk);
-    state.seen += chunk.byteLength;
+    try {
+      // Waits when MEGA is slower than the browser, which is what stops a fast
+      // uploader filling memory with what a slow connection has not taken yet.
+      if (!state.body.write(Buffer.from(chunk))) {
+        await new Promise<void>((resolve) => state.body.once('drain', resolve));
+      }
+    } catch (err) {
+      throw asProviderError(err);
+    }
+
+    state.written += chunk.byteLength;
     onProgress(chunk.byteLength);
 
-    // Held until the size is known, because that is what MEGA asks for first.
-    if (state.seen < state.meta.sizeBytes) return { done: false };
+    if (state.written < state.size) return { done: false };
 
-    const live = await open(state.tokens);
-    const folder = folderAt(live, state.path);
-    const body = Buffer.concat(state.parts.map((part) => Buffer.from(part)));
+    state.body.end();
 
     try {
-      const uploaded = await folder.upload(
-        { name: state.meta.name, size: body.length },
-        Readable.from(body),
-      ).complete;
+      const uploaded = await state.upload;
+      const live = await open(state.tokens);
 
       // The tree in memory predates the upload, so the new node is not in it.
       await live.reload();
 
       return { done: true, file: toOrbitFile(uploaded, live.root) };
     } catch (err) {
+      state.body.destroy();
       throw asProviderError(err);
     }
   }

@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AccountTokens } from '@orbit/shared-types';
 import { ProviderError } from '../base.js';
 import { MegaAdapter, megaInternals } from './mega.js';
 
@@ -209,11 +208,23 @@ describe('MegaAdapter', () => {
     assert.equal(can.relocate, true);
     assert.equal(can.rangeRequests, true);
 
-    // A server that cannot read the file cannot draw a picture of it, and a
-    // half-supported share is worse than none.
+    /*
+     * False means "the provider does not render them", which routes tiles to
+     * Orbit's own renderer - MEGA cannot draw a thumbnail because MEGA cannot
+     * read the file, but Orbit holds the key and can.
+     */
     assert.equal(can.thumbnails, false);
     assert.equal(can.sharedWithMe, false);
-    // MEGA takes a file in one piece and needs the size first.
+    /*
+     * Copying is a real operation here, and a cheap one: a second node
+     * pointing at the same stored object, with the key re-wrapped. Copying a
+     * two-gigabyte video costs what copying an empty file costs.
+     */
+    assert.equal(can.relocate, true);
+
+    // An interrupted upload starts again - there is nothing to resume into.
+    // The file is streamed through rather than buffered, so that costs
+    // restarts and not memory.
     assert.equal(can.resumableUpload, false);
     assert.equal(can.delta, false);
   });
@@ -230,20 +241,6 @@ describe('MegaAdapter', () => {
       () => adapter.connect({ kind: 'credentials', values: { username: 'a@b.c' } }),
       (err: unknown) =>
         err instanceof ProviderError && /email and password/i.test(err.userMessage ?? ''),
-    );
-  });
-
-  it('refuses to copy within an account rather than doing it the slow way', async () => {
-    const tokens: AccountTokens = { accessToken: 'not-json' };
-
-    /*
-     * MEGA has no server-side copy: a file is one encrypted object, and a
-     * second copy means uploading a second one. Refusing is better than a
-     * button labelled Copy that quietly downloads and re-uploads.
-     */
-    await assert.rejects(
-      () => adapter.relocate(tokens, 'id', '/somewhere', { copy: true }),
-      ProviderError,
     );
   });
 
