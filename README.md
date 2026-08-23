@@ -2,9 +2,14 @@
 
 One workspace for every cloud drive you own.
 
-Orbit aggregates Google Drive, OneDrive, Dropbox, pCloud, and any S3-compatible
-bucket behind a single, consistent interface — browse, upload, download, share,
-and manage files across every connected account without switching tabs.
+Orbit aggregates Google Drive, OneDrive, Dropbox, pCloud, MEGA, and any
+S3-compatible bucket behind a single, consistent interface — browse, upload,
+download, share, and manage files across every connected account without
+switching tabs.
+
+**Running your own copy:** [`docs/08-self-hosting.md`](docs/08-self-hosting.md).
+Four commands to a working instance; no Docker, no database server, no keys
+needed to start.
 
 Orbit never stores your files. It keeps metadata and encrypted credentials, and streams bytes
 on demand from the provider they already live in.
@@ -77,6 +82,7 @@ npm run test:e2e:ci  # Playwright, headless
 | `docs/05-owner-setup.md` | Step-by-step account, API key, and DNS setup |
 | `docs/06-developer-platform.md` | Design for the public API, OAuth apps, and API docs tab |
 | `docs/07-provider-icons.md` | Where the provider marks come from, and how to swap in official ones |
+| `docs/08-self-hosting.md` | **Running your own copy**, from clone to deploy |
 | `docs/decisions/` | Architecture decision records |
 | `docs/daily-log/` | Dated development log |
 
