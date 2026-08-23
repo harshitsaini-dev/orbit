@@ -128,4 +128,36 @@ test.describe('filtering by date', () => {
     await expect(options.filter({ hasText: 'Older than a year' })).toHaveCount(1);
     await expect(options.filter({ hasText: 'Older than 3 months' })).toHaveCount(1);
   });
+
+  test('hides the created filter on a drive that has no created date', async ({ page }) => {
+    await signIn(page);
+
+    await page.route('**/api/accounts', (route) =>
+      route.fulfill({ json: { accounts: [{ ...ACCOUNT, provider: 'dropbox', catalogueKey: 'dropbox' }] } }),
+    );
+    await page.route('**/api/files?**', (route) =>
+      route.fulfill({
+        json: {
+          accountId: ACCOUNT.id,
+          provider: 'dropbox',
+          path: '/',
+          files: [],
+          // Dropbox records when a client last wrote the file, which is not a
+          // creation time.
+          capabilities: { ...CAPABILITIES, reportsCreated: false },
+        },
+      }),
+    );
+
+    await openFilters(page);
+
+    // Still asks about modified - that one every provider can answer.
+    await expect(page.getByRole('button', { name: 'Modified', exact: true })).toBeVisible();
+
+    /*
+     * And says nothing about created. A filter that is present and returns
+     * nothing reads as an answer about the files rather than about the drive.
+     */
+    await expect(page.getByRole('button', { name: 'Created', exact: true })).toHaveCount(0);
+  });
 });

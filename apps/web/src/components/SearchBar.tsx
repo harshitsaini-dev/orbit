@@ -120,6 +120,7 @@ export function SearchBar({
   searching,
   resultCount,
   fullTextSupported,
+  createdSupported,
 }: {
   filters: SearchFilters;
   onChange: (filters: SearchFilters) => void;
@@ -127,6 +128,15 @@ export function SearchBar({
   searching: boolean;
   resultCount: number | null;
   fullTextSupported: boolean;
+  /**
+   * Whether this drive records a created date at all.
+   *
+   * Most do not - Dropbox records when a client last wrote the file, an S3
+   * object has a last-modified and nothing else. A filter that is there and
+   * returns nothing is worse than one that is not there: it looks like an
+   * answer about the files rather than about the drive.
+   */
+  createdSupported: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const active = hasCriteria(filters);
@@ -226,15 +236,17 @@ export function SearchBar({
               />
             </Field>
 
-            <Field label="Created">
-              <Select
-                label="Created"
-                value={filters.created}
-                onChange={(created) => set({ created })}
-                minWidth={175}
-                options={AGE_OPTIONS}
-              />
-            </Field>
+            {createdSupported && (
+              <Field label="Created">
+                <Select
+                  label="Created"
+                  value={filters.created}
+                  onChange={(created) => set({ created })}
+                  minWidth={175}
+                  options={AGE_OPTIONS}
+                />
+              </Field>
+            )}
 
             <Field label="Size">
               <Select

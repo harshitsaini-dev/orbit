@@ -54,27 +54,25 @@ import { useUploads } from '../lib/uploads.js';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
-/**
- * A ceiling on how much of one folder is pulled into the page.
+/*
+ * There is no limit on how much of a folder is loaded.
  *
- * It was five thousand, which is a real folder: five pages of a thousand and
- * then no way to reach the rest, on a drive where a camera roll passes that in
- * a couple of years. Fifty thousand rows is tens of megabytes of plain objects
- * and the page still only renders a thousand at a time, so what this really
- * bounds is memory rather than anything anybody sees.
+ * There was one, at five thousand, and it was a dead end - the pages past it
+ * could not be reached by any means, on a drive where a camera roll passes
+ * that in a couple of years. Then it was a pause with a button, which was the
+ * same dead end with an extra click in front of it.
  *
- * It is still a ceiling rather than no ceiling: a folder large enough to reach
- * it is one where the browser, not Orbit, is the thing that gives up - and a
- * tab that dies is worse than a message saying to search instead.
+ * Now a folder loads until the provider says there is nothing left. The cost
+ * is real and worth naming: a folder of two hundred thousand files is hundreds
+ * of requests and holds all of it in the tab. The count below says how far it
+ * has got while it happens, so a long one looks like work rather than a hang.
  */
-const MAX_FOLDER_ITEMS = 50_000;
 
-/**
- * The same ceiling for search results. The *matching* happens at the provider
- * over every file in the account, however many there are — this only bounds how
- * many matches are held in the page at once.
+/*
+ * Search has no ceiling either, for the same reason: a result nobody can reach
+ * is a result Orbit did not find. Matches arrive as they come, so a broad
+ * search is readable while the rest is still being fetched.
  */
-const MAX_SEARCH_RESULTS = 50_000;
 
 /** Rows per page. Past this a single list is slow to render and worse to read. */
 const PAGE_SIZE = 1000;
@@ -164,6 +162,7 @@ export function MyDrive() {
   const [viewMode, setViewMode] = useViewMode();
   const [loadingMore, setLoadingMore] = useState(false);
 
+
   const accountId = params.get('account') ?? '';
   const path = params.get('path') ?? '/';
 
@@ -245,8 +244,8 @@ export function MyDrive() {
    * rest is fetched behind it, so a large folder is usable straight away rather
    * than either truncated at 200 items or blank until every page has landed.
    *
-   * Capped, because a folder with a hundred thousand files would otherwise pull
-   * the lot into the page; the count below says when that happened.
+   * It runs to the end. Nothing is truncated and no page is unreachable; the
+   * count under the list says how far it has got while it works.
    */
   useEffect(() => {
     if (!listing?.nextCursor || !accountId) return;
@@ -268,23 +267,18 @@ export function MyDrive() {
 
           if (cancelled) return;
 
-          let reachedCap = false;
-
           setListing((current) => {
             // The folder changed under us; this page belongs to the old one.
             if (!current || current.path !== path) return current;
 
-            const combined = [...current.files, ...next.files];
-            reachedCap = combined.length >= MAX_FOLDER_ITEMS;
-
             return {
               ...current,
-              files: reachedCap ? combined.slice(0, MAX_FOLDER_ITEMS) : combined,
-              nextCursor: reachedCap ? undefined : next.nextCursor,
+              files: [...current.files, ...next.files],
+              nextCursor: next.nextCursor,
             };
           });
 
-          cursor = reachedCap ? undefined : next.nextCursor;
+          cursor = next.nextCursor;
         }
       } catch (err) {
         // A failed continuation leaves what already loaded in place; the count
@@ -305,6 +299,20 @@ export function MyDrive() {
   }, [accountId, path, listing?.nextCursor, listing?.path]);
 
   const capabilities = listing?.capabilities;
+
+  /*
+   * A created filter does not survive a move to a drive that cannot answer it.
+   *
+   * The control is hidden there, and a hidden filter that is still applied is
+   * the worst of both: the results are narrowed and nothing on the screen says
+   * why. Cleared rather than merely ignored, so switching back does not
+   * silently restore a filter somebody has forgotten setting.
+   */
+  useEffect(() => {
+    if (capabilities && !capabilities.reportsCreated && filters.created !== 'any') {
+      setFilters((current) => ({ ...current, created: 'any' }));
+    }
+  }, [capabilities, filters.created]);
   const searchActive = hasCriteria(filters);
 
   /**
@@ -363,7 +371,7 @@ export function MyDrive() {
             // rather than blank until every page has landed.
             setResults([...collected]);
 
-            cursor = collected.length >= MAX_SEARCH_RESULTS ? undefined : page.nextCursor;
+            cursor = page.nextCursor;
           } while (cursor);
         } catch (err) {
           if ((err as Error).name === 'AbortError') return;
@@ -1054,6 +1062,7 @@ export function MyDrive() {
           searching={searching}
           resultCount={results?.length ?? null}
           fullTextSupported={capabilities?.fullTextSearch ?? false}
+          createdSupported={capabilities?.reportsCreated ?? false}
         />
 
         {error && (
@@ -1328,20 +1337,13 @@ export function MyDrive() {
             {refreshing
               ? `${listing.files.length} items · checking for changes…`
               : loadingMore
-              ? `${listing.files.length} items so far, still loading…`
-              : listing.files.length >= MAX_FOLDER_ITEMS
-                ? `Showing ${MAX_FOLDER_ITEMS.toLocaleString()} items. This folder holds more than Orbit will load at once — use search to find something specific.`
-                : `${listing.files.length} ${listing.files.length === 1 ? 'item' : 'items'}`}
+                ? `${listing.files.length} items so far, still loading…`
+                : `${listing.files.length.toLocaleString()} ${listing.files.length === 1 ? 'item' : 'items'}`}
           </p>
         )}
 
-        {searchActive && results && results.length >= MAX_SEARCH_RESULTS && (
-          <p style={{ color: 'var(--warning)', fontSize: 13, padding: '0.75rem' }}>
-            More than {MAX_SEARCH_RESULTS.toLocaleString()} files matched. The search itself covered
-            every file in the account — this is only how many matches are held at once. Narrow it
-            with a filter to see the rest.
-          </p>
-        )}
+
+
       </section>
 
       {transferring && (
