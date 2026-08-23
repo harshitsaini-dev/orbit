@@ -1,6 +1,7 @@
 import type { ApiScope } from '@orbit/shared-types';
 import type { NextFunction, Request, Response } from 'express';
 import { resolveToken } from '../services/api-tokens.js';
+import { resolveAccessToken } from '../services/oauth-apps.js';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -8,6 +9,13 @@ declare global {
     interface Request {
       /** Set when a personal access token authorised this request. */
       apiTokenId?: string;
+      /**
+       * Set when an OAuth application's access token did, with the name of the
+       * application - so a log line says which program acted, not only which
+       * person it acted for.
+       */
+      oauthGrantId?: string;
+      oauthAppName?: string;
       /** What this request may do. Absent means it came from a session. */
       apiScopes?: ApiScope[];
     }
@@ -21,6 +29,12 @@ declare global {
  *
  * A **bearer token** is the real one: a script, a job, another program. It
  * carries scopes, and the request may do exactly what they say.
+ *
+ * An **OAuth access token** is the same thing on somebody else's behalf: a
+ * program a person allowed, carrying only the scopes they agreed to on the
+ * consent screen. It is resolved by the same call path so that every /v1 route
+ * treats the two identically - a route that had to ask which kind of token it
+ * was looking at would eventually be a route that forgot to.
  *
  * A **session cookie** is the reader of the documentation. The "try it"
  * console runs against this same API, and asking somebody to mint a token
@@ -56,6 +70,22 @@ export async function attachApiCaller(
 
   try {
     const context = await resolveToken(value);
+
+    if (!context) {
+      // Not a personal token: it may be an application's, which reaches the
+      // same place by a different door.
+      const caller = await resolveAccessToken(value);
+
+      if (caller) {
+        req.user = caller.user;
+        req.oauthGrantId = caller.grantId;
+        req.oauthAppName = caller.appName;
+        req.apiScopes = caller.scopes;
+        next();
+        return;
+      }
+    }
+
     if (!context) {
       /*
        * One answer for expired, revoked, mistyped and never-existed.
@@ -96,11 +126,12 @@ export async function attachApiCaller(
  * would.
  */
 export function requireApiAuth(req: Request, res: Response, next: NextFunction): void {
-  if (!req.user || (req.implicitUser && !req.apiTokenId)) {
+  if (!req.user || (req.implicitUser && !req.apiTokenId && !req.oauthGrantId)) {
     res.status(401).json({
       error: {
         code: 'unauthenticated',
-        message: 'Send a personal access token: Authorization: Bearer orbit_pat_…',
+        message:
+          'Send a token: Authorization: Bearer orbit_pat_… (your own) or orbit_at_… (an application’s)',
         requestId: String(res.locals['requestId'] ?? ''),
       },
     });

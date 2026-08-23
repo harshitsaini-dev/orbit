@@ -33,7 +33,10 @@ export type AuditAction =
   | 'token.create'
   | 'token.revoke'
   | 'webhook.create'
-  | 'webhook.delete';
+  | 'webhook.delete'
+  | 'oauth.app'
+  | 'oauth.grant'
+  | 'oauth.revoke';
 
 export interface RecordInput {
   actorId: string;

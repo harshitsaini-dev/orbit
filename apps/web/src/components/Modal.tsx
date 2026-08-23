@@ -98,9 +98,21 @@ export function Modal({
            */
           maxWidth: '100%',
           minWidth: 0,
+          /*
+           * And taller than the screen was the same bug on the other axis.
+           * A dialog with eight choices in it grew past the bottom, and the
+           * buttons that finish it went with it - the panel simply had no
+           * height limit, so there was nothing to scroll. Now the panel stops
+           * at the viewport and its own content scrolls inside it, which keeps
+           * the actions reachable at any height.
+           */
+          maxHeight: 'calc(100dvh - 2rem)',
+          overflowY: 'auto',
+          overscrollBehavior: 'contain',
           padding: 'clamp(1.25rem, 4vw, 1.75rem)',
           display: 'grid',
           gap: '1rem',
+          alignContent: 'start',
         }}
       >
         <div style={{ display: 'grid', gap: 4, minWidth: 0 }}>

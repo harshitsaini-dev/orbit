@@ -47,7 +47,14 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': { target: API_TARGET, changeOrigin: true },
-      '/auth': { target: API_TARGET, changeOrigin: true },
+      /*
+       * A regex, and for the same reason as `/s` below: Vite matches a string
+       * key by prefix, so '/auth' also caught `/authorize` - the app's own
+       * OAuth consent screen - and handed it to the API, which answered with
+       * its 404. Only in development, since production serves the two from
+       * different origins and nothing proxies at all.
+       */
+      '^/auth(/|$)': { target: API_TARGET, changeOrigin: true },
       '/health': { target: API_TARGET, changeOrigin: true },
       /*
        * Share pages, and the QR image the share dialog embeds.

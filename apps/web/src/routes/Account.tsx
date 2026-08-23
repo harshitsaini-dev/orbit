@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { PublicAccount, PublicUser, ThemeMode } from '@orbit/shared-types';
+import { AllowedApps } from '../components/AllowedApps.js';
 import { AllocationSettings } from '../components/AllocationSettings.js';
 import { Avatar } from '../components/Avatar.js';
 import { api, ApiError } from '../lib/api.js';
@@ -238,6 +239,8 @@ export function Account() {
           </div>
         </div>
       </section>
+
+      <AllowedApps />
     </div>
   );
 }

@@ -4,6 +4,19 @@
   "outputDirectory": "apps/web/dist",
   "installCommand": "npm ci --include=dev",
   "framework": null,
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "(.*)\\.vercel\\.app"
+        }
+      ],
+      "destination": "https://orbit.harshitsaini.in/:path*",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiError } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
 import { BrandMark } from '../components/BrandMark.js';
@@ -13,6 +13,16 @@ const RESEND_COOLDOWN_SECONDS = 60;
 export function Login() {
   const { user, mode, loading, requestCode, verifyCode } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+
+  /*
+   * Where to go once signed in, when something sent them here mid-task - an
+   * application's consent screen, most of the time. Only a path of Orbit's
+   * own: an absolute URL here would make the sign-in page an open redirect,
+   * which is exactly the thing worth phishing.
+   */
+  const raw = params.get('next') ?? '';
+  const next = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/';
 
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [email, setEmail] = useState('');
@@ -33,8 +43,8 @@ export function Login() {
   }, [step]);
 
   if (loading) return null;
-  if (user) return <Navigate to="/" replace />;
-  if (mode === 'local') return <Navigate to="/" replace />;
+  if (user) return <Navigate to={next} replace />;
+  if (mode === 'local') return <Navigate to={next} replace />;
 
   async function submitEmail(event: FormEvent) {
     event.preventDefault();
@@ -57,7 +67,7 @@ export function Login() {
     setBusy(true);
     try {
       await verifyCode(email, code);
-      navigate('/', { replace: true });
+      navigate(next, { replace: true });
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not sign you in. Try again.');
       setCode('');

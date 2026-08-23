@@ -32,6 +32,7 @@ import { Account } from './routes/Account.js';
 import { Dashboard } from './routes/Dashboard.js';
 import { Landing } from './routes/Landing.js';
 import { Login } from './routes/Login.js';
+import { Authorize } from './routes/Authorize.js';
 import { Privacy, Terms } from './routes/Legal.js';
 import { MyDrive } from './routes/MyDrive.js';
 import { ApiDocs } from './routes/ApiDocs.js';
@@ -293,6 +294,10 @@ export function App() {
       {/* Public on purpose. A consent screen links to the privacy policy for
           somebody who has not signed in and may be deciding not to, and a
           policy behind a sign-in wall is no policy at all. */}
+      {/* Outside the workspace shell on purpose: a consent screen is a
+          decision, and a sidebar full of somewhere else to click is not what
+          somebody should be reading at that moment. */}
+      <Route path="/authorize" element={<Authorize />} />
       <Route path="/privacy" element={<Privacy />} />
       <Route path="/terms" element={<Terms />} />
       {/* The root is the only address that differs by who is asking: a pitch

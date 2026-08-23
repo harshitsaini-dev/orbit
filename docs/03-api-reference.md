@@ -335,6 +335,59 @@ Events published: `file.uploaded`, `file.deleted`, `share.created`, `share.opene
 `transfer.completed`, `sync.completed`. All of them facts rather than intentions — something
 finished, appeared or was opened. `share.opened` carries nothing about the visitor.
 
+## Applications (OAuth)
+
+The step past a personal access token. A token is a credential its owner pastes into their own
+script; an application is how a program asks **another** person for access, without ever seeing
+their password.
+
+Deliberately a small subset of OAuth 2.1, and the omissions are the point: only the authorisation
+code flow, PKCE always rather than optionally, exact redirect matching rather than prefix, codes
+usable once and for a minute. The implicit flow and the password grant are not implemented — both
+hand a credential to somewhere it cannot be kept, and both were removed from the specification.
+
+### `GET /oauth/authorize`
+`response_type=code`, `client_id`, `redirect_uri`, `scope`, `code_challenge`,
+`code_challenge_method=S256`, and your own `state`. Validates everything and then **302s to
+Orbit's own consent screen** — so what a person reads before granting access is rendered by the
+app they are already signed in to.
+
+An unregistered `redirect_uri`, an unknown client or a missing PKCE challenge is an **error page,
+never a redirect**. Sending the error to the address in the request is how an open redirect gets
+built out of an authorisation server.
+
+An application cannot be granted more than it registered for, whatever the URL asks for.
+
+### `POST /oauth/token`
+Form-encoded. `grant_type=authorization_code` with `code`, `client_id`, `redirect_uri` and
+`code_verifier` (plus `client_secret` for a confidential client), or `grant_type=refresh_token`
+with `refresh_token` and `client_id`.
+
+```json
+{ "access_token": "orbit_at_…", "refresh_token": "orbit_rt_…", "token_type": "Bearer",
+  "expires_in": 3600, "scope": "files:read files:download" }
+```
+
+`no-store`, because the response is a credential. One error — `invalid_grant` — for every reason a
+code was refused: naming which check failed tells an attacker which one to work on.
+
+A code is usable **once**. A second attempt revokes the grant the first one created, because a
+code redeemed twice means somebody else has it. The refresh token rotates on every use.
+
+Access tokens work anywhere under `/v1`, carrying exactly the scopes shown on the consent screen.
+
+### `GET|POST|DELETE /api/oauth/apps`
+Registering your own applications. `redirectUris` are matched exactly and must be https, or http
+on `localhost`/`127.0.0.1` for a desktop app, or a private scheme for a phone. `confidential:
+false` for an app that cannot keep a secret — shipping one to a phone or a browser only means
+shipping it to everybody, and PKCE is what proves those instead.
+
+`POST /api/oauth/apps/:id/rotate` issues a new client secret; the old one stops at once.
+
+### `GET /api/oauth/allowed`, `DELETE /api/oauth/allowed/:appId`
+What this person has allowed, and taking it back. Revoking clears the tokens rather than only
+flagging the row, so a stolen one matches nothing.
+
 ### `GET /api/connectable`
 Only the catalogue entries with a working adapter behind them, so the connect UI never offers a
 dead end. The full intended list is `GET /api/catalogue`.

@@ -19,6 +19,7 @@ import { schedulesRouter } from './routes/schedules.js';
 import { trashRouter } from './routes/trash.js';
 import { profileRouter } from './routes/profile.js';
 import { sharesRouter } from './routes/shares.js';
+import { oauthRouter } from './routes/oauth.js';
 import { transfersRouter } from './routes/transfers.js';
 import { webhooksRouter } from './routes/webhooks.js';
 import { uploadsRouter } from './routes/uploads.js';
@@ -113,6 +114,13 @@ export function createApp(): Express {
       ? next()
       : express.json({ limit: '1mb' })(req, res, next),
   );
+  /*
+   * The token endpoint takes a form, because that is what the OAuth
+   * specification says and what every client library sends. JSON is parsed
+   * above as well, so a client that sends that instead still works rather than
+   * getting an unhelpful 400 about a grant type it did send.
+   */
+  app.use('/oauth/token', express.urlencoded({ extended: false, limit: '8kb' }));
   // The share page's password form posts urlencoded, since it runs no scripts.
   app.use('/s', express.urlencoded({ extended: false, limit: '4kb' }));
   app.use(cookieParser());
@@ -203,6 +211,7 @@ export function createApp(): Express {
   app.use(v1Router);
   app.use(transfersRouter);
   app.use(webhooksRouter);
+  app.use(oauthRouter);
   app.use(uploadsRouter);
 
   app.use((_req, res) => {

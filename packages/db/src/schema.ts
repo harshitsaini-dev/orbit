@@ -709,3 +709,119 @@ export const webhookDeliveries = sqliteTable(
   },
   (t) => [index('webhook_delivery_idx').on(t.webhookId, t.sentAt)],
 );
+
+/**
+ * A program somebody else wrote, asking to act on a user's behalf.
+ *
+ * The step past a personal access token. A token is a credential its owner
+ * pastes into their own script; this is how a third party asks *another*
+ * person for access, without ever seeing their password - the thing OAuth
+ * exists for and the reason it cannot be approximated with a token field.
+ *
+ * `clientSecretHash` is null for a public client. A single-page app or a phone
+ * cannot hold a secret - shipping one only means shipping it to everybody - so
+ * those authenticate with PKCE alone, which is what PKCE is for.
+ */
+export const oauthApps = sqliteTable(
+  'oauth_apps',
+  {
+    id: text('id').primaryKey(),
+    ownerId: text('owner_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    description: text('description'),
+    website: text('website'),
+    clientId: text('client_id').notNull(),
+    /** Null for a public client, which proves itself with PKCE instead. */
+    clientSecretHash: text('client_secret_hash'),
+    /**
+     * Where an authorisation may be sent back to, as a JSON array.
+     *
+     * Registered in advance and matched exactly - never by prefix. A prefix
+     * match is how an open redirect becomes a stolen authorisation code.
+     */
+    redirectUris: text('redirect_uris').notNull(),
+    /** The most this app may ever ask for, whatever a request says. */
+    scopes: text('scopes').notNull(),
+    createdAt: text('created_at').notNull().default(now),
+  },
+  (t) => [
+    uniqueIndex('oauth_app_client_uq').on(t.clientId),
+    index('oauth_app_owner_idx').on(t.ownerId),
+  ],
+);
+
+/**
+ * An authorisation code, between the consent screen and the token exchange.
+ *
+ * Lives for a minute and is usable once. Stored as a hash, like every other
+ * credential here: a code sitting in a database in the clear is a code anybody
+ * with a copy of the database can redeem.
+ *
+ * `challenge` is the PKCE code challenge. It is required rather than optional -
+ * a code intercepted on the way back from the consent screen is worthless
+ * without the verifier that only the app that started the flow holds, and
+ * making that optional means the one client that skips it is the one that gets
+ * robbed.
+ */
+export const oauthCodes = sqliteTable(
+  'oauth_codes',
+  {
+    codeHash: text('code_hash').primaryKey(),
+    appId: text('app_id')
+      .notNull()
+      .references(() => oauthApps.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    redirectUri: text('redirect_uri').notNull(),
+    scopes: text('scopes').notNull(),
+    challenge: text('challenge').notNull(),
+    expiresAt: text('expires_at').notNull(),
+    /**
+     * Set rather than deleted on redemption.
+     *
+     * A second attempt with the same code means it was captured, and the
+     * answer is to revoke what it granted - which needs the row to still be
+     * there to know what that was.
+     */
+    usedAt: text('used_at'),
+    createdAt: text('created_at').notNull().default(now),
+  },
+  (t) => [index('oauth_code_expiry_idx').on(t.expiresAt)],
+);
+
+/**
+ * What one person has allowed one app to do, and the tokens that carry it.
+ *
+ * One row per (app, person): authorising the same app twice replaces the grant
+ * rather than accumulating them, so "which apps can reach my drives" has a
+ * short and honest answer.
+ */
+export const oauthGrants = sqliteTable(
+  'oauth_grants',
+  {
+    id: text('id').primaryKey(),
+    appId: text('app_id')
+      .notNull()
+      .references(() => oauthApps.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    scopes: text('scopes').notNull(),
+    /** Long-lived, hashed. Null once the grant is revoked. */
+    refreshHash: text('refresh_hash'),
+    /** Short-lived, hashed, replaced on every refresh. */
+    accessHash: text('access_hash'),
+    accessExpiresAt: text('access_expires_at'),
+    lastUsedAt: text('last_used_at'),
+    revokedAt: text('revoked_at'),
+    createdAt: text('created_at').notNull().default(now),
+  },
+  (t) => [
+    uniqueIndex('oauth_grant_uq').on(t.appId, t.userId),
+    index('oauth_grant_access_idx').on(t.accessHash),
+    index('oauth_grant_refresh_idx').on(t.refreshHash),
+  ],
+);

@@ -1,12 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
-import { E2E_DB_URL } from './e2e/paths.js';
+import { E2E_API_PORT, E2E_API_URL, E2E_DB_URL, E2E_WEB_PORT, E2E_WEB_URL } from './e2e/paths.js';
 
 // Dedicated ports so the suite never collides with - or silently reuses - a
 // hand-started dev server that lacks the env this config sets below.
-const WEB_PORT = 5174;
-const API_PORT = 8788;
-const WEB_URL = `http://localhost:${WEB_PORT}`;
-const API_URL = `http://localhost:${API_PORT}`;
+const WEB_PORT = E2E_WEB_PORT;
+const API_PORT = E2E_API_PORT;
+const WEB_URL = E2E_WEB_URL;
+const API_URL = E2E_API_URL;
 
 export default defineConfig({
   testDir: './e2e',

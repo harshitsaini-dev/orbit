@@ -10,6 +10,7 @@ import { Checkbox } from '../components/Checkbox.js';
 import { DialogActions, Modal } from '../components/Modal.js';
 import { ConfirmDialog } from '../components/NameDialog.js';
 import { Select } from '../components/Select.js';
+import { OAuthApps } from '../components/OAuthApps.js';
 import { Webhooks } from '../components/Webhooks.js';
 import { FileListSkeleton } from '../components/Skeleton.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
@@ -181,6 +182,8 @@ export function Developer() {
           </ul>
         )}
       </section>
+
+      <OAuthApps />
 
       <Webhooks />
 
