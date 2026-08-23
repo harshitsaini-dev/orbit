@@ -15,7 +15,19 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      /*
+       * 'prompt', not 'autoUpdate'.
+       *
+       * autoUpdate installs the new build silently and hands it to the *next*
+       * navigation, so a tab left open keeps running the bundle it loaded with
+       * and nothing on screen says so - which reads as "the deploy did not
+       * happen" when the deploy happened fine.
+       *
+       * 'prompt' is what makes onNeedRefresh fire, so UpdatePrompt can say a
+       * new version is ready and let the reader choose the moment. A page that
+       * refreshes itself mid-upload is worse than one a version behind.
+       */
+      registerType: 'prompt',
       // Without this the service worker only exists in a production build, so
       // the browser never offers to install the app while developing - and the
       // Install button could never be seen or tried locally.

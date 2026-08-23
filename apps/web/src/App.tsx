@@ -24,6 +24,7 @@ import {
 } from './components/Icons.js';
 import { StatusScreen } from './components/StatusScreen.js';
 import { Spotlight, useSpotlightShortcut } from './components/Spotlight.js';
+import { UpdatePrompt } from './components/UpdatePrompt.js';
 import { UploadIndicator } from './components/UploadIndicator.js';
 import { api } from './lib/api.js';
 import { useAuth } from './lib/auth.js';
@@ -216,6 +217,8 @@ function Workspace({ online }: { online: boolean }) {
       </header>
 
       {spotlight && <Spotlight accounts={accounts} onClose={() => setSpotlight(false)} />}
+
+      <UpdatePrompt />
 
       {!online && (
         <p className="offline-bar" role="status">

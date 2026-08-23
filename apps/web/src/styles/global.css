@@ -3023,6 +3023,46 @@ body {
   font-size: 10px;
 }
 
+/* --- update prompt -------------------------------------------------------- */
+
+/*
+ * Sits above everything and below nothing, at the bottom where a notice can be
+ * ignored. It is never a modal: the reader is mid-task and the whole point is
+ * that they choose when to reload.
+ */
+.update-prompt {
+  position: fixed;
+  left: 50%;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 2rem);
+  padding: 0.6rem 0.75rem 0.6rem 1rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  box-shadow: var(--shadow-clay);
+  font-size: 13px;
+}
+
+.update-prompt button {
+  padding: 0.35rem 0.8rem;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .update-prompt {
+    left: 1rem;
+    right: 1rem;
+    transform: none;
+    max-width: none;
+    justify-content: space-between;
+  }
+}
+
 /* --- spotlight ------------------------------------------------------------ */
 
 .spotlight__open {
