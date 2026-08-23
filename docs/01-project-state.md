@@ -635,20 +635,22 @@ would be storing a user's file, which is the one thing this product does not do.
   can be kept awake.
 - Sharing a selection makes one link per file. There is no bundle, because Orbit holds no bytes
   to build an archive from.
-- Bulk downloads go out as separate anchors 320ms apart. Chrome asks once for permission to
-  download several files; a browser that refuses that will only take the first.
+- Bulk downloads are fetched and handed over as blobs, one at a time. Chrome asks once for
+  permission to download several files; a browser that refuses that will only take the first.
+  A multi-file download therefore holds one file in memory at a time - fine for photos and
+  documents, and the wrong tool for four two-gigabyte videos at once.
 
 - `.claude/settings.json` is gitignored per the global no-agent-files rule, so the attribution
   suppression does not travel with the repo. `scripts/install-hooks.sh` installs a `commit-msg`
   hook that strips any stray trailer — **run it once after every fresh clone.**
-- PWA icons `public/icon-192.png` and `public/icon-512.png` are referenced by the manifest but
-  not created yet; they land in Phase 9.
 - The three.js hero rebuilds its whole scene when the accent or theme changes. That is fine at
   human click rates but would need per-material updates if it ever animated.
-- The landing copy currently sits behind the auth gate. Phase 9 should split a public marketing
-  page from the authenticated workspace.
 - Only Google Drive and Dropbox have a delta feed. Every other adapter declares `delta: false`
   and re-lists instead, which is why a large object store is measured in the background rather
   than on request.
 - Local mode trusts the machine it runs on: it has no sign-in at all. Do not expose an
   `AUTH_MODE=local` instance to a network.
+- A direct transfer has no TURN relay, so roughly one attempt in ten cannot connect. Deliberate:
+  TURN is bandwidth somebody pays for. The screen says so and points at upload-and-share.
+- Migrations do not run at boot. A deploy carries the code, not the schema - `npm run db:migrate`
+  against the production database is a separate step, and forgetting it is a 500 on a new table.
