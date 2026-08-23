@@ -5751,3 +5751,67 @@ body {
     display: none;
   }
 }
+
+/* -------------------------------------------------------------------------
+   A provider that is built but not set up here.
+
+   An OAuth client belongs to whoever runs Orbit, so a provider can be finished
+   and still unconnectable on this instance. Listing it plainly would be a
+   promise; leaving it out would lose the answer to "does Orbit support X". So
+   it is shown, dimmed, and labelled.
+   ------------------------------------------------------------------------- */
+
+.provider-soon {
+  margin-left: 8px;
+  padding: 0.1rem 0.5rem;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--text-muted) 16%, transparent);
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* Dimmed, but not so far that the name cannot be read - the point is to say
+   which service it is. */
+.landing__provider-grid > li[data-soon] {
+  opacity: 0.62;
+}
+
+.provider-soon-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.provider-soon-list > li {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 0.75rem 0.9rem;
+  border-radius: var(--radius-md);
+  opacity: 0.7;
+  min-width: 0;
+}
+
+.provider-soon-list > li > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.provider-soon-list > li strong {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.provider-soon-list > li span span {
+  color: var(--text-muted);
+  font-size: 12px;
+}

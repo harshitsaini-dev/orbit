@@ -51,6 +51,15 @@ export interface CatalogueEntry {
   forcePathStyle?: boolean;
   /** Extra inputs the connect form must collect beyond the standard ones. */
   fields?: CredentialField[];
+  /**
+   * Whether this instance can connect it today. Set by the server, not stored.
+   *
+   * An OAuth client belongs to whoever runs Orbit, so a provider can be fully
+   * built and still unusable here until its keys are registered. The pages say
+   * "coming soon" rather than offering a button that ends at the provider's
+   * own error page.
+   */
+  configured?: boolean;
 }
 
 const ACCESS_KEY_FIELDS: CredentialField[] = [

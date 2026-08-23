@@ -102,9 +102,11 @@ http://localhost:8787/auth/callback/<provider>
 click-by-click instructions are in [`05-owner-setup.md`](05-owner-setup.md) and
 [`05-onedrive-dropbox.md`](05-onedrive-dropbox.md).
 
-**A provider you have not registered simply does not appear** in the connect
-screen. Orbit derives that list from which adapters have credentials, so there
-is never a dead end to click on.
+**A provider you have not registered shows as "coming soon"** rather than as a
+button that fails. Orbit checks for the client id and secret at request time,
+so the connect screen only offers what this instance can actually reach — and
+the moment you add the keys and restart, it moves up into the list. Nothing to
+rebuild and nothing to edit in the code.
 
 ---
 

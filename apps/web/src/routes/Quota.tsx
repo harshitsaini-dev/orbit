@@ -21,6 +21,17 @@ export function Quota() {
   const [connectable, setConnectable] = useState<CatalogueEntry[]>([]);
 
   /*
+   * Providers this instance cannot connect yet.
+   *
+   * An OAuth client belongs to whoever runs Orbit, so a provider can be built
+   * and tested and still unusable here until its keys are registered. Listing
+   * it as an ordinary card would be a button that ends at the provider's own
+   * error page; leaving it out entirely would lose the answer to "will Orbit
+   * ever do X". So it is shown, and marked.
+   */
+  const [comingSoon, setComingSoon] = useState<CatalogueEntry[]>([]);
+
+  /*
    * Which accounts to show, once there are enough of them to look for one.
    *
    * Ten connections is a page you scroll to find the one you came for, and
@@ -64,12 +75,15 @@ export function Quota() {
 
   const load = useCallback(async () => {
     try {
-      const [{ accounts: rows }, { entries }] = await Promise.all([
+      const [{ accounts: rows }, { entries }, { entries: everything }] = await Promise.all([
         api<{ accounts: PublicAccount[] }>('/api/accounts'),
         api<{ entries: CatalogueEntry[] }>('/api/connectable'),
+        api<{ entries: CatalogueEntry[] }>('/api/catalogue'),
       ]);
+
       setAccounts(rows);
       setConnectable(entries);
+      setComingSoon(everything.filter((entry) => entry.configured === false));
       setLoadError(null);
     } catch (err) {
       setLoadError(err instanceof Error ? err : new Error('Could not load accounts'));
@@ -213,6 +227,31 @@ export function Quota() {
             );
           })}
         </ul>
+
+        {comingSoon.length > 0 && (
+          <>
+            <h2 style={{ fontSize: '0.95rem', margin: '1.5rem 0 0.2rem' }}>Not set up yet</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: '0 0 0.75rem', lineHeight: 1.6 }}>
+              Built and working, but this Orbit has no application registered with them. Whoever
+              runs it adds the keys and they appear above — nothing here needs rebuilding.
+            </p>
+
+            <ul className="provider-soon-list">
+              {comingSoon.map((entry) => (
+                <li key={entry.key} className="clay-sunken">
+                  <ProviderIcon provider={entry.key} size={24} />
+                  <span>
+                    <strong>
+                      {entry.label}
+                      <span className="provider-soon">Coming soon</span>
+                    </strong>
+                    <span>{entry.blurb}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
         <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: '1rem' }}>
           More providers arrive as their adapters land. See Home for the full list.
         </p>

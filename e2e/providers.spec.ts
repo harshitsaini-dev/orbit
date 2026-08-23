@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { signIn } from './helpers.js';
+import { E2E_API_URL } from './paths.js';
 
 /**
  * Every provider with a working adapter is offered, and named.
@@ -18,8 +19,13 @@ test.describe('the providers on offer', () => {
   test('the landing page lists every drive', async ({ page }) => {
     await page.goto('/');
 
+    // By card rather than by exact text: a provider this instance has no keys
+    // for carries a "Coming soon" badge inside the same heading, so its text
+    // is no longer the name on its own.
+    const cards = page.locator('.landing__provider-grid > li');
+
     for (const name of DRIVES) {
-      await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
+      await expect(cards.filter({ hasText: name })).toHaveCount(1);
     }
   });
 
@@ -27,8 +33,10 @@ test.describe('the providers on offer', () => {
     await signIn(page);
     await page.goto('/quota');
 
+    // Every one is on the page - the ones with keys as controls, the rest
+    // under "Not set up yet".
     for (const name of DRIVES) {
-      await expect(page.getByText(name, { exact: true }).first()).toBeVisible();
+      await expect(page.getByText(name, { exact: false }).first()).toBeVisible();
     }
 
     /*
@@ -102,5 +110,70 @@ test.describe('the providers on offer', () => {
     await expect(dialog.getByLabel('MEGA email')).toHaveValue('me@example.com');
 
     await expect(dialog.getByText(/two-factor authentication on/i)).toBeVisible();
+  });
+});
+
+/**
+ * A provider that is built and not set up here.
+ *
+ * An OAuth client belongs to whoever runs Orbit, not to Orbit - so a provider
+ * can be finished, tested and completely unconnectable on an instance whose
+ * owner has not registered one. It used to be listed as an ordinary card, and
+ * the button sent the browser to an authorise URL with no client id, which
+ * ends at the provider's own error page rather than anywhere Orbit could
+ * explain.
+ *
+ * The e2e server has keys for Google only, so OneDrive, Dropbox and pCloud are
+ * the unset ones here.
+ */
+test.describe('a provider without its keys', () => {
+  test('is marked on the landing page rather than promised or hidden', async ({ page }) => {
+    await page.goto('/');
+
+    const soon = page.locator('.landing__provider-grid > li[data-soon]');
+    await expect(soon.filter({ hasText: 'OneDrive' })).toHaveCount(1);
+    await expect(soon.filter({ hasText: 'pCloud' })).toHaveCount(1);
+
+    // Still named, because "does Orbit support X" is a question the page
+    // exists to answer.
+    await expect(soon.filter({ hasText: 'OneDrive' }).getByText('Coming soon')).toBeVisible();
+
+    // And the ones that do work are not marked.
+    await expect(
+      page.locator('.landing__provider-grid > li[data-soon]').filter({ hasText: 'Google Drive' }),
+    ).toHaveCount(0);
+  });
+
+  test('is not offered as something to click on the connect screen', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/quota');
+
+    await expect(page.getByText('Not set up yet')).toBeVisible();
+
+    const unset = page.locator('.provider-soon-list > li');
+    await expect(unset.filter({ hasText: 'OneDrive' })).toHaveCount(1);
+
+    // Not a button and not a link: there is nothing behind it yet.
+    await expect(page.getByRole('button', { name: /OneDrive/ })).toHaveCount(0);
+    await expect(page.getByRole('link', { name: /OneDrive/ })).toHaveCount(0);
+
+    // Google has keys on this instance, so it is a real control.
+    await expect(page.getByRole('link', { name: /Google Drive/ })).toHaveCount(1);
+  });
+
+  test('the catalogue says which is which', async ({ request }) => {
+    const res = await request.get(`${E2E_API_URL}/api/catalogue`);
+    const { entries } = (await res.json()) as Array<never> extends never
+      ? { entries: Array<{ key: string; configured: boolean }> }
+      : never;
+
+    const byKey = new Map(entries.map((entry) => [entry.key, entry.configured]));
+
+    expect(byKey.get('google_drive')).toBe(true);
+    expect(byKey.get('onedrive')).toBe(false);
+    // Credentials providers have nothing for an operator to set up: the user
+    // types the keys in.
+    expect(byKey.get('aws_s3')).toBe(true);
+    expect(byKey.get('mega')).toBe(true);
   });
 });

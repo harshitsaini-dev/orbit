@@ -8,6 +8,7 @@ import {
   beginAuthorisation,
   consumeAuthorisation,
   isOAuthProvider,
+  isProviderConfigured,
   redirectUriFor,
 } from '../lib/oauth.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -37,18 +38,23 @@ import { seedProfileFrom } from '../services/users.js';
 export const accountsRouter: Router = Router();
 
 /**
- * The catalogue entries backed by an adapter that actually works.
+ * The catalogue entries this instance can actually connect.
  *
  * Derived rather than listed. This was a hand-written array, and it drifted:
  * Azure and Bunny were implemented and still absent from the connect screen
- * because nobody remembered to add them to it. Asking the adapter whether it is
- * built means an entry is offered exactly when it can be connected, and a
- * provider finished tomorrow appears without anything here changing.
+ * because nobody remembered to add them to it.
+ *
+ * Two questions, not one. Is the adapter built - and, for an OAuth provider,
+ * has whoever runs this instance registered a client with the service? The
+ * second is not Orbit's to answer: the keys belong to the operator. Without
+ * them the button worked and sent the browser to an authorise URL with no
+ * client id, which ends at the provider's own error page rather than anywhere
+ * Orbit could explain.
  */
 function connectable(): string[] {
-  return PROVIDER_CATALOGUE.filter((entry) => isImplemented(entry.provider)).map(
-    (entry) => entry.key,
-  );
+  return PROVIDER_CATALOGUE.filter(
+    (entry) => isImplemented(entry.provider) && isProviderConfigured(entry.provider),
+  ).map((entry) => entry.key);
 }
 
 /** Sends the browser back to the app with a result it can show. */

@@ -1,10 +1,11 @@
-import { getAdapter, listAdapters } from '@orbit/adapters';
+import { getAdapter, isImplemented, listAdapters } from '@orbit/adapters';
 import { PROVIDER_CATALOGUE } from '@orbit/shared-types';
 import { Router } from 'express';
 import { sql } from 'drizzle-orm';
 import { db } from '../lib/db.js';
 import { env } from '../lib/env.js';
 import { log } from '../lib/log.js';
+import { isProviderConfigured } from '../lib/oauth.js';
 import { hub } from '../lib/ws.js';
 
 export const healthRouter: Router = Router();
@@ -65,6 +66,15 @@ healthRouter.get('/api/catalogue', (_req, res) => {
       ...entry,
       capabilities: getAdapter(entry.provider).capabilities,
       authType: getAdapter(entry.provider).authType,
+      /*
+       * Whether this instance can connect it today.
+       *
+       * An OAuth client belongs to whoever runs Orbit, so a provider is built
+       * and still unusable until its keys are set. Saying so lets the pages
+       * mark it rather than offering a button that walks somebody into the
+       * provider's own error page.
+       */
+      configured: isImplemented(entry.provider) && isProviderConfigured(entry.provider),
     })),
   });
 });

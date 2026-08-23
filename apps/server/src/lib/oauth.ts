@@ -89,6 +89,26 @@ export function isOAuthProvider(provider: string): provider is ProviderId {
   return provider in OAUTH_PROVIDERS;
 }
 
+/**
+ * Whether this provider can actually be connected on this instance.
+ *
+ * An OAuth client belongs to whoever runs Orbit, not to Orbit - so a
+ * self-hosted copy has a Google client only if its owner registered one. A
+ * provider without those keys is built, listed, and completely unusable: the
+ * connect button sends the browser to an authorise URL with no client id and
+ * the provider answers with its own error page.
+ *
+ * Everything else is configured by definition. An S3 bucket or a MEGA account
+ * is reached with credentials the user types in, so there is nothing for the
+ * operator to set up in advance.
+ */
+export function isProviderConfigured(provider: ProviderId): boolean {
+  const config = OAUTH_PROVIDERS[provider];
+  if (!config) return true;
+
+  return Boolean(process.env[config.clientIdEnv] && process.env[config.clientSecretEnv]);
+}
+
 export function redirectUriFor(provider: ProviderId): string {
   return `${env.API_URL}/auth/callback/${provider}`;
 }

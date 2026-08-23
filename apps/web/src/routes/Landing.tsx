@@ -199,11 +199,23 @@ export function Landing() {
                 {group.keys.map((key) => {
                   const entry = byKey.get(key);
                   if (!entry) return null;
+                  /*
+                   * A provider whose keys this instance does not hold is real,
+                   * built and tested - it simply cannot be connected here yet.
+                   * Saying "coming soon" is the truth; listing it plainly
+                   * beside the others would be a promise, and hiding it would
+                   * lose the answer to "does Orbit support X".
+                   */
+                  const soon = entry.configured === false;
+
                   return (
-                    <li key={key} className="clay-sunken">
+                    <li key={key} className="clay-sunken" data-soon={soon ? '' : undefined}>
                       <ProviderIcon provider={entry.key} size={26} />
                       <span>
-                        <strong>{entry.label}</strong>
+                        <strong>
+                          {entry.label}
+                          {soon && <span className="provider-soon">Coming soon</span>}
+                        </strong>
                         <span>{entry.blurb}</span>
                       </span>
                     </li>
