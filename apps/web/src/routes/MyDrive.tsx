@@ -1108,22 +1108,24 @@ export function MyDrive() {
             {/*
               * Reaching past the page you can see.
               *
-              * The checkbox takes the thousand rows in front of you, which is
-              * what a checkbox on a list should do. Everything is a different
-              * intention and gets its own button and its own count, so that
+              * The checkbox takes the rows in front of you, which is what a
+              * checkbox on a list should do. Everything is a different
+              * intention and gets its own control and its own count, so that
               * "select all" never quietly means "select some".
+              *
+              * Styled as a quiet chip rather than a link: it sits beside a
+              * 13px label, and an underlined accent-blue link at body size
+              * shouted louder than the list it was describing.
               */}
             {pageCount > 1 && (
               <button
                 type="button"
-                className="link-button"
+                className="list-controls__all"
                 onClick={() =>
                   setSelected(allSelected ? new Set() : new Set(visible.map((f) => f.remoteId)))
                 }
               >
-                {allSelected
-                  ? 'Clear selection'
-                  : `Select all ${visible.length.toLocaleString()} across pages`}
+                {allSelected ? 'Clear selection' : `Select all ${visible.length.toLocaleString()}`}
               </button>
             )}
 

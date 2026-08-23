@@ -5192,6 +5192,31 @@ body {
   font-size: 13px;
 }
 
+/*
+ * Selecting past the current page.
+ *
+ * A secondary action sitting next to a 13px muted label, so it is built like
+ * the view toggle rather than like a link: sunken chip, muted text, accent
+ * only on hover. The count is the whole message, and it should not have to
+ * shout to be read.
+ */
+.list-controls__all {
+  padding: 0.25rem 0.65rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken, var(--surface));
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.list-controls__all:hover,
+.list-controls__all:focus-visible {
+  color: var(--accent);
+}
+
 /* Pushes sort and the view toggle to the far end. */
 .list-controls__spacer {
   flex: 1;
