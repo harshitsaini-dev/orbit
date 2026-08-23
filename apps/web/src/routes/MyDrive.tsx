@@ -812,11 +812,22 @@ export function MyDrive() {
     else setPreviewing(file);
   }
 
-  const selectedFiles = paged.filter((file) => selected.has(file.remoteId));
-  const allVisibleSelected = paged.length > 0 && selectedFiles.length === paged.length;
+  /*
+   * What the actions act on is every selected row, not every rendered one.
+   *
+   * A selection can outlive the page it was made on, so this reads from the
+   * whole loaded list. Filtering by the rendered page instead would let a
+   * delete announce fifty thousand files and remove the current thousand,
+   * which is the worst of both: the wrong thing done, and reported as right.
+   */
+  const selectedFiles = visible.filter((file) => selected.has(file.remoteId));
+  const selectedHere = paged.filter((file) => selected.has(file.remoteId));
+  const allPageSelected = paged.length > 0 && selectedHere.length === paged.length;
+  const allSelected = visible.length > 0 && selectedFiles.length === visible.length;
 
+  /** The checkbox stays page-scoped; taking every page is a separate, named act. */
   function toggleSelectAll(): void {
-    setSelected(allVisibleSelected ? new Set() : new Set(paged.map((file) => file.remoteId)));
+    setSelected(allPageSelected ? new Set() : new Set(paged.map((file) => file.remoteId)));
   }
 
   if (accounts?.length === 0) {
@@ -1083,16 +1094,38 @@ export function MyDrive() {
         {visible.length > 0 && (
           <div className="list-controls">
             <Checkbox
-              checked={allVisibleSelected}
+              checked={allPageSelected}
               onChange={toggleSelectAll}
               label={
                 selectedFiles.length > 0
-                  ? `${selectedFiles.length} selected`
+                  ? `${selectedFiles.length.toLocaleString()} selected`
                   : pageCount > 1
-                    ? `Select page (${paged.length})`
-                    : `Select all ${visible.length}`
+                    ? `Select page (${paged.length.toLocaleString()})`
+                    : `Select all ${visible.length.toLocaleString()}`
               }
             />
+
+            {/*
+              * Reaching past the page you can see.
+              *
+              * The checkbox takes the thousand rows in front of you, which is
+              * what a checkbox on a list should do. Everything is a different
+              * intention and gets its own button and its own count, so that
+              * "select all" never quietly means "select some".
+              */}
+            {pageCount > 1 && (
+              <button
+                type="button"
+                className="link-button"
+                onClick={() =>
+                  setSelected(allSelected ? new Set() : new Set(visible.map((f) => f.remoteId)))
+                }
+              >
+                {allSelected
+                  ? 'Clear selection'
+                  : `Select all ${visible.length.toLocaleString()} across pages`}
+              </button>
+            )}
 
             <span className="list-controls__spacer" />
 
