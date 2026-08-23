@@ -225,13 +225,23 @@ export function Uploads() {
         </section>
       )}
 
-      {jobs.length === 0 && transfers.length === 0 ? (
-        <section className="clay" style={{ padding: 'clamp(1.5rem, 4vw, 2.5rem)', textAlign: 'center' }}>
-          <p style={{ color: 'var(--text-muted)', margin: 0 }}>
-            Uploads started from <Link to="/my-drive">My Drive</Link> appear here while they run, and
-            stay listed afterwards so a failure can be read in full.
-          </p>
-        </section>
+      {/*
+        * Uploads only. The transfers between clouds have their own section
+        * above, and the two were sharing a condition - so a page with a
+        * transfer running and nothing uploaded this session drew an empty
+        * panel under it, because the list inside is built from `jobs` and
+        * `jobs` was empty. An empty card reads as something that failed to
+        * load rather than as a section with nothing in it.
+        */}
+      {jobs.length === 0 ? (
+        transfers.length === 0 && (
+          <section className="clay" style={{ padding: 'clamp(1.5rem, 4vw, 2.5rem)', textAlign: 'center' }}>
+            <p style={{ color: 'var(--text-muted)', margin: 0 }}>
+              Uploads started from <Link to="/my-drive">My Drive</Link> appear here while they run,
+              and stay listed afterwards so a failure can be read in full.
+            </p>
+          </section>
+        )
       ) : (
         <section className="clay" style={{ padding: '0.75rem' }}>
           <ul className="upload-list">

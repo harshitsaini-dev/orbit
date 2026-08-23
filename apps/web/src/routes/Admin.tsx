@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ConfirmDialog } from '../components/NameDialog.js';
+import { Select } from '../components/Select.js';
 import { FileListSkeleton } from '../components/Skeleton.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { ApiError, api } from '../lib/api.js';
@@ -177,17 +178,25 @@ export function Admin() {
                 </span>
               </span>
 
-              <select
-                className="clay-sunken"
-                aria-label={`Role for ${person.email}`}
+              {/*
+                * The app's own control, not a native <select>.
+                *
+                * This was the last one left. A browser draws its own dropdown
+                * from the operating system's palette and ignores the theme
+                * entirely - so on a dark page it opened as a white list with a
+                * blue highlight, which reads as a piece of another application
+                * that happens to be on top.
+                */}
+              <Select
                 value={person.role}
-                onChange={(event) =>
-                  void changeRole(person, event.target.value as AdminUser['role'])
-                }
-              >
-                <option value="user">User</option>
-                <option value="superadmin">Admin</option>
-              </select>
+                onChange={(role) => void changeRole(person, role)}
+                label={`Role for ${person.email}`}
+                options={[
+                  { value: 'user' as const, label: 'User' },
+                  { value: 'superadmin' as const, label: 'Admin' },
+                ]}
+                minWidth={110}
+              />
 
               <button
                 type="button"

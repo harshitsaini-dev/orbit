@@ -5418,9 +5418,6 @@ body {
    ------------------------------------------------------------------------- */
 
 @media (max-width: 700px) {
-  .dup-toolbar-gap {
-    display: none;
-  }
 
   .dup-toolbar {
     gap: 0.75rem !important;
@@ -5737,4 +5734,20 @@ body {
 .account-filter button {
   padding: 0.4rem 0.9rem;
   font-size: 13px;
+}
+
+/* -------------------------------------------------------------------------
+   The spring in a page's toolbar.
+
+   `flex: 1` between a heading and its buttons pushes them to the far edge,
+   which is right on a wide screen. Wrapped onto a phone it becomes a full
+   line of nothing, and strands the button alone at the right-hand edge with a
+   gap above it - so on a phone the spring is simply removed and the button
+   follows the text it belongs to.
+   ------------------------------------------------------------------------- */
+
+@media (max-width: 700px) {
+  .toolbar-gap {
+    display: none;
+  }
 }

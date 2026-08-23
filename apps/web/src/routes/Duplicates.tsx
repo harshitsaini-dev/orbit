@@ -283,7 +283,7 @@ export function Duplicates() {
 
           {/* Pushes the controls to the far edge on a desk. On a phone it would
               push them off it, so the class turns the gap off there. */}
-          <span className="dup-toolbar-gap" style={{ flex: 1 }} />
+          <span className="toolbar-gap" style={{ flex: 1 }} />
 
           <div className="view-toggle" role="group" aria-label="How to show each set">
             <button

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { PublicAccount } from '@orbit/shared-types';
+import { Select } from '../components/Select.js';
 import { catalogueEntry } from '@orbit/shared-types';
 import { ConfirmDialog } from '../components/NameDialog.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
@@ -324,49 +325,43 @@ export function Schedules() {
 
           <label>
             <span>Drive to sync</span>
-            <select
-              className="clay-sunken"
+            <Select
               value={accountId}
-              onChange={(event) => setAccountId(event.target.value)}
-            >
-              {accounts.map((account) => (
-                <option key={account.id} value={account.id}>
-                  {account.nickname}
-                </option>
-              ))}
-            </select>
+              onChange={setAccountId}
+              label="Drive to sync"
+              options={accounts.map((account) => ({
+                value: account.id,
+                label: account.nickname,
+              }))}
+            />
           </label>
         </div>
 
         <div className="schedule-new__row">
           <label>
             <span>How often</span>
-            <select
-              className="clay-sunken"
+            <Select
               value={every}
-              onChange={(event) => setEvery(event.target.value as Every)}
-            >
-              <option value="hourly">Every hour</option>
-              <option value="daily">Every day</option>
-              <option value="weekly">Every week</option>
-              <option value="monthly">Every month</option>
-            </select>
+              onChange={setEvery}
+              label="How often"
+              options={[
+                { value: 'hourly' as const, label: 'Every hour' },
+                { value: 'daily' as const, label: 'Every day' },
+                { value: 'weekly' as const, label: 'Every week' },
+                { value: 'monthly' as const, label: 'Every month' },
+              ]}
+            />
           </label>
 
           {every === 'weekly' && (
             <label>
               <span>Day</span>
-              <select
-                className="clay-sunken"
+              <Select
                 value={weekday}
-                onChange={(event) => setWeekday(Number(event.target.value))}
-              >
-                {DAYS.map((day, index) => (
-                  <option key={day} value={index}>
-                    {day}
-                  </option>
-                ))}
-              </select>
+                onChange={setWeekday}
+                label="Day"
+                options={DAYS.map((day, index) => ({ value: index, label: day }))}
+              />
             </label>
           )}
 

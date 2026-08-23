@@ -153,7 +153,7 @@ export function Webhooks() {
           </p>
         </div>
 
-        <span style={{ flex: 1 }} />
+        <span className="toolbar-gap" style={{ flex: 1 }} />
 
         <button
           type="button"

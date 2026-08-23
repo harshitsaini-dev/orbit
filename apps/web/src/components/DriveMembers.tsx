@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AccessLevel, DriveMember, PublicAccount } from '@orbit/shared-types';
+import { Select } from './Select.js';
 import { ApiError, api } from '../lib/api.js';
 
 /**
@@ -200,18 +201,13 @@ export function DriveMembers({ account }: { account: PublicAccount }) {
                 </span>
               </span>
 
-              <select
-                className="clay-sunken drive-members__level"
-                aria-label={`Access level for ${member.email}`}
+              <Select
                 value={member.level}
-                onChange={(event) => void change(member, event.target.value as AccessLevel)}
-              >
-                {LEVELS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(level) => void change(member, level)}
+                label={`Access level for ${member.email}`}
+                options={LEVELS.map((option) => ({ value: option.value, label: option.label }))}
+                minWidth={104}
+              />
 
               <button
                 type="button"
@@ -238,18 +234,13 @@ export function DriveMembers({ account }: { account: PublicAccount }) {
           onChange={(event) => setEmail(event.target.value)}
         />
 
-        <select
-          className="clay-sunken"
-          aria-label="Access level"
+        <Select
           value={level}
-          onChange={(event) => setLevel(event.target.value as AccessLevel)}
-        >
-          {LEVELS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          onChange={setLevel}
+          label="Access level"
+          options={LEVELS.map((option) => ({ value: option.value, label: option.label }))}
+          minWidth={104}
+        />
 
         <button type="submit" className="clay-button clay-button--accent" disabled={busy}>
           {busy ? 'Adding…' : 'Add'}
