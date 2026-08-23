@@ -79,6 +79,16 @@ export interface OrbitFile {
   isFolder: boolean;
   starred: boolean;
   modifiedAt: string;
+  /**
+   * When the provider says the file was created, where it says at all.
+   *
+   * Optional because most storage has no such thing. Drive, OneDrive and
+   * pCloud record it; Dropbox records when a client last wrote the file, an S3
+   * object has only a last-modified, and a MEGA node carries one timestamp
+   * that changes with the file. Absent means "this provider does not know",
+   * never "created at the epoch" - which is why it is not defaulted.
+   */
+  createdAt?: string;
   checksum?: string;
   /**
    * When the provider put it in the bin, where it says.
@@ -128,6 +138,17 @@ export interface SearchQuery {
   categories?: string[];
   /** ISO timestamp; only files changed since. */
   modifiedAfter?: string;
+  /**
+   * ISO timestamp; only files untouched since.
+   *
+   * The other direction, and the more useful one for tidying up: "everything
+   * older than a year" is the question somebody asks before deleting, and
+   * "changed in the last week" is not the same question backwards.
+   */
+  modifiedBefore?: string;
+  /** The same two, against the created date. Ignored by providers with none. */
+  createdAfter?: string;
+  createdBefore?: string;
   minSizeBytes?: number;
   maxSizeBytes?: number;
   starredOnly?: boolean;
@@ -242,6 +263,15 @@ export interface ProviderCapabilities {
   flatEnumeration: boolean;
   /** Whether the provider can return files ordered by when they last changed. */
   recentView: boolean;
+  /**
+   * Whether the provider records when a file was created, separately from when
+   * it last changed.
+   *
+   * Most do not. Filtering on a created date is therefore a question some
+   * drives cannot answer, and the search screen says which rather than
+   * quietly returning nothing from them.
+   */
+  reportsCreated: boolean;
   /** Whether the provider renders preview images Orbit can proxy. */
   thumbnails: boolean;
   /** Whether the provider can search its own contents, rather than Orbit paging everything. */

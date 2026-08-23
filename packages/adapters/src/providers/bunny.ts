@@ -62,6 +62,10 @@ export class BunnyAdapter extends BaseAdapter {
     search: false,
     fullTextSearch: false,
     recentView: false,
+    // No created date: what this provider records is when the file last
+    // changed, and reporting that as a creation time would be a lie a
+    // filter would then act on.
+    reportsCreated: false,
     /**
      * False: reaching every file means walking the tree a request per folder.
      * `listAllFiles` does exactly that, bounded, because the alternative is the

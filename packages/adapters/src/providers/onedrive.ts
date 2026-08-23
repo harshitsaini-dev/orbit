@@ -49,6 +49,7 @@ interface GraphItem {
   name: string;
   size?: number;
   lastModifiedDateTime?: string;
+  createdDateTime?: string;
   file?: { mimeType?: string; hashes?: { quickXorHash?: string; sha256Hash?: string } };
   folder?: { childCount?: number };
   parentReference?: { path?: string; driveId?: string };
@@ -81,6 +82,7 @@ export class OneDriveAdapter extends BaseAdapter {
     search: true,
     fullTextSearch: true,
     recentView: true,
+    reportsCreated: true,
     // /drive/root/delta walks everything in one paginated pass.
     flatEnumeration: true,
     reportsQuota: true,
@@ -228,6 +230,14 @@ export class OneDriveAdapter extends BaseAdapter {
       if (query.minSizeBytes !== undefined && file.sizeBytes < query.minSizeBytes) return false;
       if (query.maxSizeBytes !== undefined && file.sizeBytes > query.maxSizeBytes) return false;
       if (query.modifiedAfter && file.modifiedAt < query.modifiedAfter) return false;
+      if (query.modifiedBefore && file.modifiedAt > query.modifiedBefore) return false;
+      // Skipped rather than excluded where the provider has no created date:
+      // dropping every file would answer "none of yours are that old", which
+      // is a different claim from "this drive cannot say".
+      if (query.createdAfter && file.createdAt && file.createdAt < query.createdAfter)
+        return false;
+      if (query.createdBefore && file.createdAt && file.createdAt > query.createdBefore)
+        return false;
       if (query.starredOnly) return false;
       return true;
     });
@@ -574,6 +584,7 @@ export function graphToOrbitFile(item: GraphItem, virtualPath: string): OrbitFil
     // rather than absent.
     starred: false,
     modifiedAt: item.lastModifiedDateTime ?? new Date(0).toISOString(),
+    ...(item.createdDateTime ? { createdAt: item.createdDateTime } : {}),
   };
 
   // quickXorHash is Microsoft's own algorithm and comparable only with itself,

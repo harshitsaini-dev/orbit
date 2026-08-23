@@ -58,6 +58,10 @@ export class AzureBlobAdapter extends BaseAdapter {
     search: false,
     fullTextSearch: false,
     recentView: false,
+    // No created date: what this provider records is when the file last
+    // changed, and reporting that as a creation time would be a lie a
+    // filter would then act on.
+    reportsCreated: false,
     flatEnumeration: true,
     /** A container is billed by what is in it; there is no allowance. */
     reportsQuota: false,

@@ -92,6 +92,10 @@ const searchQuery = z.object({
   categories: z.string().optional(),
   under: z.string().optional(),
   since: z.string().datetime().optional(),
+  /* The other end of the range, and the same two against the created date. */
+  before: z.string().datetime().optional(),
+  createdSince: z.string().datetime().optional(),
+  createdBefore: z.string().datetime().optional(),
   minSize: z.coerce.number().int().nonnegative().optional(),
   maxSize: z.coerce.number().int().nonnegative().optional(),
   starred: z.enum(['1', '0']).optional(),
@@ -111,13 +115,35 @@ filesRouter.get('/api/search', requireAuth, async (req, res, next) => {
     return;
   }
 
-  const { q, categories, under, since, minSize, maxSize, starred, mine, fullText, accountId, cursor } =
-    parsed.data;
+  const {
+    q,
+    categories,
+    under,
+    since,
+    before,
+    createdSince,
+    createdBefore,
+    minSize,
+    maxSize,
+    starred,
+    mine,
+    fullText,
+    accountId,
+    cursor,
+  } = parsed.data;
 
   // A search with no criterion at all would return the entire drive, which is
   // never what anyone meant.
   const hasCriterion =
-    Boolean(q) || Boolean(categories) || Boolean(since) || minSize !== undefined || maxSize !== undefined || starred === '1';
+    Boolean(q) ||
+    Boolean(categories) ||
+    Boolean(since) ||
+    Boolean(before) ||
+    Boolean(createdSince) ||
+    Boolean(createdBefore) ||
+    minSize !== undefined ||
+    maxSize !== undefined ||
+    starred === '1';
 
   if (!hasCriterion) {
     res.status(400).json({
@@ -137,6 +163,9 @@ filesRouter.get('/api/search', requireAuth, async (req, res, next) => {
           categories: categories ? categories.split(',').filter(Boolean) : undefined,
           underPath: under,
           modifiedAfter: since,
+          modifiedBefore: before,
+          createdAfter: createdSince,
+          createdBefore,
           minSizeBytes: minSize,
           maxSizeBytes: maxSize,
           starredOnly: starred === '1',

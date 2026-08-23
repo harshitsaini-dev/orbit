@@ -53,6 +53,25 @@ async function send(mail: Mail): Promise<void> {
     subject: mail.subject,
     html: mail.html,
     text: mail.text,
+    /*
+     * Somewhere a reply can actually go.
+     *
+     * The From is a no-reply, which is honest but is also a small mark against
+     * a young domain: a sender nobody can answer looks more like bulk mail
+     * than like a person. This costs nothing and gives a real address for the
+     * one reply a sign-in code ever gets, which is "I did not ask for this".
+     */
+    ...(env.SUPPORT_EMAIL ? { replyTo: env.SUPPORT_EMAIL } : {}),
+    headers: {
+      /*
+       * Keeps Gmail from collapsing successive codes into one thread.
+       *
+       * Threaded, the newest code is hidden under a "show trimmed content"
+       * fold below an older one - so somebody reads the wrong six digits, and
+       * the mail that worked looks like the mail that did not.
+       */
+      'X-Entity-Ref-ID': `${Date.now()}`,
+    },
   });
 
   if (error) throw new Error(`Failed to send email: ${error.message}`);

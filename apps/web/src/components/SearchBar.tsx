@@ -9,8 +9,16 @@ export interface SearchFilters {
   text: string;
   scope: SearchScope;
   categories: FileCategory[];
-  /** Days back, or 0 for any time. */
-  withinDays: number;
+  /** When it last changed. */
+  modified: AgeKey;
+  /**
+   * When it was made, where the drive records that.
+   *
+   * Not every provider does - an S3 object has a last-modified and nothing
+   * else - so this filter names the drives that cannot answer rather than
+   * quietly returning nothing from them.
+   */
+  created: AgeKey;
   /** One of the named size bands, or 'any'. */
   size: 'any' | 'small' | 'medium' | 'large';
   starredOnly: boolean;
@@ -21,7 +29,8 @@ export const EMPTY_FILTERS: SearchFilters = {
   text: '',
   scope: 'folder',
   categories: [],
-  withinDays: 0,
+  modified: 'any',
+  created: 'any',
   size: 'any',
   starredOnly: false,
   fullText: false,
@@ -35,19 +44,66 @@ export const SIZE_BANDS: Record<SearchFilters['size'], { min?: number; max?: num
   large: { min: 100 * 1024 * 1024, label: 'Over 100 MB' },
 };
 
-const WITHIN_OPTIONS = [
-  { days: 0, label: 'Any time' },
-  { days: 1, label: 'Today' },
-  { days: 7, label: 'Past week' },
-  { days: 30, label: 'Past month' },
-  { days: 365, label: 'Past year' },
-];
+/**
+ * Both directions, because they answer different questions.
+ *
+ * "Changed in the past week" is what somebody asks when looking for what they
+ * were working on. "Older than a year" is what they ask before clearing space,
+ * and it is not the first question backwards - there was no way to ask it at
+ * all, so the only way to find old files was to sort by date and scroll.
+ */
+export type AgeKey =
+  | 'any'
+  | 'day'
+  | 'week'
+  | 'month'
+  | 'quarter'
+  | 'year'
+  | 'older-quarter'
+  | 'older-half'
+  | 'older-year'
+  | 'older-two-years';
+
+const DAY = 86_400_000;
+
+export const AGE_BANDS: Record<AgeKey, { label: string; withinDays?: number; olderThanDays?: number }> = {
+  any: { label: 'Any time' },
+  day: { label: 'Past 24 hours', withinDays: 1 },
+  week: { label: 'Past week', withinDays: 7 },
+  month: { label: 'Past month', withinDays: 30 },
+  quarter: { label: 'Past 3 months', withinDays: 90 },
+  year: { label: 'Past year', withinDays: 365 },
+  'older-quarter': { label: 'Older than 3 months', olderThanDays: 90 },
+  'older-half': { label: 'Older than 6 months', olderThanDays: 182 },
+  'older-year': { label: 'Older than a year', olderThanDays: 365 },
+  'older-two-years': { label: 'Older than 2 years', olderThanDays: 730 },
+};
+
+/** The two ISO bounds a band means, for the query string. */
+export function boundsFor(key: AgeKey): { after?: string; before?: string } {
+  const band = AGE_BANDS[key];
+
+  if (band.withinDays) {
+    return { after: new Date(Date.now() - band.withinDays * DAY).toISOString() };
+  }
+  if (band.olderThanDays) {
+    return { before: new Date(Date.now() - band.olderThanDays * DAY).toISOString() };
+  }
+
+  return {};
+}
+
+const AGE_OPTIONS = (Object.keys(AGE_BANDS) as AgeKey[]).map((key) => ({
+  value: key,
+  label: AGE_BANDS[key].label,
+}));
 
 export function hasCriteria(filters: SearchFilters): boolean {
   return (
     filters.text.trim() !== '' ||
     filters.categories.length > 0 ||
-    filters.withinDays > 0 ||
+    filters.modified !== 'any' ||
+    filters.created !== 'any' ||
     filters.size !== 'any' ||
     filters.starredOnly
   );
@@ -162,10 +218,21 @@ export function SearchBar({
 
             <Field label="Modified">
               <Select
-                label="Modified within"
-                value={filters.withinDays}
-                onChange={(withinDays) => set({ withinDays })}
-                options={WITHIN_OPTIONS.map((option) => ({ value: option.days, label: option.label }))}
+                label="Modified"
+                value={filters.modified}
+                onChange={(modified) => set({ modified })}
+                minWidth={175}
+                options={AGE_OPTIONS}
+              />
+            </Field>
+
+            <Field label="Created">
+              <Select
+                label="Created"
+                value={filters.created}
+                onChange={(created) => set({ created })}
+                minWidth={175}
+                options={AGE_OPTIONS}
               />
             </Field>
 

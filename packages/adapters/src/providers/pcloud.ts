@@ -49,6 +49,7 @@ interface PCloudMeta {
   size?: number;
   contenttype?: string;
   modified?: string;
+  created?: string;
   hash?: number;
   path?: string;
   thumb?: boolean;
@@ -76,6 +77,7 @@ export class PCloudAdapter extends BaseAdapter {
     search: false,
     fullTextSearch: false,
     recentView: false,
+    reportsCreated: true,
     /** Reaching every file means walking the tree, as with Bunny. */
     flatEnumeration: false,
     reportsQuota: true,
@@ -514,6 +516,7 @@ export function pcloudToOrbitFile(entry: PCloudMeta, parent: string): OrbitFile 
     isFolder,
     starred: false,
     modifiedAt: entry.modified ? new Date(entry.modified).toISOString() : new Date(0).toISOString(),
+    ...(entry.created ? { createdAt: new Date(entry.created).toISOString() } : {}),
   };
 
   /*

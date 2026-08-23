@@ -41,6 +41,7 @@ import {
   EMPTY_FILTERS,
   SIZE_BANDS,
   SearchBar,
+  boundsFor,
   hasCriteria,
   type SearchFilters,
 } from '../components/SearchBar.js';
@@ -54,17 +55,26 @@ import { useUploads } from '../lib/uploads.js';
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 /**
- * A ceiling on how much of one folder is pulled into the page. Well past any
- * folder a person browses, and short of the point where the browser struggles.
+ * A ceiling on how much of one folder is pulled into the page.
+ *
+ * It was five thousand, which is a real folder: five pages of a thousand and
+ * then no way to reach the rest, on a drive where a camera roll passes that in
+ * a couple of years. Fifty thousand rows is tens of megabytes of plain objects
+ * and the page still only renders a thousand at a time, so what this really
+ * bounds is memory rather than anything anybody sees.
+ *
+ * It is still a ceiling rather than no ceiling: a folder large enough to reach
+ * it is one where the browser, not Orbit, is the thing that gives up - and a
+ * tab that dies is worse than a message saying to search instead.
  */
-const MAX_FOLDER_ITEMS = 5000;
+const MAX_FOLDER_ITEMS = 50_000;
 
 /**
  * The same ceiling for search results. The *matching* happens at the provider
  * over every file in the account, however many there are — this only bounds how
  * many matches are held in the page at once.
  */
-const MAX_SEARCH_RESULTS = 5000;
+const MAX_SEARCH_RESULTS = 50_000;
 
 /** Rows per page. Past this a single list is slow to render and worse to read. */
 const PAGE_SIZE = 1000;
@@ -320,10 +330,15 @@ export function MyDrive() {
       if (filters.starredOnly) params.set('starred', '1');
       if (filters.fullText) params.set('fullText', '1');
 
-      if (filters.withinDays > 0) {
-        const since = new Date(Date.now() - filters.withinDays * 86_400_000);
-        params.set('since', since.toISOString());
-      }
+      // Each band is one bound or the other, never both: "past week" is a
+      // lower bound and "older than a year" is an upper one.
+      const modified = boundsFor(filters.modified);
+      if (modified.after) params.set('since', modified.after);
+      if (modified.before) params.set('before', modified.before);
+
+      const created = boundsFor(filters.created);
+      if (created.after) params.set('createdSince', created.after);
+      if (created.before) params.set('createdBefore', created.before);
 
       const band = SIZE_BANDS[filters.size];
       if (band.min !== undefined) params.set('minSize', String(band.min));

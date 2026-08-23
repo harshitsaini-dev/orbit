@@ -39,7 +39,7 @@ export const GOOGLE_DRIVE_SHORTCUT_MIME = 'application/vnd.google-apps.shortcut'
 const CHUNK_SIZE = 8 * 1024 * 1024;
 
 const FILE_FIELDS =
-  'id,name,mimeType,size,modifiedTime,starred,trashed,parents,md5Checksum,shortcutDetails';
+  'id,name,mimeType,size,modifiedTime,createdTime,starred,trashed,parents,md5Checksum,shortcutDetails';
 
 interface DriveFile {
   id: string;
@@ -47,6 +47,7 @@ interface DriveFile {
   mimeType: string;
   size?: string;
   modifiedTime?: string;
+  createdTime?: string;
   starred?: boolean;
   trashed?: boolean;
   parents?: string[];
@@ -95,6 +96,7 @@ export class GoogleDriveAdapter extends BaseAdapter {
     search: true,
     fullTextSearch: true,
     recentView: true,
+    reportsCreated: true,
     flatEnumeration: true,
     reportsQuota: true,
   };
@@ -477,6 +479,11 @@ export class GoogleDriveAdapter extends BaseAdapter {
     if (query.starredOnly) clauses.push('starred = true');
     if (query.ownedByMeOnly) clauses.push("'me' in owners");
     if (query.modifiedAfter) clauses.push(`modifiedTime > '${query.modifiedAfter}'`);
+    if (query.modifiedBefore) clauses.push(`modifiedTime < '${query.modifiedBefore}'`);
+    // Drive is the one provider that can answer this at its end rather than
+    // by having Orbit read every result and throw most of them away.
+    if (query.createdAfter) clauses.push(`createdTime > '${query.createdAfter}'`);
+    if (query.createdBefore) clauses.push(`createdTime < '${query.createdBefore}'`);
 
     const page = await providerJson<DriveList>(this.id, `${API}/files`, {
       headers: this.auth(tokens),
@@ -1083,6 +1090,9 @@ export function toOrbitFile(file: DriveFile, virtualPath: string): OrbitFile {
     isFolder: effectiveMime === GOOGLE_DRIVE_FOLDER_MIME,
     starred: Boolean(file.starred),
     modifiedAt: file.modifiedTime ?? new Date(0).toISOString(),
+    // Left absent rather than defaulted: a missing created date means the
+    // provider did not say, and 1970 would be a date a filter would act on.
+    ...(file.createdTime ? { createdAt: file.createdTime } : {}),
     checksum: file.md5Checksum,
     shortcutTargetId: shortcut?.targetId,
   };

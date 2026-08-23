@@ -20,6 +20,11 @@ const schema = z.object({
 
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM: z.string().default('Orbit <no-reply@localhost>'),
+  /**
+   * Where a reply to a sign-in mail should go. Optional; without it the mail
+   * carries no Reply-To rather than one pointing at the no-reply address.
+   */
+  SUPPORT_EMAIL: z.string().email().optional(),
 
   SYNC_CRON: z.string().default('*/15 * * * *'),
 
@@ -103,6 +108,7 @@ export interface ProductionConfig {
   SESSION_SECRET?: string | undefined;
   APP_URL: string;
   API_URL: string;
+  SUPPORT_EMAIL?: string | undefined;
 }
 
 /**

@@ -352,6 +352,10 @@ export class MegaAdapter extends BaseAdapter {
     reportsQuota: true,
     flatEnumeration: true,
     recentView: true,
+    // No created date: what this provider records is when the file last
+    // changed, and reporting that as a creation time would be a lie a
+    // filter would then act on.
+    reportsCreated: false,
     /*
      * False means "the provider does not render them", not "there are none".
      *
@@ -566,9 +570,19 @@ export class MegaAdapter extends BaseAdapter {
 
     // A filter over a loaded tree, because MEGA has no search to ask. It only
     // ever sees names: the contents are encrypted, including from MEGA.
-    const found = descend(session.root).filter((node) =>
-      needle ? (node.name ?? '').toLowerCase().includes(needle) : true,
-    );
+    const found = descend(session.root).filter((node) => {
+      if (needle && !(node.name ?? '').toLowerCase().includes(needle)) return false;
+
+      // MEGA reports seconds and one timestamp per node - it has no separate
+      // created date, so `createdAfter` and `createdBefore` are not answerable
+      // here and the capability says so.
+      const modified = new Date((node.timestamp ?? 0) * 1000).toISOString();
+
+      if (query.modifiedAfter && modified < query.modifiedAfter) return false;
+      if (query.modifiedBefore && modified > query.modifiedBefore) return false;
+
+      return true;
+    });
 
     return page(found, session.root, pageToken);
   }

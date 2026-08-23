@@ -77,6 +77,10 @@ export class S3CompatibleAdapter extends BaseAdapter {
     search: true,
     fullTextSearch: false,
     recentView: false,
+    // No created date: what this provider records is when the file last
+    // changed, and reporting that as a creation time would be a lie a
+    // filter would then act on.
+    reportsCreated: false,
     flatEnumeration: true,
     reportsQuota: false,
   };
@@ -168,6 +172,14 @@ export class S3CompatibleAdapter extends BaseAdapter {
       if (query.minSizeBytes !== undefined && file.sizeBytes < query.minSizeBytes) return false;
       if (query.maxSizeBytes !== undefined && file.sizeBytes > query.maxSizeBytes) return false;
       if (query.modifiedAfter && file.modifiedAt < query.modifiedAfter) return false;
+      if (query.modifiedBefore && file.modifiedAt > query.modifiedBefore) return false;
+      // Skipped rather than excluded where the provider has no created date:
+      // dropping every file would answer "none of yours are that old", which
+      // is a different claim from "this drive cannot say".
+      if (query.createdAfter && file.createdAt && file.createdAt < query.createdAfter)
+        return false;
+      if (query.createdBefore && file.createdAt && file.createdAt > query.createdBefore)
+        return false;
       // Nothing in a bucket is starred, so a starred-only search matches nothing
       // rather than everything.
       if (query.starredOnly) return false;
