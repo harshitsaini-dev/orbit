@@ -122,6 +122,21 @@ export function Privacy() {
       </p>
       <p>Nothing is sold, and there is no advertising or tracking of any kind in Orbit.</p>
 
+      <h2>Sending a file directly</h2>
+      <p>
+        A direct transfer goes browser to browser. The file does not reach Orbit&rsquo;s server, is
+        not put in any drive, and nothing is kept once the tabs are closed &mdash; Orbit only
+        introduces the two ends to each other, and what it passes between them is a session
+        description it does not read.
+      </p>
+      <p>
+        For that introduction the browser asks a public STUN server (Cloudflare&rsquo;s, or
+        Google&rsquo;s if that one is unreachable) what its own address looks like from outside.
+        Those servers see an IP address and nothing else &mdash; no file, no name, no account.
+        There is no relay server, which is why some pairs of networks cannot connect at all and
+        Orbit says so rather than pretending.
+      </p>
+
       <h2>Google Drive specifically</h2>
       <p>
         Orbit’s use of information received from Google APIs follows the{' '}

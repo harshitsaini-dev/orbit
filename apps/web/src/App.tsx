@@ -12,6 +12,7 @@ import {
   CollectionsIcon,
   DuplicatesIcon,
   QuotaIcon,
+  HandoffIcon,
   SchedulesIcon,
   UploadFileIcon,
   SharedDrivesIcon,
@@ -33,6 +34,7 @@ import { Dashboard } from './routes/Dashboard.js';
 import { Landing } from './routes/Landing.js';
 import { Login } from './routes/Login.js';
 import { Authorize } from './routes/Authorize.js';
+import { Handoff } from './routes/Handoff.js';
 import { Privacy, Terms } from './routes/Legal.js';
 import { MyDrive } from './routes/MyDrive.js';
 import { ApiDocs } from './routes/ApiDocs.js';
@@ -62,6 +64,7 @@ const NAV = [
   { to: '/shared-drives', label: 'Shared drives', Icon: SharedDrivesIcon },
   { to: '/quota', label: 'Quota', Icon: QuotaIcon },
   { to: '/uploads', label: 'Uploads', Icon: UploadFileIcon },
+  { to: '/handoff', label: 'Send directly', Icon: HandoffIcon },
   { to: '/developer', label: 'Developer', Icon: CodeIcon },
   { to: '/account', label: 'Account', Icon: PersonIcon },
 ];
@@ -126,6 +129,7 @@ const PATHS = new Set([
   '/trash',
   '/schedules',
   '/quota',
+  '/handoff',
   '/uploads',
   '/account',
   '/developer',
@@ -245,6 +249,7 @@ function Workspace({ online }: { online: boolean }) {
             <Route path="/schedules" element={<Schedules />} />
             <Route path="/quota" element={<Quota />} />
             <Route path="/uploads" element={<Uploads />} />
+            <Route path="/handoff" element={<Handoff />} />
             <Route path="/account" element={<Account />} />
             <Route path="/developer" element={<Developer />} />
             <Route path="/developer/docs" element={<ApiDocs />} />

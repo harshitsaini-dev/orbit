@@ -227,6 +227,17 @@ export const InfoIcon = ({ size }: IconProps) => (
   </Icon>
 );
 
+export const HandoffIcon = ({ size }: IconProps) => (
+  <Icon size={size}>
+    {/* Two ends and something passing between them, with nothing in the middle
+        holding it - which is the whole feature. */}
+    <circle cx="5.4" cy="12" r="2.4" />
+    <circle cx="18.6" cy="12" r="2.4" />
+    <path d="M8.4 12h7.2" />
+    <path d="M13.2 9.4 15.8 12l-2.6 2.6" />
+  </Icon>
+);
+
 export const LinkIcon = ({ size }: IconProps) => (
   <Icon size={size}>
     {/* Two halves of a chain: an address that reaches something, held open. */}

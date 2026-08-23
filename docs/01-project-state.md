@@ -40,7 +40,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 18 | Cross-cloud duplicate finder | 🟢 Done |
 | 19 | Scheduled jobs | 🟢 Done |
 | 20 | Automatic tagging by OCR | ⚫ Built and removed 2026-08-23 — see the daily log |
-| 21 | Peer-to-peer direct transfer | ⚪ Designed, not started |
+| 21 | Peer-to-peer direct transfer | 🟢 Done — WebRTC, no TURN, honest fallback |
 | 22 | Share analytics | 🟢 Done |
 
 Phases 12 onward are specified in `18-planned-capabilities.md`, which records

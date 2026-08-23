@@ -35,10 +35,24 @@ export type ServerEvent =
   // A transfer outlives the request that started it, so its progress can only
   // reach the browser this way.
   | { type: 'transfer:progress'; id: string; transferred: number }
-  | { type: 'transfer:done'; id: string };
+  | { type: 'transfer:done'; id: string }
+  /*
+   * One half of a direct transfer talking to the other.
+   *
+   * The server never reads the payload - it is somebody's session description
+   * or an ICE candidate, and Orbit is only the post office. Kept opaque on
+   * purpose: a relay that understands what it carries is a relay somebody will
+   * later be tempted to log.
+   */
+  | { type: 'p2p:signal'; handoff: string; payload: unknown }
+  /** The other side arrived, or left before the transfer finished. */
+  | { type: 'p2p:peer'; handoff: string; present: boolean }
+  /** A third party tried to join a handoff that already has two ends. */
+  | { type: 'p2p:full'; handoff: string };
 
 /** Client -> server WebSocket frames. */
 export type ClientEvent =
   | { type: 'subscribe'; channel: string }
   | { type: 'unsubscribe'; channel: string }
-  | { type: 'ping' };
+  | { type: 'ping' }
+  | { type: 'p2p:signal'; handoff: string; payload: unknown };
