@@ -8,6 +8,7 @@ import { FileIcon } from '../components/FileIcon.js';
 import { FilePreview } from '../components/FilePreview.js';
 import { Checkbox } from '../components/Checkbox.js';
 import { ContextMenu, useContextMenu, type MenuItem } from '../components/ContextMenu.js';
+import { DrivePicker } from '../components/DrivePicker.js';
 import { DropZone } from '../components/DropZone.js';
 import { AddToCollection } from '../components/AddToCollection.js';
 import { DragSelectBox, useDragSelect } from '../components/DragSelect.js';
@@ -34,7 +35,6 @@ import { PHONE, useMediaQuery } from '../lib/media.js';
 import { useRangeSelection } from '../lib/selection.js';
 import { ConfirmDialog, NameDialog } from '../components/NameDialog.js';
 import { Pagination } from '../components/Pagination.js';
-import { Select } from '../components/Select.js';
 import { FileGridSkeleton, FileListSkeleton } from '../components/Skeleton.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import {
@@ -45,7 +45,6 @@ import {
   type SearchFilters,
 } from '../components/SearchBar.js';
 import { filesFromDataTransfer } from '../lib/upload.js';
-import { ProviderIcon } from '../components/ProviderIcon.js';
 import { api, ApiError } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
 import { forgetFolder, readFolder, writeFolder } from '../lib/cache.js';
@@ -832,94 +831,23 @@ export function MyDrive() {
           * was on - and on a phone, where the sidebar is gone too, there was
           * nothing on the screen naming it at all.
           */}
-        {accounts && accounts.length === 1 && accounts[0] && (
-          <p
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              margin: 0,
-              fontSize: 13,
-              color: 'var(--text-muted)',
-            }}
-          >
-            <ProviderIcon
-              provider={accounts[0].catalogueKey ?? accounts[0].provider}
-              size={18}
-            />
-            <span style={{ fontWeight: 600, color: 'var(--text)' }}>
-              {catalogueEntry(accounts[0].catalogueKey ?? accounts[0].provider)?.label ??
-                accounts[0].provider}
-            </span>
-            <span style={{ overflowWrap: 'anywhere' }}>{accounts[0].nickname}</span>
-          </p>
-        )}
-
-        {accounts && accounts.length > 1 && (
-          /*
-           * A row of drives on a desk, one menu on a phone.
-           *
-           * The strip is the better control when it fits: every drive visible,
-           * one tap to switch. On a phone it does not fit, and it sat directly
-           * under the navigation - which is also a horizontal scroller there -
-           * so the page had two of them stacked and a sideways swipe was a
-           * guess about which one would move.
-           *
-           * The icon beside it is the provider, which the nickname alone does
-           * not give away: two Google accounts and a Dropbox all read as an
-           * email address.
-           *
-           * On a desk the row wraps rather than scrolling sideways. A strip
-           * with a scrollbar hides the drives past the edge, and hiding a
-           * switch is worse than spending a second line on it - so it grows to
-           * three rows and only then scrolls, which is enough for more accounts
-           * than anybody has.
-           */
-          phone ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <ProviderIcon
-                provider={
-                  accounts.find((entry) => entry.id === accountId)?.catalogueKey ??
-                  accounts.find((entry) => entry.id === accountId)?.provider ??
-                  ''
-                }
-                size={18}
-              />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <Select
-                  label="Drive"
-                  value={accountId ?? ''}
-                  onChange={(next) => navigate({ account: next, path: '/' })}
-                  options={accounts.map((account) => ({
-                    value: account.id,
-                    label: account.nickname,
-                  }))}
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="drive-strip">
-              {accounts.map((account) => (
-                <button
-                  key={account.id}
-                  type="button"
-                  className="clay-button"
-                  aria-pressed={account.id === accountId}
-                  onClick={() => navigate({ account: account.id, path: '/' })}
-                  // Only the part that depends on which one is chosen. The rest
-                  // moved to `.drive-strip > button`, so the wrapping and the
-                  // chip shape are decided in one place rather than two.
-                  style={{
-                    boxShadow:
-                      account.id === accountId ? 'var(--shadow-clay-inset)' : 'var(--shadow-clay)',
-                  }}
-                >
-                  <ProviderIcon provider={account.catalogueKey ?? account.provider} size={18} />
-                  {account.nickname}
-                </button>
-              ))}
-            </div>
-          )
+        {/*
+          * Which drive this is, and how to change it - one control whether
+          * there is one account or twenty.
+          *
+          * It has been three things: a row that scrolled sideways and hid
+          * every drive past the third, a wrapped row that showed them all and
+          * spent three lines doing it, and now a menu that costs one line
+          * whatever the number. Switching drives is occasional; reading the
+          * files under it is constant, and the room belongs to the constant
+          * thing.
+          */}
+        {accounts && accounts.length > 0 && (
+          <DrivePicker
+            accounts={accounts}
+            accountId={accountId}
+            onChoose={(id) => navigate({ account: id, path: '/' })}
+          />
         )}
 
         <nav aria-label="Folder path" className="scroll-x">

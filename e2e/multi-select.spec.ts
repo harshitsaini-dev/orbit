@@ -240,10 +240,21 @@ test.describe('acting on a selection without a right button', () => {
     await expect(menu.getByText('Add to collection')).toBeVisible();
   });
 
-  test('names the drive and its provider', async ({ page }) => {
-    // With one account connected the switcher never appeared, so on a phone -
-    // no sidebar either - nothing on the screen said whose drive this was.
-    await expect(page.getByText('Google Drive')).toBeVisible();
-    await expect(page.getByText('stub@example.com')).toBeVisible();
+  test('names the drive it is showing', async ({ page }) => {
+    /*
+     * The switcher used to appear only with two accounts connected, so with
+     * one there was nothing on the screen saying whose drive this was - and on
+     * a phone, with no sidebar either, nothing at all.
+     *
+     * It is a picker now rather than a strip, and it names the account whether
+     * there is one or twenty. The provider is the icon beside it: three Gmail
+     * addresses are indistinguishable without one, and the word "Google Drive"
+     * beside every row was a word spent on the common case.
+     */
+    const picker = page.locator('.drive-picker');
+
+    await expect(picker).toBeVisible();
+    await expect(picker).toContainText('stub@example.com');
+    await expect(picker.locator('svg').first()).toBeVisible();
   });
 });

@@ -33,6 +33,8 @@ import { Account } from './routes/Account.js';
 import { Dashboard } from './routes/Dashboard.js';
 import { Landing } from './routes/Landing.js';
 import { Login } from './routes/Login.js';
+import { NavPicker, type NavEntry } from './components/NavPicker.js';
+import { PHONE, useMediaQuery } from './lib/media.js';
 import { Authorize } from './routes/Authorize.js';
 import { Handoff } from './routes/Handoff.js';
 import { Privacy, Terms } from './routes/Legal.js';
@@ -144,6 +146,21 @@ function Workspace({ online }: { online: boolean }) {
   const [spotlight, setSpotlight] = useState(false);
   const [accounts, setAccounts] = useState<PublicAccount[]>([]);
 
+  const phone = useMediaQuery(PHONE);
+
+  /*
+   * Admin is appended rather than living in NAV, and only for a superadmin.
+   *
+   * The page has always been there and nothing linked to it, so the only way in
+   * was typing the address - a poor way to reach a page somebody is meant to
+   * use. Hiding it from everyone else matches the API, which answers 404 rather
+   * than 403 so the admin surface is not confirmed to exist.
+   */
+  const pages: NavEntry[] =
+    user?.role === 'superadmin'
+      ? [...NAV, { to: '/admin', label: 'Admin', Icon: ShieldIcon }]
+      : NAV;
+
   const openSpotlight = useCallback(() => setSpotlight(true), []);
   useSpotlightShortcut(openSpotlight);
 
@@ -209,30 +226,30 @@ function Workspace({ online }: { online: boolean }) {
       )}
 
       <div className="app-body">
-        <nav className="clay app-nav" aria-label="Workspace">
-          {NAV.map(({ to, label, Icon }) => (
-            <NavLink key={to} to={to} end={to === '/'} className="app-nav__link">
-              <Icon />
-              {label}
-            </NavLink>
-          ))}
-
-          {/*
-            * Shown to a superadmin and to nobody else.
-            *
-            * The page has always been there and nothing linked to it, so the
-            * only way in was typing the address - which is a poor way to reach
-            * a page somebody is meant to use. Hiding it from everyone else
-            * matches the API, which answers 404 rather than 403 so the admin
-            * surface is not confirmed to exist.
-            */}
-          {user?.role === 'superadmin' && (
-            <NavLink to="/admin" className="app-nav__link">
-              <ShieldIcon />
-              Admin
-            </NavLink>
-          )}
-        </nav>
+        {/*
+          * A column on a desk, one control on a phone.
+          *
+          * The sidebar is free on a wide screen - it sits where nothing else
+          * would go. On a phone it is the screen, so it has been a sideways
+          * scroller that hid two thirds of the pages behind an unadvertised
+          * swipe, then a wrapped row of chips that showed all fifteen and spent
+          * six lines doing it. A menu costs one line however many pages there
+          * are, and unlike the strip it says which one you are on.
+          */}
+        {phone ? (
+          <div className="app-nav app-nav--picker">
+            <NavPicker entries={pages} />
+          </div>
+        ) : (
+          <nav className="clay app-nav" aria-label="Workspace">
+            {pages.map(({ to, label, Icon }) => (
+              <NavLink key={to} to={to} end={to === '/'} className="app-nav__link">
+                <Icon />
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+        )}
 
         <main className="app-main">
           <Routes>

@@ -2,12 +2,14 @@ import { expect, test, type Page } from '@playwright/test';
 import { signIn } from './helpers.js';
 
 /**
- * Nothing important behind a sideways swipe.
+ * The two pickers.
  *
- * Both of these were horizontal scrollers, and both hid most of their contents
- * past the right edge with nothing to say so. A strip that scrolls sideways
- * reads as "this is the whole list" — so the pages nobody could see were pages
- * nobody visited, and the drives past the third were drives nobody switched to.
+ * Both replaced strips that hid most of their contents. The drive switcher
+ * scrolled sideways, so every account past the third looked like it did not
+ * exist; the navigation on a phone did the same to two thirds of the pages.
+ * Wrapping them fixed the hiding and cost several lines of a screen that has
+ * none to spare, so both are menus now — one line each, however many are behind
+ * them.
  */
 
 const NAMES = [
@@ -21,8 +23,8 @@ const NAMES = [
 
 const ACCOUNTS = NAMES.map((nickname, i) => ({
   id: `acc-${i}`,
-  provider: 'google_drive',
-  catalogueKey: 'google_drive',
+  provider: i === 1 ? 'dropbox' : 'google_drive',
+  catalogueKey: i === 1 ? 'dropbox' : 'google_drive',
   nickname,
   usedBytes: 1000,
   quotaBytes: 1_000_000,
@@ -57,57 +59,93 @@ async function stub(page: Page): Promise<void> {
   );
 }
 
-test.describe('the drive switcher', () => {
-  test('wraps onto more lines instead of scrolling sideways', async ({ page }) => {
+test.describe('the drive picker', () => {
+  test('names the current drive and offers the rest behind one control', async ({ page }) => {
     await signIn(page);
     await stub(page);
     await page.goto('/my-drive');
 
-    const strip = page.locator('.drive-strip');
-    await expect(strip).toBeVisible();
+    const trigger = page.locator('.drive-picker');
+    await expect(trigger).toBeVisible();
 
-    // Nothing past the right edge.
-    const overflows = await strip.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
-    expect(overflows).toBe(false);
+    // Which one you are on, said rather than shown by colour at the far end of
+    // a scroll.
+    await expect(trigger).toContainText('first@example.com');
+    // And how many others there are, so the menu is worth opening.
+    await expect(trigger).toContainText(String(NAMES.length));
 
-    // Every drive is on the screen, not only the ones that fit on one line.
-    const chips = strip.locator('button');
-    await expect(chips).toHaveCount(NAMES.length);
+    // One line, whatever the number of accounts.
+    const height = (await trigger.boundingBox())!.height;
+    expect(height).toBeLessThan(56);
 
+    await trigger.click();
+
+    const menu = page.getByRole('menu');
     for (const name of NAMES) {
-      await expect(strip.getByText(name, { exact: true })).toBeInViewport();
+      await expect(menu.getByText(name, { exact: true })).toBeVisible();
     }
+  });
 
-    // And they are genuinely on more than one row.
-    const rows = await chips.evaluateAll(
-      (els) => new Set(els.map((el) => Math.round(el.getBoundingClientRect().top))).size,
-    );
-    expect(rows).toBeGreaterThan(1);
+  test('switching drives changes the drive', async ({ page }) => {
+    await signIn(page);
+    await stub(page);
+    await page.goto('/my-drive');
+
+    await page.locator('.drive-picker').click();
+    await page.getByRole('menuitem', { name: 'third.long.address@example.com' }).click();
+
+    await expect(page.locator('.drive-picker')).toContainText('third.long.address@example.com');
+    // The drive is in the address, so the page survives a reload and a shared
+    // link opens the same place.
+    expect(page.url()).toContain('account=acc-2');
   });
 });
 
 test.describe('the navigation on a phone', () => {
   test.use({ viewport: { width: 393, height: 850 } });
 
-  test('shows every page without a swipe', async ({ page }) => {
+  test('is one control that says which page you are on', async ({ page }) => {
     await signIn(page);
     await stub(page);
     await page.goto('/my-drive');
 
-    const nav = page.locator('.app-nav');
-    await expect(nav).toBeVisible();
+    const trigger = page.locator('.nav-picker');
+    await expect(trigger).toContainText('My Drive');
 
-    const overflows = await nav.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
-    expect(overflows).toBe(false);
+    // The whole navigation, in one line rather than six.
+    const height = (await trigger.boundingBox())!.height;
+    expect(height).toBeLessThan(56);
 
-    // The last entry used to be four swipes away.
-    await expect(nav.getByRole('link', { name: 'Account' })).toBeInViewport();
-    await expect(nav.getByRole('link', { name: 'Developer' })).toBeInViewport();
+    await trigger.click();
 
-    const rows = await nav
-      .locator('a')
-      .evaluateAll((els) => new Set(els.map((el) => Math.round(el.getBoundingClientRect().top))).size);
+    const menu = page.getByRole('menu');
+    // Including the entries that used to be four swipes away.
+    await expect(menu.getByRole('menuitem', { name: 'Account' })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Developer' })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: 'Dashboard' })).toBeVisible();
+  });
 
-    expect(rows).toBeGreaterThan(2);
+  test('goes where it is told', async ({ page }) => {
+    await signIn(page);
+    await stub(page);
+    await page.goto('/my-drive');
+
+    await page.locator('.nav-picker').click();
+    await page.getByRole('menuitem', { name: 'Duplicates' }).click();
+
+    await expect(page).toHaveURL(/\/duplicates/);
+    await expect(page.locator('.nav-picker')).toContainText('Duplicates');
+  });
+
+  test('the sidebar is still a sidebar on a desk', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await signIn(page);
+    await stub(page);
+    await page.goto('/my-drive');
+
+    // A column that would otherwise be empty costs nothing, so nothing is
+    // hidden there.
+    await expect(page.locator('.nav-picker')).toHaveCount(0);
+    await expect(page.getByRole('navigation', { name: 'Workspace' })).toBeVisible();
   });
 });
