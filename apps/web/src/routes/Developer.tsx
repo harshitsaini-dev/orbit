@@ -10,6 +10,7 @@ import { Checkbox } from '../components/Checkbox.js';
 import { DialogActions, Modal } from '../components/Modal.js';
 import { ConfirmDialog } from '../components/NameDialog.js';
 import { Select } from '../components/Select.js';
+import { Webhooks } from '../components/Webhooks.js';
 import { FileListSkeleton } from '../components/Skeleton.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { ApiError, api } from '../lib/api.js';
@@ -180,6 +181,8 @@ export function Developer() {
           </ul>
         )}
       </section>
+
+      <Webhooks />
 
       <section className="clay" style={{ padding: 'clamp(1.25rem, 3vw, 2rem)' }}>
         <h2 style={{ fontSize: '1.1rem', margin: 0 }}>Using it</h2>

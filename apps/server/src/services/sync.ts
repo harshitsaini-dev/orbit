@@ -6,6 +6,7 @@ import { nanoid } from 'nanoid';
 import { db } from '../lib/db.js';
 import { hub } from '../lib/ws.js';
 import { useAccount } from './accounts.js';
+import { emit } from './webhooks.js';
 
 /**
  * Keeping a local mirror of what is in each account.
@@ -118,6 +119,19 @@ export async function syncAccount(userId: string, accountId: string): Promise<Sy
       status: result.status,
       deltaCount: result.changed + result.deleted,
     });
+
+    /*
+     * Only when the index actually moved. A sync pass runs every fifteen
+     * minutes whether or not anything happened, and a webhook that fires on
+     * every pass is a webhook somebody turns off.
+     */
+    if (result.changed + result.deleted > 0) {
+      emit(userId, 'sync.completed', {
+        accountId,
+        changed: result.changed,
+        deleted: result.deleted,
+      });
+    }
 
     return { accountId, durationMs, ...result };
   };

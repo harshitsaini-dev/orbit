@@ -6,6 +6,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
 import { chooseAccount, recordUpload, wantsToChoose } from '../services/allocation.js';
 import { record } from '../services/audit.js';
+import { emit } from '../services/webhooks.js';
 import { forgetBreakdown } from '../services/breakdown.js';
 import { hub } from '../lib/ws.js';
 
@@ -225,6 +226,23 @@ uploadsRouter.put(
         targetId: result.file?.remoteId,
         summary: `Uploaded ${result.file?.name ?? 'a file'}`,
       });
+
+      /*
+       * After the response has been decided, and never awaited. A webhook is
+       * somebody else's server; an upload that succeeded and then reported an
+       * error because that server was down would be Orbit lying about its own
+       * work.
+       */
+      if (result.file) {
+        emit(upload.userId, 'file.uploaded', {
+          accountId: upload.accountId,
+          remoteId: result.file.remoteId,
+          name: result.file.name,
+          virtualPath: result.file.virtualPath,
+          sizeBytes: result.file.sizeBytes,
+          mimeType: result.file.mimeType,
+        });
+      }
 
       res.json({ done: true, file: result.file });
     } catch (err) {

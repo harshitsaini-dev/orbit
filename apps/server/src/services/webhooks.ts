@@ -1,7 +1,7 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
-import { webhookDeliveries, webhooks } from '@orbit/db';
+import { accounts, webhookDeliveries, webhooks } from '@orbit/db';
 import { WEBHOOK_EVENT_NAMES, type WebhookEvent } from '@orbit/shared-types';
 import { and, desc, eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
@@ -483,6 +483,26 @@ export function emit(userId: string, event: WebhookEvent, data: unknown): void {
       }
     } catch (err) {
       log.error('webhook delivery failed', { event, error: err });
+    }
+  })();
+}
+
+/**
+ * The same, for a place that knows which drive something happened on but not
+ * whose it is - a public share page, where nobody is signed in at all.
+ */
+export function emitForAccount(accountId: string, event: WebhookEvent, data: unknown): void {
+  void (async () => {
+    try {
+      const [row] = await db()
+        .select({ userId: accounts.userId })
+        .from(accounts)
+        .where(eq(accounts.id, accountId))
+        .limit(1);
+
+      if (row) emit(row.userId, event, data);
+    } catch (err) {
+      log.error('webhook owner lookup failed', { event, error: err });
     }
   })();
 }

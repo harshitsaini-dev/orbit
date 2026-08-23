@@ -4,6 +4,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { db } from '../lib/db.js';
 import { useAccount } from './accounts.js';
+import { emit } from './webhooks.js';
 import { recordUpload } from './allocation.js';
 
 /**
@@ -213,12 +214,32 @@ export async function runTransfer(
 
     await recordUpload(row.ownerId, row.targetAccountId, row.sizeBytes);
     await update(id, { state: 'done', transferredBytes: row.sizeBytes });
+
+    emit(row.ownerId, 'transfer.completed', {
+      transferId: id,
+      name: row.name,
+      fromAccountId: row.sourceAccountId,
+      toAccountId: row.targetAccountId,
+      status: 'done',
+      bytes: row.sizeBytes,
+    });
   } catch (err) {
     await update(id, {
       // Paused rather than failed where the position is known: everything
       // transferred so far is still valid and the run can be picked up.
       state: 'failed',
       error: err instanceof Error ? err.message : 'The transfer failed',
+    });
+
+    // A failure is a completion too. A receiver waiting to be told a file
+    // arrived needs to hear that it did not, or it waits for ever.
+    emit(row.ownerId, 'transfer.completed', {
+      transferId: id,
+      name: row.name,
+      fromAccountId: row.sourceAccountId,
+      toAccountId: row.targetAccountId,
+      status: 'failed',
+      bytes: 0,
     });
   }
 }

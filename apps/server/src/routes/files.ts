@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
 import { record } from '../services/audit.js';
+import { emit } from '../services/webhooks.js';
 import { sharedRemoteIds } from '../services/shares.js';
 import { noteDeleted } from '../services/trash.js';
 import { renderThumbnail } from '../services/thumbnails.js';
@@ -511,6 +512,17 @@ filesRouter.delete('/api/files', requireAuth, async (req, res, next) => {
         metadata: { count: result.succeeded.length, failed: result.failed.length },
         ip: req.ip,
       });
+
+      // One event per file rather than one for the batch: a receiver acting on
+      // a deletion acts on a file, and handing it a list would make every
+      // receiver write the same loop.
+      for (const remoteId of result.succeeded) {
+        emit(req.user!.id, 'file.deleted', {
+          accountId: active.row.id,
+          remoteId,
+          trashed: active.adapter.capabilities.trash,
+        });
+      }
     }
 
     // 207 when the batch was mixed, so a caller cannot read a 200 as "all done".

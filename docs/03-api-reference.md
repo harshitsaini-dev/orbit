@@ -284,6 +284,57 @@ figure less than six hours old, so `measuring: true` is the ordinary answer just
 `{ name }` → `200 { drive }` with the same shape. Starts the listing and waits for it, for
 somebody who does not want to wait for the background pass. `404` if the drive is not there.
 
+### `GET /api/webhooks`
+`200 { webhooks }` — each with its name, address, chosen events, whether it is active, and how the
+last delivery went. Never the secret.
+
+### `POST /api/webhooks`
+`{ name, url, events: [] }` → `201 { webhook, secret }`. The secret is shown **once**; it is
+stored in the clear because every delivery is signed with it, so the signing side has to read it
+back — unlike an API token, which is only ever compared against a hash.
+
+The address is checked before anything is written, and `400 bad_target` if it is not one Orbit may
+be pointed at: a URL here is an address chosen by a user and fetched by the server, which is the
+definition of a server-side request forgery. Refused are every private and loopback range, the
+link-local block that carries cloud metadata services, and — on a deployed instance — plain http,
+since a signed payload sent unencrypted is still readable by anyone on the path.
+
+### `PATCH /api/webhooks/:id`
+`{ active }` → `200 { webhook }`. Turning one back on also clears the failures that turned it off.
+
+### `POST /api/webhooks/:id/rotate`
+`200 { secret }`. The old one stops working immediately.
+
+### `POST /api/webhooks/:id/test`
+`200 { delivery }` — a `ping` event, so a receiver can be watched handling one. Answers 200
+whatever the receiver said: the delivery was attempted, and what came back is the result rather
+than an error in this request.
+
+### `GET /api/webhooks/:id/deliveries`
+`200 { deliveries }` — the last 50, with the status, the error, how many attempts it took and how
+long it ran. Kept because the first question about a webhook that "is not working" is whether it
+was ever called.
+
+### `DELETE /api/webhooks/:id`
+`204`.
+
+### How a delivery is signed
+
+Every request carries `x-orbit-event`, `x-orbit-delivery`, `x-orbit-timestamp` and
+`x-orbit-signature: sha256=…`. The signature is `HMAC-SHA256(secret, "<timestamp>.<body>")` — the
+timestamp is inside it, so a captured delivery cannot be replayed a week later. Compare it with a
+constant-time equality, and reject a timestamp that is not recent.
+
+Retried three times with a short backoff, but only for what a retry could fix: a refused
+connection, a timeout, a 5xx or a 429. A 400 or a 404 is the receiver saying it does not want
+this, and repeating it is noise. Ten consecutive failures switch a webhook off — an endpoint dead
+for a week is not coming back this minute, and continuing is a slow denial of service aimed at
+whoever now owns that address.
+
+Events published: `file.uploaded`, `file.deleted`, `share.created`, `share.opened`,
+`transfer.completed`, `sync.completed`. All of them facts rather than intentions — something
+finished, appeared or was opened. `share.opened` carries nothing about the visitor.
+
 ### `GET /api/connectable`
 Only the catalogue entries with a working adapter behind them, so the connect UI never offers a
 dead end. The full intended list is `GET /api/catalogue`.

@@ -30,7 +30,7 @@ Repository: <https://github.com/harshitsaini-dev/orbit> (public).
 | 8 | RBAC + superadmin | 🟢 Done |
 | 9 | Design pass (Claymorphism, three.js, PWA) | 🟢 Done — chrome, theme depth, headings, grid, selection, toolbar and motion |
 | 10 | Hardening + deploy | 🟢 Done — live at orbit.harshitsaini.in since 2026-08-22 |
-| 11 | Developer platform (public API, tokens, OAuth apps, API docs tab) | 🟡 Tokens, `/v1`, Developer tab and API docs done · OAuth apps and webhooks pending |
+| 11 | Developer platform (public API, tokens, OAuth apps, API docs tab) | 🟡 Tokens, `/v1`, Developer tab, API docs and webhooks done · OAuth apps pending |
 | 12 | Instant directory cache + offline browsing | 🟢 Done |
 | 13 | Spotlight (Ctrl/Cmd + K) | 🟢 Done |
 | 14 | Unified storage dashboard | 🟢 Done |

@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { env } from '../lib/env.js';
 import { shareBundle, SHARE_ASSET_DIR, SHARE_ASSET_PATH } from '../lib/share-bundle.js';
 import { record } from '../services/audit.js';
+import { emit, emitForAccount } from '../services/webhooks.js';
 import { recordView, statsFor } from '../services/share-analytics.js';
 import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
@@ -74,6 +75,14 @@ sharesRouter.post('/api/shares', requireAuth, async (req, res, next) => {
       targetId: share.shortId,
       summary: `Published a ${share.permission === 'download' ? 'downloadable' : 'view-only'} link`,
       ip: req.ip,
+    });
+
+    emit(req.user!.id, 'share.created', {
+      shortId: share.shortId,
+      url: withUrl(share).url,
+      name: share.name,
+      permission: share.permission,
+      expiresAt: share.expiresAt,
     });
 
     res.status(201).json({ share: withUrl(share) });
@@ -249,6 +258,17 @@ sharesRouter.get('/s/:shortId', async (req, res, next) => {
      * a link nobody could open as unused rather than as broken.
      */
     void recordView(shortId, 'view', req.get('user-agent'));
+
+    // Nothing about the visitor goes with it. They followed a link somebody
+    // sent them and agreed to nothing; what the owner asked to know is that
+    // the link is being used.
+    if (found.state === 'open') {
+      emitForAccount(found.row.accountId, 'share.opened', {
+        shortId,
+        name: found.share.name,
+        kind: 'view',
+      });
+    }
 
     res
       .type('html')
