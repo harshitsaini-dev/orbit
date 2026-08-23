@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { thumbnailAddress } from '../lib/thumbnails.js';
 import type { OrbitFile, WorkspaceView as ViewName } from '@orbit/shared-types';
@@ -157,6 +157,57 @@ export function WorkspaceViewPage({ view }: { view: ViewName }) {
 
   const all = data?.files ?? [];
   const { filter, setFilter, shown: matching } = useFileFilter(all);
+
+  /*
+   * A filter searches everything, not only what has been loaded.
+   *
+   * Browsing a page at a time is right - a merged view over several accounts
+   * can be long, and pulling all of it to show the first screen would be
+   * wasteful. Filtering is the opposite case: somebody typing a name is asking
+   * about the whole view, and answering from the first hundred and forty
+   * silently reports "no matches" for a file that is there.
+   *
+   * So typing pulls the rest in the background. The list keeps working while
+   * it happens, and the line under the box says it is still going.
+   */
+  const exhausting = useRef(false);
+  const [reachingAll, setReachingAll] = useState(false);
+
+  useEffect(() => {
+    if (!filter.trim() || !data?.nextCursor || exhausting.current) return;
+
+    exhausting.current = true;
+    setReachingAll(true);
+
+    void (async () => {
+      let cursor: string | undefined = data.nextCursor;
+      let pages = 0;
+
+      try {
+        // A guard, not a page size: the view API caps what it will return
+        // anyway, and this only stops a runaway cursor looping for ever.
+        while (cursor && pages < 60) {
+          const next: ViewResponse = await api<ViewResponse>(
+            `/api/views/${view}?cursor=${encodeURIComponent(cursor)}`,
+          );
+
+          setData((current) =>
+            current ? { ...next, files: [...current.files, ...next.files] } : next,
+          );
+
+          cursor = next.nextCursor;
+          pages += 1;
+        }
+      } catch {
+        // The filter still works over what did arrive, so this is a quieter
+        // failure than the one that stops somebody browsing.
+        setError('Could not reach the rest of this view');
+      } finally {
+        exhausting.current = false;
+        setReachingAll(false);
+      }
+    })();
+  }, [filter, data?.nextCursor, view]);
   const { sort, setSort, descending, toggleDirection, sorted: files } = useFileSort(
     `view-${view}`,
     matching,
@@ -201,6 +252,14 @@ export function WorkspaceViewPage({ view }: { view: ViewName }) {
         <p style={{ color: 'var(--text-muted)', margin: 0 }}>{copy.blurb}</p>
 
         <FilterBox value={filter} onChange={setFilter} count={all.length} />
+
+        {filter.trim() && (
+          <p className="share-hint" style={{ margin: '0.4rem 0 0' }}>
+            {reachingAll
+              ? `Searching the whole view — ${all.length} so far…`
+              : `Searched all ${all.length} ${all.length === 1 ? 'file' : 'files'}.`}
+          </p>
+        )}
 
         {error && (
           <p role="alert" style={{ color: 'var(--danger)', margin: '0.5rem 0 0', fontSize: 14 }}>

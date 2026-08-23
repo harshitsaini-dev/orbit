@@ -19,6 +19,40 @@ export function Quota() {
   const [params, setParams] = useSearchParams();
   const [accounts, setAccounts] = useState<PublicAccount[] | null>(null);
   const [connectable, setConnectable] = useState<CatalogueEntry[]>([]);
+
+  /*
+   * Which accounts to show, once there are enough of them to look for one.
+   *
+   * Ten connections is a page you scroll to find the one you came for, and
+   * three of them are the same Gmail address on different services - so the
+   * filter searches the provider's name as well as the nickname. Typing
+   * "dropbox" is a reasonable way to ask for the Dropbox one.
+   */
+  const [accountFilter, setAccountFilter] = useState('');
+  const [onlyProblems, setOnlyProblems] = useState(false);
+
+  /** A connection that will not work until somebody does something about it. */
+  const needsAttention = (account: PublicAccount): boolean =>
+    account.status === 'needs_reauth' || account.status === 'error';
+
+  const problems = (accounts ?? []).filter(needsAttention).length;
+
+  const shownAccounts = (accounts ?? []).filter((account) => {
+    if (onlyProblems && !needsAttention(account)) return false;
+
+    const needle = accountFilter.trim().toLowerCase();
+    if (!needle) return true;
+
+    // The service's name as well as the nickname: several accounts here are
+    // the same address on different providers, so "dropbox" is a reasonable
+    // way to ask for one of them.
+    const service = catalogueEntry(account.catalogueKey ?? '')?.label ?? account.provider;
+
+    return (
+      account.nickname.toLowerCase().includes(needle) ||
+      service.toLowerCase().includes(needle)
+    );
+  });
   // Kept apart on purpose: failing to load the page and failing to disconnect
   // one account are different sizes of problem, and turning the second into a
   // full-page screen would throw away everything the user could still see.
@@ -216,9 +250,53 @@ export function Quota() {
           </p>
         )}
 
+        {/*
+          * Only once the list is long enough to search. A filter box above two
+          * accounts is a control that costs a line and answers a question
+          * nobody had.
+          */}
+        {accounts && accounts.length > 3 && (
+          <div className="account-filter">
+            <input
+              className="clay-sunken account-filter__box"
+              type="search"
+              placeholder={`Filter ${accounts.length} accounts…`}
+              aria-label="Filter accounts"
+              value={accountFilter}
+              onChange={(event) => setAccountFilter(event.target.value)}
+            />
+
+            {/*
+              * The one filter worth a button of its own. "Which of these needs
+              * my attention" is the question somebody opens this page with, and
+              * it is otherwise answered by reading every card.
+              */}
+            {problems > 0 && (
+              <button
+                type="button"
+                className="clay-button"
+                aria-pressed={onlyProblems}
+                onClick={() => setOnlyProblems((on) => !on)}
+                style={{
+                  whiteSpace: 'nowrap',
+                  ...(onlyProblems ? { boxShadow: 'var(--shadow-clay-inset)' } : {}),
+                }}
+              >
+                Needs attention ({problems})
+              </button>
+            )}
+          </div>
+        )}
+
+        {accounts && accounts.length > 0 && shownAccounts.length === 0 && (
+          <p style={{ color: 'var(--text-muted)', marginTop: '1rem', fontSize: 13.5 }}>
+            No account matches that.
+          </p>
+        )}
+
         {accounts && accounts.length > 0 && (
           <ul style={{ listStyle: 'none', padding: 0, margin: '1.25rem 0 0', display: 'grid', gap: 12 }}>
-            {accounts.map((account) => (
+            {shownAccounts.map((account) => (
               <li key={account.id} className="clay-sunken" style={{ padding: '1rem 1.15rem', display: 'grid', gap: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', gap: 12, alignItems: 'center', minWidth: 0 }}>

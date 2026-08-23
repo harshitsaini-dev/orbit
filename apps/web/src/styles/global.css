@@ -5708,3 +5708,33 @@ body {
   flex: 1;
   justify-content: flex-start;
 }
+
+/* -------------------------------------------------------------------------
+   Finding one connection among many.
+
+   Appears only past a few accounts. Below that it is a control that costs a
+   line and answers a question nobody had.
+   ------------------------------------------------------------------------- */
+
+.account-filter {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.account-filter__box {
+  flex: 1;
+  min-width: 180px;
+  border: 0;
+  padding: 0.55rem 0.9rem;
+  font: inherit;
+  color: var(--text);
+  border-radius: var(--radius-sm);
+}
+
+.account-filter button {
+  padding: 0.4rem 0.9rem;
+  font-size: 13px;
+}
