@@ -7,6 +7,7 @@ import { useAccount } from '../services/accounts.js';
 import { chooseAccount, recordUpload, wantsToChoose } from '../services/allocation.js';
 import { record } from '../services/audit.js';
 import { emit } from '../services/webhooks.js';
+import { rememberInMirror } from '../services/mirror.js';
 import { forgetBreakdown } from '../services/breakdown.js';
 import { hub } from '../lib/ws.js';
 
@@ -234,6 +235,11 @@ uploadsRouter.put(
        * work.
        */
       if (result.file) {
+        // Into the mirror before the response, because the listing that
+        // follows an upload reads from it. Not doing this is an upload that
+        // succeeds and leaves the folder looking unchanged.
+        await rememberInMirror(upload.accountId, [result.file]);
+
         emit(upload.userId, 'file.uploaded', {
           accountId: upload.accountId,
           remoteId: result.file.remoteId,

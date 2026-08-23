@@ -7,16 +7,22 @@ import { db } from '../lib/db.js';
 import { useAccount } from './accounts.js';
 import { readableAccountIds } from './sharing.js';
 import { decodeCursor, encodeCursor, type Cursor } from '../lib/cursor.js';
+import { mirrorCoverage, searchMirror } from './mirror.js';
 import type { ViewResult, WorkspaceFile } from './views.js';
 
 export interface SearchRequest extends SearchQuery {
   /** Restrict to one account; absent means every connected account. */
   accountId?: string;
+  /** Skip the mirror and ask each provider. What a manual refresh means. */
+  fresh?: boolean;
 }
 
 export interface SearchResult extends ViewResult {
   /** Opaque; pass it back to continue. Absent when every account is exhausted. */
   nextCursor?: string;
+  /** Which side answered, and how old it is if that side was the mirror. */
+  source?: 'mirror' | 'provider';
+  syncedAt?: string;
 }
 
 /**
@@ -27,10 +33,16 @@ export interface SearchResult extends ViewResult {
 /**
  * Search across accounts.
  *
- * The matching itself happens at the provider, over every file in the account —
- * a hundred thousand of them if that is what is there — not over whatever the
- * browser has loaded. What is paginated is the *results*, so a broad query stays
+ * Either way the matching happens over every file in the account — a hundred
+ * thousand of them if that is what is there — never over whatever the browser
+ * has loaded. What is paginated is the *results*, so a broad query stays
  * answerable without pulling every match at once.
+ *
+ * Where it happens depends on whether the mirror has been filled. Against the
+ * mirror it is one indexed query over a local table; against the providers it
+ * is a fan-out that waits for the slowest of them. The second is the fallback,
+ * not the design — but it has to keep working, because an account that has
+ * never synced has nothing to search locally.
  *
  * Category is applied here rather than pushed into each provider's query
  * language: the classification reads the file extension when the mime type is
@@ -49,6 +61,38 @@ export async function searchWorkspace(
     ? await db().select().from(accounts).where(inArray(accounts.id, readable))
     : [];
   const all = request.accountId ? rows.filter((row) => row.id === request.accountId) : rows;
+
+  /*
+   * The mirror answers when it can, and it is all-or-nothing per query.
+   *
+   * Mixing the two would mean merging a row offset with a set of per-account
+   * provider cursors into one opaque token, and getting that wrong is a result
+   * set that silently repeats or drops files. Every scoped account either has
+   * rows or the whole search goes to the providers.
+   *
+   * A continuation stays with whichever side started it, for the same reason.
+   */
+  const continuing = options.cursor?.startsWith('m');
+  if (!request.fresh && all.length > 0 && (continuing || !options.cursor)) {
+    const coverage = await Promise.all(all.map((row) => mirrorCoverage(row.id)));
+
+    if (coverage.every((entry) => entry.rows > 0)) {
+      const result = await searchMirror(
+        request,
+        all.map((row) => row.id),
+        options.cursor,
+      );
+
+      // Oldest of the accounts, because a merged result is only as fresh as
+      // the least fresh thing in it.
+      const syncedAt = coverage
+        .map((entry) => entry.syncedAt)
+        .filter((value): value is string => Boolean(value))
+        .sort()[0];
+
+      return { ...result, source: 'mirror', ...(syncedAt ? { syncedAt } : {}) };
+    }
+  }
 
   const cursor = decodeCursor(options.cursor);
   // Continuing: only the accounts that still had pages left are asked again.
@@ -115,6 +159,7 @@ export async function searchWorkspace(
 
   result.files.sort((a, b) => Date.parse(b.modifiedAt) - Date.parse(a.modifiedAt));
   result.nextCursor = encodeCursor(nextCursor);
+  result.source = 'provider';
 
   return result;
 }

@@ -4,6 +4,7 @@ import type { OrbitFile } from '@orbit/shared-types';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { db } from '../lib/db.js';
+import { forgetFromMirror, rememberInMirror } from './mirror.js';
 import { hub } from '../lib/ws.js';
 import { useAccount } from './accounts.js';
 import { emit } from './webhooks.js';
@@ -38,57 +39,14 @@ export interface SyncResult {
   partial: boolean;
 }
 
-/** Upserts a page of files, keyed on the pair the provider guarantees unique. */
-async function writeFiles(accountId: string, files: OrbitFile[]): Promise<void> {
-  if (files.length === 0) return;
-
-  const now = new Date().toISOString();
-
-  for (const file of files) {
-    await db()
-      .insert(filesMirror)
-      .values({
-        id: nanoid(),
-        accountId,
-        remoteFileId: file.remoteId,
-        virtualPath: file.virtualPath,
-        name: file.name,
-        mimeType: file.mimeType,
-        sizeBytes: file.sizeBytes,
-        isFolder: file.isFolder,
-        starred: file.starred,
-        checksum: file.checksum ?? null,
-        modifiedAt: file.modifiedAt,
-        syncedAt: now,
-      })
-      // A file seen again is the same file: updated in place, so its row keeps
-      // the id anything else may have referenced.
-      .onConflictDoUpdate({
-        target: [filesMirror.accountId, filesMirror.remoteFileId],
-        set: {
-          virtualPath: file.virtualPath,
-          name: file.name,
-          mimeType: file.mimeType,
-          sizeBytes: file.sizeBytes,
-          isFolder: file.isFolder,
-          starred: file.starred,
-          checksum: file.checksum ?? null,
-          modifiedAt: file.modifiedAt,
-          syncedAt: now,
-        },
-      });
-  }
-}
-
-async function forgetFiles(accountId: string, remoteIds: string[]): Promise<void> {
-  if (remoteIds.length === 0) return;
-
-  await db()
-    .delete(filesMirror)
-    .where(
-      and(eq(filesMirror.accountId, accountId), inArray(filesMirror.remoteFileId, remoteIds)),
-    );
-}
+/*
+ * Writing to the mirror lives in `services/mirror.ts` alongside the queries
+ * that read it, so the upsert and the listing cannot drift apart about what a
+ * row means. The sync pass is one caller of it; every route that changes a
+ * file is another.
+ */
+const writeFiles = rememberInMirror;
+const forgetFiles = forgetFromMirror;
 
 /**
  * Syncs one account.

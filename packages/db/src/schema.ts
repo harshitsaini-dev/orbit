@@ -101,6 +101,13 @@ export const filesMirror = sqliteTable(
     sharedWithMe: integer('shared_with_me', { mode: 'boolean' }).notNull().default(false),
     checksum: text('checksum'),
     modifiedAt: text('modified_at'),
+    /*
+     * Null means the provider does not report a creation date, not that the
+     * file has none. Dropbox is the case that matters: filtering by created
+     * date is hidden for a drive that cannot answer it, and a column of nulls
+     * is how the mirror says so.
+     */
+    createdAt: text('created_at'),
     syncedAt: text('synced_at').notNull().default(now),
   },
   (t) => [
@@ -108,8 +115,20 @@ export const filesMirror = sqliteTable(
     index('files_path_idx').on(t.accountId, t.virtualPath),
     index('files_modified_idx').on(t.modifiedAt),
     index('files_starred_idx').on(t.starred),
+    // Browsing sorts by name inside one account; searching narrows by it.
+    index('files_name_idx').on(t.accountId, t.name),
+    index('files_created_idx').on(t.createdAt),
+    index('files_parent_idx').on(t.accountId, t.parentRemoteId),
   ],
 );
+
+/*
+ * Name search lives in an FTS5 virtual table over `files_mirror`, kept current
+ * by triggers - see migration 0020. It is deliberately absent from this schema:
+ * Drizzle has no type for a virtual table, and declaring a plain one here would
+ * make `db:generate` offer to drop and recreate it as an ordinary table.
+ * Queries against it are hand-written SQL in `services/mirror.ts`.
+ */
 
 /**
  * A public link to one file.

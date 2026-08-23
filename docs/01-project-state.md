@@ -103,12 +103,12 @@ the provider offers no stable identity store `NULL` there, and SQLite counts
 NULLs as distinct, so those never deduplicate: merging two connections that only
 *might* be the same is worse than keeping a duplicate.
 
-## Verification (last run, 2026-08-22)
+## Verification (last run, 2026-08-23)
 
 | Check | Result |
 |---|---|
-| `npm run typecheck --workspaces` | clean |
-| `npm test --workspaces` | 863 pass, 0 fail |
+| `npm run typecheck -w @orbit/server -w @orbit/web` | clean (the root script is broken — see known issues) |
+| `npm test --workspaces` | 972 pass, 0 fail |
 | `npm run lint` | 0 errors |
 | `npm run build --workspaces` | clean |
 | `npx playwright test` (headed) | 222 pass, 0 fail across desktop, tablet and mobile |
@@ -654,6 +654,13 @@ would be storing a user's file, which is the one thing this product does not do.
   TURN is bandwidth somebody pays for. The screen says so and points at upload-and-share.
 - Migrations do not run at boot. A deploy carries the code, not the schema - `npm run db:migrate`
   against the production database is a separate step, and forgetting it is a 500 on a new table.
+- A listing or search answered from the mirror is as current as the last sync pass (`SYNC_CRON`,
+  every fifteen minutes). The user's own changes are written through immediately, so this only
+  shows up for changes made outside Orbit. The count line says "synced 4m ago" and Refresh sends
+  `fresh=1`, which goes to the provider.
+- Mirror name search is FTS5 over tokens with prefix matching: `repo` finds `report`, `port` does
+  not. Provider search mostly behaves the same way, so it is not a regression, but it will read
+  as one if somebody expects substring matching.
 - A folder loads in full, so a very large one holds every row in memory and pages over them at
   a thousand at a time. Selecting all of them selects all of them - a bulk delete across fifty
   thousand files is fifty thousand provider calls, and there is no undo beyond the provider's

@@ -157,13 +157,23 @@ able to promote themselves past whoever invited them.
 `204`. The grant goes; nothing of theirs is touched. Removing yourself is allowed — leaving a
 drive is not the same as promoting yourself.
 
-### `GET /api/files?accountId=&path=&pageToken=`
+### `GET /api/files?accountId=&path=&pageToken=&fresh=`
 Note the asymmetry: the request takes `pageToken`, the response returns the next one as
 `nextCursor`. Passing it back as `cursor` is silently ignored and re-fetches the first page.
 
 Lists one folder from one account. Needs `read` on it.
-`{ accountId, provider, path, files, nextCursor, capabilities }`. The capabilities travel with
-the listing so the UI can hide actions the provider cannot perform.
+`{ accountId, provider, path, files, nextCursor, capabilities, source, syncedAt }`. The
+capabilities travel with the listing so the UI can hide actions the provider cannot perform.
+
+`source` is `"mirror"` or `"provider"`, and `syncedAt` is when that account was last synced —
+null when the provider answered, which is current by definition. **A mirrored listing is as
+current as the last sync pass**, so a client showing one should say how old it is rather than
+implying it is live.
+
+The mirror answers when it has rows for the account *and* the folder is not empty in it; an
+unmirrored folder and an empty one are the same query result, so the second case falls through
+to the provider rather than reporting a drive as empty. `fresh=1` skips the mirror entirely —
+what a refresh button should send. A continuation stays with whichever side issued its token.
 
 ### `POST /api/files/:id/relocate`
 `{ accountId, targetPath, copy }` → `{ file }`. Moves or copies **within one account**, with the
@@ -206,14 +216,26 @@ and every result carries the path it was found at.
 | `fullText=1` | Also match text inside documents, where the provider indexes it |
 | `categories` | Comma-separated, e.g. `video,image` |
 | `under` | Only results at or beneath this path |
-| `since` | ISO timestamp; only files changed since |
+| `since` / `before` | ISO timestamps; only files changed after / before |
+| `createdSince` / `createdBefore` | The same two against the created date |
 | `minSize` / `maxSize` | Bytes |
 | `starred=1`, `mine=1` | Starred only; owned by me only |
 | `accountId` | One account; absent means every connected account |
+| `fresh=1` | Skip the mirror and ask each provider |
 
 At least one criterion is required — a search with none would return the whole drive, which is
 never what was meant. Same response shape as `/api/views/:view`, so `problems` and `unsupported`
-still say which accounts could not answer.
+still say which accounts could not answer, plus `source` and `syncedAt` as above.
+
+Like the listing, this reads the mirror when it can — but all-or-nothing: **every** scoped
+account must have rows, or the whole search goes to the providers. Merging a row offset with a
+set of per-account provider cursors into one token is how a result set silently repeats or drops
+files.
+
+Two differences worth knowing when the mirror answers. Name matching is by token prefix, so
+`repo` finds `report` but `port` does not. And a created-date filter excludes files whose
+provider reports no creation date, rather than treating them as the epoch — which is why the
+filter is hidden for a drive that cannot answer it.
 
 Google Drive has no "everything under folder X" query — `in parents` matches only direct
 children — so `under` is applied by resolving each result's real path and keeping the ones

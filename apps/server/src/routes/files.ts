@@ -1,5 +1,6 @@
 import { Readable } from 'node:stream';
 import { Router } from 'express';
+import type { OrbitFile } from '@orbit/shared-types';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/auth.js';
 import { useAccount } from '../services/accounts.js';
@@ -12,13 +13,33 @@ import { forgetBreakdown } from '../services/breakdown.js';
 import { sendProviderError } from '../lib/provider-error.js';
 import { searchWorkspace } from '../services/search.js';
 import { listWorkspaceView } from '../services/views.js';
+import {
+  forgetFromMirror,
+  listFolderFromMirror,
+  forgetWithSubtrees,
+  mirrorCoverage,
+  rememberInMirror,
+  renameInMirror,
+  starInMirror,
+} from '../services/mirror.js';
 
 export const filesRouter: Router = Router();
+
+/** A page of a folder, and which side of the mirror answered for it. */
+interface ListingPage {
+  files: OrbitFile[];
+  nextPageToken?: string | undefined;
+  /** Null from the provider, which is current by definition. */
+  syncedAt: string | null;
+  source: 'mirror' | 'provider';
+}
 
 const listQuery = z.object({
   accountId: z.string().min(1),
   path: z.string().default('/'),
   pageToken: z.string().optional(),
+  /** Skip the mirror and ask the provider. What a manual refresh means. */
+  fresh: z.enum(['1', '0']).optional(),
 });
 
 filesRouter.get('/api/files', requireAuth, async (req, res, next) => {
@@ -35,7 +56,48 @@ filesRouter.get('/api/files', requireAuth, async (req, res, next) => {
       return;
     }
 
-    const page = await active.adapter.listFolder(active.tokens, parsed.data.path, parsed.data.pageToken);
+    /*
+     * The mirror first, the provider if it cannot answer.
+     *
+     * "Cannot answer" is deliberately generous: no rows for the account, or a
+     * first page that comes back empty. An unmirrored folder and an empty one
+     * are the same query result, and reporting somebody's drive as empty is a
+     * far worse failure than one wasted round trip.
+     *
+     * A continuation (pageToken) is never second-guessed - it already carries
+     * which side answered, and switching sources mid-listing would repeat or
+     * skip rows.
+     */
+    const { accountId: _id, path, pageToken, fresh } = parsed.data;
+
+    const live = async (): Promise<ListingPage> => ({
+      ...(await active.adapter.listFolder(active.tokens, path, pageToken)),
+      syncedAt: null,
+      source: 'provider',
+    });
+
+    const mirrored = async (token: string | undefined): Promise<ListingPage> => {
+      const result = await listFolderFromMirror(active.row.id, path, token);
+      return {
+        files: result.files,
+        nextPageToken: result.nextCursor,
+        syncedAt: result.syncedAt,
+        source: 'mirror',
+      };
+    };
+
+    const page = await (async (): Promise<ListingPage> => {
+      if (fresh === '1') return live();
+      // A continuation already carries which side answered; switching sources
+      // mid-listing would repeat rows or skip them.
+      if (pageToken) return pageToken.startsWith('m') ? mirrored(pageToken) : live();
+
+      const coverage = await mirrorCoverage(active.row.id);
+      if (coverage.rows === 0) return live();
+
+      const first = await mirrored(undefined);
+      return first.files.length > 0 ? first : live();
+    })();
 
     /*
      * Marked here rather than looked up per row by the client.
@@ -53,12 +115,19 @@ filesRouter.get('/api/files', requireAuth, async (req, res, next) => {
     res.json({
       accountId: active.row.id,
       provider: active.row.provider,
-      path: parsed.data.path,
+      path,
       files: page.files.map((file) =>
         shared.has(file.remoteId) ? { ...file, shared: true } : file,
       ),
       nextCursor: page.nextPageToken,
       capabilities: active.adapter.capabilities,
+      /*
+       * Where this came from, and how old it is. The client has to be able to
+       * say "as of ten minutes ago" rather than implying it is looking at the
+       * drive as it stands right now.
+       */
+      source: page.source,
+      syncedAt: page.syncedAt,
     });
   } catch (err) {
     if (!sendProviderError(err, res)) next(err);
@@ -101,6 +170,8 @@ const searchQuery = z.object({
   starred: z.enum(['1', '0']).optional(),
   mine: z.enum(['1', '0']).optional(),
   fullText: z.enum(['1', '0']).optional(),
+  /** Skip the mirror and ask each provider. What a manual refresh means. */
+  fresh: z.enum(['1', '0']).optional(),
   cursor: z.string().optional(),
 });
 
@@ -128,6 +199,7 @@ filesRouter.get('/api/search', requireAuth, async (req, res, next) => {
     starred,
     mine,
     fullText,
+    fresh,
     accountId,
     cursor,
   } = parsed.data;
@@ -170,6 +242,7 @@ filesRouter.get('/api/search', requireAuth, async (req, res, next) => {
           maxSizeBytes: maxSize,
           starredOnly: starred === '1',
           ownedByMeOnly: mine === '1',
+          fresh: fresh === '1',
         },
         { cursor },
       ),
@@ -361,6 +434,12 @@ filesRouter.post('/api/files/folder', requireAuth, async (req, res, next) => {
     }
 
     const folder = await active.adapter.createFolder(active.tokens, parsed.data.path, parsed.data.name);
+
+    // Straight into the mirror, because the listing that follows reads from
+    // it. Waiting for the next sync pass would mean creating a folder and
+    // watching nothing appear.
+    await rememberInMirror(active.row.id, [folder]);
+
     res.status(201).json({ file: folder });
   } catch (err) {
     if (!sendProviderError(err, res)) next(err);
@@ -419,6 +498,14 @@ filesRouter.post('/api/files/:id/relocate', requireAuth, async (req, res, next) 
       { copy: parsed.data.copy },
     );
 
+    /*
+     * A move leaves a row at the old path; the returned file only describes
+     * the new one. Forgetting the id first and then remembering it is the same
+     * row upserted in place for a copy, and a correction for a move.
+     */
+    if (!parsed.data.copy) await forgetFromMirror(active.row.id, [req.params.id!]);
+    await rememberInMirror(active.row.id, [file]);
+
     await record({
       actorId: req.user!.id,
       actorEmail: req.user!.email,
@@ -464,6 +551,7 @@ filesRouter.patch('/api/files/:id', requireAuth, async (req, res, next) => {
 
     if (parsed.data.name !== undefined) {
       await active.adapter.rename(active.tokens, remoteId, parsed.data.name);
+      await renameInMirror(active.row.id, remoteId, parsed.data.name);
       await record({
         actorId: req.user!.id,
         actorEmail: req.user!.email,
@@ -483,6 +571,7 @@ filesRouter.patch('/api/files/:id', requireAuth, async (req, res, next) => {
         return;
       }
       await active.adapter.star(active.tokens, remoteId, parsed.data.starred);
+      await starInMirror(active.row.id, remoteId, parsed.data.starred);
     }
 
     res.status(204).end();
@@ -516,6 +605,10 @@ filesRouter.delete('/api/files', requireAuth, async (req, res, next) => {
     forgetBreakdown(req.user!.id, parsed.data.accountId);
 
     if (result.succeeded.length > 0) {
+      // The listing reads from the mirror, so a file left there is a file that
+      // stays on screen after being deleted.
+      await forgetWithSubtrees(active.row.id, result.succeeded);
+
       /*
        * Noted so the bin can say how long is left.
        *

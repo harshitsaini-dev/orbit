@@ -90,6 +90,10 @@ interface Listing {
   files: OrbitFile[];
   nextCursor?: string;
   capabilities: ProviderCapabilities;
+  /** Which side answered. The mirror is fast and a little behind. */
+  source?: 'mirror' | 'provider';
+  /** When that side was last filled, where it was the mirror. */
+  syncedAt?: string | null;
 }
 
 function parentOf(path: string): string {
@@ -115,6 +119,24 @@ function crumbsFor(path: string): Array<{ label: string; path: string }> {
     crumbs.push({ label: part, path: running });
   }
   return crumbs;
+}
+
+/**
+ * How old a mirrored listing is, in words.
+ *
+ * Shown because a listing from the mirror is not a listing of the drive as it
+ * stands - it is the drive as of the last sync. Saying so is the difference
+ * between a stale view and a wrong one: the reader can see the age and press
+ * Refresh, which goes past the mirror to the provider.
+ */
+function agoLabel(iso: string): string | null {
+  const minutes = Math.round((Date.now() - Date.parse(iso)) / 60_000);
+  if (!Number.isFinite(minutes) || minutes < 0) return null;
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+
+  const hours = Math.round(minutes / 60);
+  return hours < 24 ? `${hours}h ago` : `${Math.round(hours / 24)}d ago`;
 }
 
 function formatDate(iso: string): string {
@@ -188,7 +210,7 @@ export function MyDrive() {
   }, []);
 
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ fresh = false }: { fresh?: boolean } = {}) => {
     if (!accountId) return;
 
     setError(null);
@@ -207,7 +229,9 @@ export function MyDrive() {
 
     try {
       const result = await api<Listing>(
-        `/api/files?accountId=${encodeURIComponent(accountId)}&path=${encodeURIComponent(path)}`,
+        `/api/files?accountId=${encodeURIComponent(accountId)}&path=${encodeURIComponent(path)}${
+          fresh ? '&fresh=1' : ''
+        }`,
       );
       setListing(result);
       // Marked partial when there is more to fetch, so nothing later mistakes
@@ -1022,7 +1046,9 @@ export function MyDrive() {
               style={{ padding: '0.4rem 1rem', fontSize: 13 }}
               disabled={loading}
               aria-label="Refresh this folder"
-              onClick={() => void load()}
+              // Explicitly past the mirror. Refresh is the button somebody
+              // presses precisely because they think what they can see is old.
+              onClick={() => void load({ fresh: true })}
             >
               <RefreshIcon size={16} />
               <span className="btn-label">Refresh</span>
@@ -1374,6 +1400,9 @@ export function MyDrive() {
               : loadingMore
                 ? `${listing.files.length} items so far, still loading…`
                 : `${listing.files.length.toLocaleString()} ${listing.files.length === 1 ? 'item' : 'items'}`}
+            {!refreshing && !loadingMore && listing.source === 'mirror' && listing.syncedAt && agoLabel(listing.syncedAt)
+              ? ` · synced ${agoLabel(listing.syncedAt)}`
+              : ''}
           </p>
         )}
 
