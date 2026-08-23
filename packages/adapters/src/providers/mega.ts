@@ -31,12 +31,25 @@ import { BaseAdapter, joinPath, normalisePath, ProviderError, type AdapterCapabi
  *
  * **There is no token to ask for.** Access begins with the account's own email
  * and password, because MEGA derives the key that decrypts the files from the
- * password itself. So the password is taken once, at connect, and exchanged
- * immediately for a session - `Storage.toJSON()`, which is a session id and the
- * derived key. That session is what Orbit stores, encrypted like every other
- * credential, and the password is never written anywhere. It matters: a session
- * appears in MEGA's own *Active sessions* list and can be killed from there,
- * which a stored password could not be.
+ * password itself. So the password is used once, at connect, to open a session -
+ * a session id and the derived master key - and that session is what Orbit
+ * stores, encrypted like every other credential. The password is not among the
+ * fields written down. It matters: a session appears in MEGA's own *Session
+ * history* and can be killed from there, which a stored password could not be.
+ *
+ * Two mistakes were made here and are worth leaving on the record, because both
+ * looked correct and neither announced itself:
+ *
+ * `Storage.toJSON()` returns the *constructor options* alongside the session -
+ * and at connect those hold the password. Storing its output wholesale wrote
+ * the password into the database while three comments and a form said it was
+ * discarded. `SessionShape` now names every field that is kept, so adding one
+ * has to be deliberate.
+ *
+ * And `Storage.close()` is not a disconnect - it sends MEGA `a: "sml"`, a
+ * logout, which ends the session id being stored. Closing after export left a
+ * connection that worked once and then answered "no permission" for ever. Use
+ * `release`, which aborts the request and lets the object go.
  *
  * **The interface can change without notice.** Nothing here is a promise MEGA
  * has made. When it breaks it will break at the SDK, and the honest thing is
@@ -48,12 +61,28 @@ import { BaseAdapter, joinPath, normalisePath, ProviderError, type AdapterCapabi
  * the bytes themselves.
  */
 
+/**
+ * What Orbit stores for a MEGA account, and deliberately all of it.
+ *
+ * Built by hand rather than taken from `Storage.toJSON()`. That method returns
+ * the options the Storage was constructed with - which, at connect, is the
+ * email *and the password*. Storing its output wholesale wrote the password
+ * into the database, encrypted at rest but present, while three comments and a
+ * form said it was discarded. Naming every field here is what makes that
+ * impossible to do by accident again.
+ */
 interface SessionShape {
+  /** The master key, base64. Decrypts the file keys. */
   key: string;
+  /** The session id. Appears in MEGA's Session history and can be killed there. */
   sid: string;
   name?: string;
   user?: string;
-  options?: Record<string, unknown>;
+  /**
+   * Kept because `fromJSON` does not restore it, and without it the connection
+   * is labelled "MEGA" rather than with the address it belongs to.
+   */
+  email?: string;
 }
 
 /**
@@ -91,8 +120,9 @@ interface Session {
   name?: string;
   reload: () => Promise<unknown>;
   getAccountInfo: () => Promise<{ spaceUsed: number; spaceTotal: number }>;
-  toJSON: () => SessionShape;
-  close: () => void;
+  toJSON: () => { key: string; sid: string; name?: string; user?: string };
+  /** Aborts what is in flight. Not a logout - see `release`. */
+  api?: { close: () => void };
 }
 
 /**
@@ -128,9 +158,26 @@ function cacheKey(tokens: AccountTokens): string {
   return tokens.accessToken ?? '';
 }
 
-/** Lets go of every cached session. For tests, and for a clean shutdown. */
+/**
+ * Lets go of a session without ending it.
+ *
+ * Not `Storage.close()`. That sends MEGA `a: "sml"` - a logout - which kills
+ * the very session id Orbit has stored, so the connection worked once and then
+ * answered "no permission" for ever afterwards. This aborts the outstanding
+ * request and drops the object; the session stays alive at MEGA until somebody
+ * ends it there.
+ */
+function release(session: Session): void {
+  try {
+    session.api?.close();
+  } catch {
+    // Nothing in flight, which is the ordinary case.
+  }
+}
+
+/** Drops every cached session. For tests, and for a clean shutdown. */
 export function closeMegaSessions(): void {
-  for (const entry of cache.values()) entry.session.close();
+  for (const entry of cache.values()) release(entry.session);
   cache.clear();
 }
 
@@ -140,7 +187,7 @@ async function open(tokens: AccountTokens): Promise<Session> {
 
   const held = cache.get(key);
   if (held && Date.now() - held.at < SESSION_TTL_MS) return held.session;
-  if (held) held.session.close();
+  if (held) release(held.session);
 
   let shape: SessionShape;
   try {
@@ -150,7 +197,23 @@ async function open(tokens: AccountTokens): Promise<Session> {
   }
 
   try {
-    const session = Storage.fromJSON(shape as never) as unknown as Session;
+    /*
+     * A fresh `options` object every time. `fromJSON` calls `Object.assign` on
+     * whatever it is handed and keeps the result, so passing the same one twice
+     * would have the second session inherit the first's mutations - and
+     * omitting it entirely throws, because `Object.assign(undefined, …)` does.
+     */
+    const session = Storage.fromJSON({
+      key: shape.key,
+      sid: shape.sid,
+      name: shape.name,
+      user: shape.user,
+      options: {},
+    } as never) as unknown as Session;
+
+    // Not restored by `fromJSON`, and it is how the connection is named.
+    if (shape.email) session.email = shape.email;
+
     // The tree is not loaded by `fromJSON`; without this every listing is empty
     // and nothing says why.
     await session.reload();
@@ -317,6 +380,8 @@ export class MegaAdapter extends BaseAdapter {
 
     const email = input.values.username?.trim();
     const password = input.values.password;
+    // MEGA's own two-factor code, when the account has it turned on.
+    const code = input.values.totpCode?.trim();
 
     if (!email || !password) {
       throw new ProviderError(
@@ -331,22 +396,63 @@ export class MegaAdapter extends BaseAdapter {
       const session = (await new Storage({
         email,
         password,
+        // MEGA calls it that; it is the six digits from an authenticator app.
+        ...(code ? { secondFactorCode: code } : {}),
         // The tree is loaded here anyway, and connecting without checking the
         // account can be read would accept a password that is not enough.
         autoload: true,
         keepalive: false,
       }).ready) as unknown as Session;
 
-      const shape = session.toJSON();
-      session.close();
+      const exported = session.toJSON();
+
+      /*
+       * Field by field, and the password is not among them.
+       *
+       * `toJSON()` also returns the constructor options - which hold the
+       * password - so handing its result straight to the database wrote the
+       * password down while the form promised it would not be.
+       */
+      const shape: SessionShape = {
+        key: exported.key,
+        sid: exported.sid,
+        ...(exported.name ? { name: exported.name } : {}),
+        ...(exported.user ? { user: exported.user } : {}),
+        email,
+      };
+
+      // Released rather than closed. Closing logs the session out at MEGA, and
+      // the session is the thing being kept.
+      release(session);
 
       return { accessToken: JSON.stringify(shape) };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
 
+      /*
+       * A missing or wrong two-factor code, which MEGA answers with EMFAREQUIRED
+       * or EFAILED. Worth its own sentence: "wrong password" sends somebody to
+       * reset a password that was correct.
+       */
+      if (/EMFAREQUIRED|EFAILED|two.?factor|mfa/i.test(message)) {
+        throw new ProviderError(
+          'mega',
+          401,
+          'two-factor code required or wrong',
+          code
+            ? 'That two-factor code was not accepted. Codes expire in seconds - try the next one.'
+            : 'This MEGA account has two-factor authentication on. Add the six-digit code from your authenticator app.',
+        );
+      }
+
       // The one failure worth naming, because it is the one people cause.
       if (/EARGS|ENOENT|wrong password|EBLOCKED/i.test(message)) {
-        throw new ProviderError('mega', 401, 'MEGA refused that email and password');
+        throw new ProviderError(
+          'mega',
+          401,
+          'credentials refused',
+          'MEGA refused that email and password.',
+        );
       }
 
       throw asProviderError(err);

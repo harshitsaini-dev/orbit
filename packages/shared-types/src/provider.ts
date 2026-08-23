@@ -27,6 +27,14 @@ export interface AccountTokens {
   /** Account/password providers, where one is ever added. */
   username?: string;
   password?: string;
+  /**
+   * A six-digit two-factor code, used once at connect and never stored.
+   *
+   * Distinct from a password because it is worthless a minute later, and
+   * because getting it wrong deserves its own message: "wrong password" sends
+   * somebody to reset a password that was correct.
+   */
+  totpCode?: string;
   /** S3-compatible providers. */
   accessKeyId?: string;
   secretAccessKey?: string;

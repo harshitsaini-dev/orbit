@@ -87,6 +87,13 @@ export const PROVIDER_CATALOGUE: CatalogueEntry[] = [
         secret: true,
         help: 'Used once to open a session, then discarded. Orbit stores the session, which you can end from MEGA under Settings → Session history.',
       },
+      {
+        name: 'totpCode',
+        label: 'Two-factor code',
+        placeholder: '123456',
+        optional: true,
+        help: 'Only if this account has two-factor authentication turned on. Codes expire in seconds, so paste it just before connecting.',
+      },
     ],
   },
 

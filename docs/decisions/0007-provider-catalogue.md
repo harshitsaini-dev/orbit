@@ -54,11 +54,26 @@ uploads), Azure Blob, and Bunny Edge Storage.
 > Two things follow, and neither can be engineered away:
 >
 > **Access begins with a password.** MEGA derives the key that decrypts the files from the
-> password itself, so there is no token to ask for. The adapter takes the password once, at
-> connect, exchanges it immediately for a session — `Storage.toJSON()`, a session id and the
-> derived key — and stores that. The password is never written anywhere. This is not a
-> formality: a session appears in MEGA's own *Session history* and can be killed from there,
-> which a stored password could not be.
+> password itself, so there is no token to ask for. The adapter uses the password once, at
+> connect, to open a session — a session id and the derived master key — and stores that. The
+> password is not among the fields kept. This is not a formality: a session appears in MEGA's own
+> *Session history* and can be killed from there, which a stored password could not be.
+>
+> Two mistakes were made getting there, both found only once a real account was connected, and
+> both worth recording because each looked correct:
+>
+> - `Storage.toJSON()` returns the constructor options alongside the session, and at connect
+>   those hold the password. Storing its output wholesale wrote the password into the database
+>   while three comments and the connect form said it was discarded. The stored shape now names
+>   every field, so adding one has to be deliberate.
+> - `Storage.close()` is not a disconnect. It sends `a: "sml"` — a logout — which ends the
+>   session id being stored. Closing after export produced a connection that authenticated once
+>   and then answered "no permission" to everything: no file listing, no quota, and a nickname
+>   that fell back to "MEGA" because even the identity lookup was refused.
+>
+> **Two-factor is supported.** MEGA's own TOTP, as an optional field at connect. It is used once
+> and never stored, and a wrong or missing code says so rather than reporting a wrong password —
+> which would send somebody to reset a password that was correct.
 >
 > **The interface can change without notice.** Nothing here rests on a promise MEGA has made.
 > When it breaks it will break at the SDK, and this adapter is best-effort in a way the OAuth

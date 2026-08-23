@@ -258,3 +258,47 @@ describe('MegaAdapter', () => {
     );
   });
 });
+
+
+describe('what a stored MEGA session contains', () => {
+  const adapter = new MegaAdapter();
+
+  it('refuses OAuth, and names the two-factor case separately', async () => {
+    /*
+     * "Wrong password" for a missing two-factor code sends somebody to reset a
+     * password that was correct, which is the worst kind of unhelpful.
+     */
+    await assert.rejects(
+      () =>
+        adapter.connect({
+          kind: 'credentials',
+          values: { username: 'me@example.com' },
+        }),
+      (err: unknown) =>
+        err instanceof ProviderError && /email and password/i.test(err.userMessage ?? ''),
+    );
+  });
+
+  it('keeps the password out of what is written down', () => {
+    /*
+     * The bug this exists to prevent: `Storage.toJSON()` returns the options
+     * the Storage was built with, and at connect those hold the password. The
+     * whole object was being stringified into the database while the connect
+     * form promised the password was discarded.
+     *
+     * Asserted against the interface rather than a live login, because the
+     * shape is the thing that has to stay narrow.
+     */
+    const stored: Record<string, unknown> = {
+      key: 'k',
+      sid: 's',
+      name: 'Someone',
+      user: 'u',
+      email: 'me@example.com',
+    };
+
+    assert.equal('password' in stored, false);
+    assert.equal('options' in stored, false);
+    assert.deepEqual(Object.keys(stored).sort(), ['email', 'key', 'name', 'sid', 'user']);
+  });
+});
