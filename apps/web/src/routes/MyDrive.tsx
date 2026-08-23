@@ -868,6 +868,12 @@ export function MyDrive() {
            * The icon beside it is the provider, which the nickname alone does
            * not give away: two Google accounts and a Dropbox all read as an
            * email address.
+           *
+           * On a desk the row wraps rather than scrolling sideways. A strip
+           * with a scrollbar hides the drives past the edge, and hiding a
+           * switch is worse than spending a second line on it - so it grows to
+           * three rows and only then scrolls, which is enough for more accounts
+           * than anybody has.
            */
           phone ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -892,7 +898,7 @@ export function MyDrive() {
               </div>
             </div>
           ) : (
-            <div className="scroll-x" style={{ display: 'flex', gap: 8, paddingBottom: 4 }}>
+            <div className="drive-strip">
               {accounts.map((account) => (
                 <button
                   key={account.id}
@@ -900,13 +906,10 @@ export function MyDrive() {
                   className="clay-button"
                   aria-pressed={account.id === accountId}
                   onClick={() => navigate({ account: account.id, path: '/' })}
+                  // Only the part that depends on which one is chosen. The rest
+                  // moved to `.drive-strip > button`, so the wrapping and the
+                  // chip shape are decided in one place rather than two.
                   style={{
-                    padding: '0.4rem 0.9rem',
-                    fontSize: 13,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    whiteSpace: 'nowrap',
                     boxShadow:
                       account.id === accountId ? 'var(--shadow-clay-inset)' : 'var(--shadow-clay)',
                   }}

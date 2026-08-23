@@ -162,23 +162,35 @@ h3 {
     gap: 1rem;
   }
 
-  /* A vertical sidebar would eat most of a phone screen, so the nav becomes a
-     horizontal strip that scrolls on its own rather than widening the page. */
+  /*
+   * A vertical sidebar would eat most of a phone screen, so the nav becomes a
+   * strip - but a strip that wraps, not one that scrolls sideways.
+   *
+   * Scrolling it hid two thirds of the pages behind a swipe nobody was told
+   * about: the entries past the right edge looked like the end of the list.
+   * Wrapped, every page is on the screen and reachable with a thumb, and the
+   * cost is a couple of lines of height on a page that has plenty.
+   */
   .app-nav {
     width: 100%;
     flex-direction: row;
+    flex-wrap: wrap;
     position: static;
-    overflow-x: auto;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .app-nav::-webkit-scrollbar {
-    display: none;
+    gap: 6px;
   }
 
   .app-nav__link {
-    padding: 0.5rem 0.9rem;
+    padding: 0.45rem 0.85rem;
+    /* Chips rather than rows: a wrapped list of full-width rows is a sidebar
+       again, and this has to stay short enough to sit above the content. */
+    border-radius: var(--radius-pill);
+    background: var(--surface-sunken, transparent);
+    min-height: 38px;
+    font-size: 13.5px;
+  }
+
+  .app-nav__link[aria-current='page'] {
+    background: var(--accent-soft);
   }
 }
 
@@ -5657,4 +5669,35 @@ body {
     margin-left: 0;
     width: 100%;
   }
+}
+
+/* -------------------------------------------------------------------------
+   The row of connected drives above a folder listing.
+
+   Wraps rather than scrolling sideways. A horizontal strip put every drive
+   past the third one behind a scrollbar, which reads as "these are all the
+   drives" - and a switch somebody cannot see is a switch they do not use.
+
+   Three rows, then it scrolls: growing without limit would push the files
+   themselves off the screen, and three rows is around fifteen accounts.
+   ------------------------------------------------------------------------- */
+
+.drive-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  /* Three chips plus the two gaps between them. */
+  max-height: calc(3 * 36px + 2 * 8px);
+  overflow-y: auto;
+  padding-bottom: 2px;
+}
+
+.drive-strip > button {
+  padding: 0.4rem 0.9rem;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  min-height: 36px;
 }
