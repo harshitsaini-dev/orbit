@@ -642,46 +642,70 @@ export const shareViews = sqliteTable(
 );
 
 /**
- * Text read out of a file, so a photo of a receipt can be found by what it
- * says rather than by the number a camera named it.
+ * Somewhere to be told when something happened.
  *
- * The reading happens in the browser - Tesseract in a Web Worker - and only
- * the result lands here. That is the whole reason this is affordable: server
- * OCR is a bill per page, and a file whose bytes Orbit refuses to store is not
- * a file Orbit should be running through a paid API either.
+ * The other half of the developer platform. A token lets a program ask Orbit
+ * questions; a webhook lets Orbit answer one nobody asked yet - which is the
+ * difference between a script that polls every minute and one that runs when
+ * there is something to do.
  *
- * Not a copy of the file, and not a substitute for it. It is one string of
- * whatever text was legible, which is why `confidence` is kept beside it: an
- * unreadable scan produces confident-looking nonsense, and a search that
- * returns nonsense is worse than one that returns nothing.
- *
- * Unique on (account, file). Scanning something twice replaces the reading
- * rather than accumulating them - the second look is the better one, since it
- * happened on a newer version of the file.
+ * The secret is stored in the clear rather than hashed, unlike an API token,
+ * and that is not an oversight. A token is checked - Orbit only needs to know
+ * whether the one presented matches, so a hash is enough. A webhook secret is
+ * *used*: every delivery is signed with it, so the signing side has to be able
+ * to read it back. The same constraint every webhook implementation has.
  */
-export const fileText = sqliteTable(
-  'file_text',
+export const webhooks = sqliteTable(
+  'webhooks',
   {
     id: text('id').primaryKey(),
-    accountId: text('account_id')
+    userId: text('user_id')
       .notNull()
-      .references(() => accounts.id, { onDelete: 'cascade' }),
-    remoteId: text('remote_id').notNull(),
-    /**
-     * Kept beside the text rather than joined from the mirror. A search result
-     * has to be able to name the file it found, and the mirror only holds what
-     * has been synced - a file scanned right after being uploaded may not be
-     * in it yet.
-     */
+      .references(() => users.id, { onDelete: 'cascade' }),
     name: text('name').notNull(),
-    virtualPath: text('virtual_path').notNull(),
-    text: text('text').notNull(),
-    /** Mean confidence over the page, 0-100, as the engine reports it. */
-    confidence: real('confidence').notNull().default(0),
-    scannedAt: text('scanned_at').notNull().default(now),
+    url: text('url').notNull(),
+    /** Signs every delivery, so the receiver can tell Orbit sent it. */
+    secret: text('secret').notNull(),
+    /** Which events this one wants, as a JSON array of event names. */
+    events: text('events').notNull(),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    /**
+     * Consecutive failures. Reset by any success, and a webhook that reaches
+     * the limit is switched off rather than retried for ever - an endpoint
+     * that has been dead for a week is not coming back this minute, and
+     * hammering it is a favour to nobody.
+     */
+    failureCount: integer('failure_count').notNull().default(0),
+    lastStatus: integer('last_status'),
+    lastError: text('last_error'),
+    lastDeliveredAt: text('last_delivered_at'),
+    createdAt: text('created_at').notNull().default(now),
   },
-  (t) => [
-    uniqueIndex('file_text_uq').on(t.accountId, t.remoteId),
-    index('file_text_account_idx').on(t.accountId),
-  ],
+  (t) => [index('webhook_user_idx').on(t.userId)],
+);
+
+/**
+ * What was sent, and what came back.
+ *
+ * Kept because the first question about a webhook that "is not working" is
+ * whether it was ever called, and the only way to answer it otherwise is to
+ * ask the person to add logging at their end.
+ */
+export const webhookDeliveries = sqliteTable(
+  'webhook_deliveries',
+  {
+    id: text('id').primaryKey(),
+    webhookId: text('webhook_id')
+      .notNull()
+      .references(() => webhooks.id, { onDelete: 'cascade' }),
+    event: text('event').notNull(),
+    payload: text('payload').notNull(),
+    /** Null when the request never got an answer at all. */
+    status: integer('status'),
+    error: text('error'),
+    attempts: integer('attempts').notNull().default(1),
+    durationMs: integer('duration_ms').notNull().default(0),
+    sentAt: text('sent_at').notNull().default(now),
+  },
+  (t) => [index('webhook_delivery_idx').on(t.webhookId, t.sentAt)],
 );

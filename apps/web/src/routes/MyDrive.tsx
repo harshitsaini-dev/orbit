@@ -13,14 +13,12 @@ import { DragSelectBox, useDragSelect } from '../components/DragSelect.js';
 import { FileDetails } from '../components/FileDetails.js';
 import { FolderPicker } from '../components/FolderPicker.js';
 import { TransferDialog } from '../components/TransferDialog.js';
-import { ScanDialog } from '../components/ScanDialog.js';
 import { ShareDialog } from '../components/ShareDialog.js';
 import { FileGrid } from '../components/FileGrid.js';
 import {
   CollectionsIcon,
   NewFolderIcon,
   RefreshIcon,
-  TextScanIcon,
   TrashIcon,
   UpIcon,
   UploadFileIcon,
@@ -32,7 +30,6 @@ import {
 import { SortControl, useFileSort } from '../components/ListControls.js';
 import { ViewToggle, useViewMode } from '../components/ViewToggle.js';
 import { PHONE, useMediaQuery } from '../lib/media.js';
-import { isReadable } from '../lib/ocr.js';
 import { useRangeSelection } from '../lib/selection.js';
 import { ConfirmDialog, NameDialog } from '../components/NameDialog.js';
 import { Pagination } from '../components/Pagination.js';
@@ -72,47 +69,10 @@ const MAX_SEARCH_RESULTS = 5000;
 /** Rows per page. Past this a single list is slow to render and worse to read. */
 const PAGE_SIZE = 1000;
 
-/**
- * A content type from a filename.
- *
- * For results that came from a reading rather than from a provider: a reading
- * records what a file said, not what it is, and the grid needs a type to pick
- * an icon. Guessing one kind for all of them would put a JPEG's badge on a
- * scanned PNG.
- */
-function mimeFromName(name: string): string {
-  const ext = name.slice(name.lastIndexOf('.') + 1).toLowerCase();
-  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg';
-  if (ext === 'png' || ext === 'webp' || ext === 'bmp') return `image/${ext}`;
-  if (ext === 'tif' || ext === 'tiff') return 'image/tiff';
-  return 'application/octet-stream';
-}
-
 interface WorkspaceSearchFile extends OrbitFile {
   accountId: string;
   provider: string;
   accountNickname: string;
-  /**
-   * The line this matched on, when it matched on text read out of the picture
-   * rather than on its name.
-   *
-   * Worth showing rather than silently mixing in: a file called
-   * `1759653621497799480627.jpg` appearing in the results for "sharbat" looks
-   * like a bug until the reason is on the screen next to it.
-   */
-  excerpt?: string;
-}
-
-interface TextMatch {
-  accountId: string;
-  accountNickname: string;
-  remoteId: string;
-  name: string;
-  virtualPath: string;
-  excerpt: string;
-  scannedAt: string;
-  provider: string;
-  catalogueKey: string | null;
 }
 
 interface Listing {
@@ -390,53 +350,6 @@ export function MyDrive() {
 
             cursor = collected.length >= MAX_SEARCH_RESULTS ? undefined : page.nextCursor;
           } while (cursor);
-
-          /*
-           * And the text read out of pictures, which no provider can search -
-           * their search looks at names, and a photographed receipt is called
-           * whatever the camera called it.
-           *
-           * After the provider rather than beside it, so the ordinary results
-           * are never held up by it, and only for a plain text query: the
-           * category and size filters describe a file, and a reading is not
-           * one.
-           */
-          const term = filters.text.trim();
-
-          if (term.length >= 2) {
-            const { matches } = await api<{ matches: TextMatch[] }>(
-              `/api/text/search?q=${encodeURIComponent(term)}`,
-              { signal: controller.signal },
-            );
-
-            const seen = new Set(collected.map((file) => file.remoteId));
-
-            for (const match of matches) {
-              if (seen.has(match.remoteId)) continue;
-              if (filters.scope === 'folder' && path !== '/' && !match.virtualPath.startsWith(path))
-                continue;
-
-              collected.push({
-                remoteId: match.remoteId,
-                name: match.name,
-                virtualPath: match.virtualPath,
-                // Read off the name: a reading records what a file said, not
-                // what it is, and guessing image/jpeg for a scanned PNG would
-                // put the wrong icon on it.
-                mimeType: mimeFromName(match.name),
-                sizeBytes: 0,
-                isFolder: false,
-                starred: false,
-                modifiedAt: match.scannedAt,
-                accountId: match.accountId,
-                provider: match.provider,
-                accountNickname: match.accountNickname,
-                excerpt: match.excerpt,
-              });
-            }
-
-            setResults([...collected]);
-          }
         } catch (err) {
           if ((err as Error).name === 'AbortError') return;
           setResults([]);
@@ -473,7 +386,6 @@ export function MyDrive() {
     mode: 'copy' | 'move';
   } | null>(null);
   const [detailing, setDetailing] = useState<OrbitFile | null>(null);
-  const [scanning, setScanning] = useState<OrbitFile[] | null>(null);
 
   /**
    * Downloading one file. A link, which is the cheapest thing that works: the
@@ -562,7 +474,6 @@ export function MyDrive() {
     // Folders have no single stream, so anything that streams bytes works on
     // the files in the selection and says how many that is.
     const streamable = acting.filter((entry) => !entry.isFolder);
-    const readable = streamable.filter((entry) => isReadable(entry.mimeType, entry.name));
     const suffix = many ? ` (${acting.length})` : '';
     const allStarred = acting.every((entry) => entry.starred);
 
@@ -630,17 +541,6 @@ export function MyDrive() {
         icon: <TransferIcon />,
         onSelect: () => setTransferring({ files: streamable, mode: 'move' }),
         disabled: streamable.length === 0 || (accounts?.length ?? 0) < 2,
-      },
-      {
-        /*
-         * Only offered for pictures, because that is the only thing there is
-         * an engine for - and only when the provider says what they are, so
-         * the action does not appear over a file it would fail on.
-         */
-        label: readable.length > 1 ? `Read the text (${readable.length})` : 'Read the text',
-        icon: <TextScanIcon size={16} />,
-        onSelect: () => setScanning(readable),
-        disabled: readable.length === 0,
       },
       {
         label: `Add to collection${suffix}`,
@@ -827,19 +727,6 @@ export function MyDrive() {
     'my-drive',
     found,
   );
-
-  /*
-   * The line each result matched on, for the ones found by what is written
-   * inside them rather than by their name. Keyed by remote id so a row can ask
-   * without searching the whole result list on every render.
-   */
-  const excerpts = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const file of results ?? []) {
-      if (file.excerpt) map.set(file.remoteId, file.excerpt);
-    }
-    return map;
-  }, [results]);
 
   // Selection follows what is on screen: selecting all while a search is
   // running should mean the results, not the folder behind them.
@@ -1401,23 +1288,6 @@ export function MyDrive() {
                       {locationOf(file)}
                     </span>
                   )}
-
-                  {/* Why it matched. A file called 1759653621497799480627.jpg
-                      turning up in the results for "sharbat" reads as a bug
-                      until the line it matched on is beside it. */}
-                  {excerpts.get(file.remoteId) && (
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: 'var(--accent)',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {excerpts.get(file.remoteId)}
-                    </span>
-                  )}
                 </button>
 
                 {!file.isFolder && (
@@ -1565,15 +1435,6 @@ export function MyDrive() {
           files={collecting}
           accountId={accountId}
           onClose={() => setCollecting(null)}
-        />
-      )}
-
-      {scanning && (
-        <ScanDialog
-          files={scanning}
-          accountId={accountId}
-          contentUrl={(file) => contentUrl(file, false)}
-          onClose={() => setScanning(null)}
         />
       )}
 

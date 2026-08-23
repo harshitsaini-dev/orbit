@@ -64,3 +64,48 @@ export interface PublicApiToken {
  * malformed credential before it touches the database.
  */
 export const TOKEN_PREFIX = 'orbit_pat_';
+
+/**
+ * The things Orbit will tell a program about.
+ *
+ * Deliberately few, and all of them facts rather than intentions: something
+ * finished, something appeared, something was opened. An event fired before an
+ * operation completes is an event a receiver cannot act on without asking
+ * Orbit what actually happened, which defeats the point of being told.
+ */
+export const WEBHOOK_EVENTS = [
+  {
+    name: 'file.uploaded',
+    description: 'A file finished uploading to one of your drives.',
+    payload: 'accountId, remoteId, name, virtualPath, sizeBytes, mimeType',
+  },
+  {
+    name: 'file.deleted',
+    description: 'A file was deleted or moved to the bin through Orbit.',
+    payload: 'accountId, remoteId, name, virtualPath, trashed',
+  },
+  {
+    name: 'share.created',
+    description: 'A public link was made for a file.',
+    payload: 'shortId, url, name, permission, expiresAt',
+  },
+  {
+    name: 'share.opened',
+    description: 'Somebody opened one of your links. No visitor details are sent.',
+    payload: 'shortId, name, kind, device',
+  },
+  {
+    name: 'transfer.completed',
+    description: 'A cross-cloud transfer finished, successfully or not.',
+    payload: 'transferId, name, fromAccountId, toAccountId, status, bytes',
+  },
+  {
+    name: 'sync.completed',
+    description: 'A drive finished syncing and its index changed.',
+    payload: 'accountId, changed, deleted',
+  },
+] as const;
+
+export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number]['name'];
+
+export const WEBHOOK_EVENT_NAMES: readonly string[] = WEBHOOK_EVENTS.map((event) => event.name);

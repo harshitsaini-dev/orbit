@@ -19,8 +19,8 @@ import { schedulesRouter } from './routes/schedules.js';
 import { trashRouter } from './routes/trash.js';
 import { profileRouter } from './routes/profile.js';
 import { sharesRouter } from './routes/shares.js';
-import { textRouter } from './routes/text.js';
 import { transfersRouter } from './routes/transfers.js';
+import { webhooksRouter } from './routes/webhooks.js';
 import { uploadsRouter } from './routes/uploads.js';
 import { v1Router } from './routes/v1.js';
 import { healthRouter } from './routes/health.js';
@@ -201,8 +201,8 @@ export function createApp(): Express {
   app.use(collectionsRouter);
   app.use(developerRouter);
   app.use(v1Router);
-  app.use(textRouter);
   app.use(transfersRouter);
+  app.use(webhooksRouter);
   app.use(uploadsRouter);
 
   app.use((_req, res) => {
