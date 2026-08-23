@@ -368,12 +368,20 @@ accountsRouter.post('/api/accounts/connect', requireAuth, async (req, res, next)
     const adapter = getAdapter(entry.provider);
     const region = values['region']?.trim() || entry.defaultRegion;
 
+    /*
+     * Everything the form collected, not a fixed five.
+     *
+     * This used to forward the four S3 fields and an endpoint, which is the
+     * one shape it knew - so a provider that asks for anything else had its
+     * answers silently dropped at this line. The catalogue entry already says
+     * which fields exist; passing them through is what makes that declaration
+     * mean something, and it is the difference between adding a provider and
+     * editing this route to know about it.
+     */
     const tokens = await adapter.connect({
       kind: 'credentials',
       values: {
-        accessKeyId: values['accessKeyId'],
-        secretAccessKey: values['secretAccessKey'],
-        bucket: values['bucket'],
+        ...values,
         endpoint: entry.endpointTemplate
           ? resolveEndpoint(entry.endpointTemplate, { ...values, ...(region ? { region } : {}) })
           : values['endpoint'],
@@ -382,16 +390,22 @@ accountsRouter.post('/api/accounts/connect', requireAuth, async (req, res, next)
       },
     });
 
+    /*
+     * What to call it, and what makes it the same connection twice.
+     *
+     * An account with an identity answers both: the address is the name
+     * somebody recognises, and it is what makes re-entering a password a
+     * reconnection rather than a twin. A bucket has no identity - it belongs to
+     * a key, not a person - so it falls back to its own name and address.
+     */
+    const identity = await adapter.getAccountIdentity?.(tokens).catch(() => undefined);
+
     const account = await createAccount({
       userId: req.user!.id,
       provider: entry.provider,
       catalogueKey: entry.key,
-      // Two buckets on the same service have to be tellable apart, and the
-      // bucket name is the only thing about them that differs.
-      nickname: values['bucket'] ?? entry.label,
-      // The same bucket at the same endpoint is the same connection, so
-      // re-entering its keys refreshes it rather than adding a twin.
-      remoteAccountId: `${tokens.endpoint}/${tokens.bucket}`,
+      nickname: identity?.email ?? identity?.displayName ?? values['bucket'] ?? entry.label,
+      remoteAccountId: identity?.email ?? `${tokens.endpoint}/${tokens.bucket}`,
       tokens,
     });
 

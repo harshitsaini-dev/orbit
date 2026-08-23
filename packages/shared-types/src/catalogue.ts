@@ -74,6 +74,21 @@ export const PROVIDER_CATALOGUE: CatalogueEntry[] = [
     provider: 'pcloud',
     blurb: 'pCloud drive, EU or US region.',
   },
+  {
+    key: 'mega',
+    label: 'MEGA',
+    provider: 'mega',
+    blurb: 'MEGA drive. Signs in with your email and password, not a token.',
+    fields: [
+      { name: 'username', label: 'MEGA email' },
+      {
+        name: 'password',
+        label: 'MEGA password',
+        secret: true,
+        help: 'Used once to open a session, then discarded. Orbit stores the session, which you can end from MEGA under Settings → Session history.',
+      },
+    ],
+  },
 
   // --- object storage, S3 API ------------------------------------------------
   {

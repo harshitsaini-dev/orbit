@@ -9,6 +9,7 @@ export const PROVIDER_IDS = [
   'onedrive',
   'dropbox',
   'pcloud',
+  'mega',
   'azure_blob',
   'bunny',
   's3',

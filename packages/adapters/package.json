@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@orbit/shared-types": "*"
+    "@orbit/shared-types": "*",
+    "megajs": "^1.3.10"
   },
   "devDependencies": {
     "tsx": "^4.19.2"

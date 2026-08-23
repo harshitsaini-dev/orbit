@@ -44,15 +44,37 @@ uploads), Azure Blob, and Bunny Edge Storage.
 
 ## MEGA
 
-> **Removed 2026-08-22.** For the same reason as the two below, and it belongs with them.
+> **Removed 2026-08-22. Added back 2026-08-23, at the owner's request and with the reasoning
+> below still true.**
 >
-> MEGA publishes no official API. Every working integration reverse-engineers the private one and
-> implements MEGA's client-side cryptography against an interface that can change without notice.
-> That is a large, security-sensitive body of code that could not be verified against a real
-> account here, and offering it in the catalogue would have advertised something Orbit does not do.
+> MEGA publishes no official API and issues no OAuth tokens. Every working integration reaches
+> the private one and implements MEGA's client-side cryptography; Orbit does that through
+> `megajs`, an unofficial MIT-licensed SDK, rather than writing the cryptosystem itself.
 >
-> This is not blocked on OAuth verification, or on anything else Orbit can do. It is blocked on
-> MEGA publishing a documented API or an official SDK.
+> Two things follow, and neither can be engineered away:
+>
+> **Access begins with a password.** MEGA derives the key that decrypts the files from the
+> password itself, so there is no token to ask for. The adapter takes the password once, at
+> connect, exchanges it immediately for a session — `Storage.toJSON()`, a session id and the
+> derived key — and stores that. The password is never written anywhere. This is not a
+> formality: a session appears in MEGA's own *Session history* and can be killed from there,
+> which a stored password could not be.
+>
+> **The interface can change without notice.** Nothing here rests on a promise MEGA has made.
+> When it breaks it will break at the SDK, and this adapter is best-effort in a way the OAuth
+> ones are not. That is written in the adapter's own header so nobody later mistakes it for the
+> same class of thing as Drive.
+>
+> Capabilities are claimed narrowly. No thumbnails — a server that cannot read the file cannot
+> draw one. No inbound shares. No resumable upload: MEGA needs the length before the first byte.
+> And no same-account copy, which MEGA has no server-side operation for; refusing is better than
+> a button labelled Copy that quietly downloads and re-uploads.
+>
+> **What this cost elsewhere, and gained.** The connect route forwarded five S3-shaped fields and
+> dropped anything else, so MEGA's email and password arrived as `undefined`. It now passes
+> through whatever the catalogue entry declares, and names the connection from the adapter's own
+> identity where it has one. That removed a special case rather than adding one — which is the
+> rule this document exists to hold.
 
 ## iCloud Drive and Proton Drive
 

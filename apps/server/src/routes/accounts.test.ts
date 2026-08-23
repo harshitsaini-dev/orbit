@@ -522,3 +522,55 @@ describe('GET /api/accounts/:id/shared-drives/:driveId', () => {
     assert.equal(res.status, 404);
   });
 });
+
+
+describe('connecting a provider that is not S3-shaped', () => {
+  it('passes every collected field to the adapter', async () => {
+    // MEGA asks for an email and a password. The route used to forward the
+    // four S3 fields and nothing else, so these arrived as undefined and the
+    // adapter refused a connection the user had filled in correctly.
+    const { getAdapter } = await import('@orbit/adapters');
+    const mega = getAdapter('mega');
+    const pristine = mega.connect.bind(mega);
+
+    let seen: Record<string, unknown> | undefined;
+
+    (mega as unknown as { connect: unknown }).connect = (input: {
+      kind: string;
+      values: Record<string, unknown>;
+    }) => {
+      seen = input.values;
+      return Promise.resolve({ accessToken: '{"sid":"s","key":"k"}' });
+    };
+
+    try {
+      await fetch(`${baseUrl}/api/accounts/connect`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          catalogueKey: 'mega',
+          values: { username: 'me@example.com', password: 'hunter2' },
+        }),
+      });
+
+      assert.equal(seen?.['username'], 'me@example.com');
+      assert.equal(seen?.['password'], 'hunter2');
+    } finally {
+      (mega as unknown as { connect: unknown }).connect = pristine;
+    }
+  });
+
+  it('says which field is missing rather than failing at the provider', async () => {
+    const res = await fetch(`${baseUrl}/api/accounts/connect`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ catalogueKey: 'mega', values: { username: 'me@example.com' } }),
+    });
+
+    assert.equal(res.status, 400);
+    assert.match(
+      ((await res.json()) as { error: { message: string } }).error.message,
+      /MEGA password/,
+    );
+  });
+});

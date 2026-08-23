@@ -5,6 +5,7 @@ import { AzureBlobAdapter } from './providers/azure-blob.js';
 import { BunnyAdapter } from './providers/bunny.js';
 import { DropboxAdapter } from './providers/dropbox.js';
 import { GoogleDriveAdapter } from './providers/google-drive.js';
+import { MegaAdapter } from './providers/mega.js';
 import { OneDriveAdapter } from './providers/onedrive.js';
 import { PCloudAdapter } from './providers/pcloud.js';
 import { S3CompatibleAdapter } from './providers/s3-compatible.js';
@@ -14,6 +15,7 @@ export * from './providers/azure-blob.js';
 export * from './providers/bunny.js';
 export * from './providers/dropbox.js';
 export * from './providers/google-drive.js';
+export * from './providers/mega.js';
 export * from './providers/onedrive.js';
 export * from './providers/pcloud.js';
 export * from './providers/s3-compatible.js';
@@ -23,6 +25,7 @@ const registry: Record<ProviderId, ProviderAdapter> = {
   onedrive: new OneDriveAdapter(),
   dropbox: new DropboxAdapter(),
   pcloud: new PCloudAdapter(),
+  mega: new MegaAdapter(),
   azure_blob: new AzureBlobAdapter(),
   bunny: new BunnyAdapter(),
   s3: new S3CompatibleAdapter(),
