@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { thumbnailAddress } from '../lib/thumbnails.js';
 import { catalogueEntry, mimeForName, type OrbitFile } from '@orbit/shared-types';
 import { FileGrid } from '../components/FileGrid.js';
 import { FileIcon } from '../components/FileIcon.js';
@@ -320,6 +321,14 @@ export function Collections() {
               }
               return `${API_BASE}/api/files/${encodeURIComponent(file.remoteId)}/content?${query.toString()}`;
             }}
+            thumbnailUrl={(file, size) =>
+              thumbnailAddress(
+                shown.find((item) => item.remoteId === file.remoteId)?.accountId ??
+                  previewing.accountId,
+                file.remoteId,
+                size,
+              )
+            }
             onSelect={(next) => {
               const item = shown.find((entry) => entry.remoteId === next.remoteId);
               if (item) setPreviewing(item);

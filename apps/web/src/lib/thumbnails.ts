@@ -106,3 +106,18 @@ export function mightHaveThumbnail(
     kind === 'presentation'
   );
 }
+
+/**
+ * The address of a provider-rendered picture of a file.
+ *
+ * Used for the tiles, and for the one case where it stands in for the file
+ * itself: a HEIC or a TIFF, which say `image/` and which no browser outside
+ * Safari will draw. The provider made a JPEG of it for its own interface, so
+ * there is something to show; it is a picture of the file rather than the file.
+ */
+export function thumbnailAddress(accountId: string, remoteId: string, size: number): string {
+  const base = import.meta.env.VITE_API_URL ?? '';
+  const query = new URLSearchParams({ accountId, size: String(size) });
+
+  return `${base}/api/files/${encodeURIComponent(remoteId)}/thumbnail?${query.toString()}`;
+}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { catalogueEntry, type OrbitFile } from '@orbit/shared-types';
+import { thumbnailAddress } from '../lib/thumbnails.js';
 import { Checkbox } from '../components/Checkbox.js';
 import { DragSelectBox, useDragSelect } from '../components/DragSelect.js';
 import { FileIcon } from '../components/FileIcon.js';
@@ -556,6 +557,14 @@ export function Trash() {
             }
             return `${API_BASE}/api/files/${encodeURIComponent(file.remoteId)}/content?${query.toString()}`;
           }}
+          thumbnailUrl={(file, size) =>
+            thumbnailAddress(
+              sorted.find((entry) => entry.remoteId === file.remoteId)?.accountId ??
+                previewing.accountId,
+              file.remoteId,
+              size,
+            )
+          }
           onSelect={(next) => {
             const match = sorted.find((entry) => entry.remoteId === next.remoteId);
             if (match) setPreviewing(match);

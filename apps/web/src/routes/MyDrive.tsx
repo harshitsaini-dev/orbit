@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { thumbnailAddress } from '../lib/thumbnails.js';
 import { catalogueEntry } from '@orbit/shared-types';
 import type { OrbitFile, ProviderCapabilities, PublicAccount } from '@orbit/shared-types';
 import { DownloadIcon, OpenIcon, RenameIcon, ShareIcon, StarIcon, TransferIcon } from '../components/ActionIcon.js';
@@ -1543,6 +1544,7 @@ export function MyDrive() {
           file={previewing}
           siblings={paged}
           contentUrl={contentUrl}
+          thumbnailUrl={(file, size) => thumbnailAddress(accountId, file.remoteId, size)}
           onSelect={setPreviewing}
           onClose={() => setPreviewing(null)}
         />

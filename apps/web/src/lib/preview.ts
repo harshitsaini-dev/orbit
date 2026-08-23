@@ -100,6 +100,33 @@ const NEVER_INLINE = /^application\/(zip|x-tar|gzip|x-7z-compressed|vnd\.rar|x-m
  * would mean handing the provider's URL to the client, which is the one thing
  * the proxy exists to avoid.
  */
+/**
+ * Image formats no browser will draw, however plainly they say `image/`.
+ *
+ * HEIC is what an iPhone writes by default and what most of a modern camera
+ * roll is made of, and only Safari decodes it - everywhere else an `<img>`
+ * pointed at one shows a broken-picture icon and the filename, which reads as
+ * Orbit failing rather than as the format being unsupported.
+ *
+ * TIFF is the same story with a longer history.
+ *
+ * The provider usually has a JPEG of it, made for its own web interface, so
+ * there is something to show; it is just not the file itself.
+ */
+const UNDRAWABLE = /^image\/(heic|heif|hei[cf]-sequence|tiff?|x-tiff)$/;
+const UNDRAWABLE_EXTENSIONS = new Set(['heic', 'heif', 'hif', 'tif', 'tiff']);
+
+export function browserCanDraw(
+  file: Pick<OrbitFile, 'mimeType' | 'name'>,
+): boolean {
+  const mime = (file.mimeType || '').toLowerCase();
+  if (UNDRAWABLE.test(mime)) return false;
+
+  // By name as well, because some providers report HEIC as a generic type and
+  // a few report nothing at all.
+  return !UNDRAWABLE_EXTENSIONS.has(extensionOf(file.name));
+}
+
 export function previewKindFor(file: Pick<OrbitFile, 'mimeType' | 'name' | 'sizeBytes' | 'isFolder'>): PreviewKind {
   if (file.isFolder) return 'none';
 

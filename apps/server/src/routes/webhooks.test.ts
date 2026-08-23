@@ -16,9 +16,17 @@ let baseUrl: string;
 
 /** A receiver, so a delivery has somewhere real to land. */
 let receiver: Server;
-let receiverUrl: string;
 let received: Array<{ headers: Record<string, string | string[] | undefined>; body: string }> = [];
 let answerWith = 200;
+
+/**
+ * An address rather than a name, and one from a documentation range.
+ *
+ * A name would mean a DNS lookup, and a test that needs the internet to decide
+ * whether a URL is private is a test that fails on a machine with no DNS - for
+ * eleven seconds each, which is how this was found.
+ */
+const PUBLIC_URL = 'https://203.0.113.10/hook';
 
 before(async () => {
   server = createServer(createApp());
@@ -39,10 +47,6 @@ before(async () => {
   });
 
   await new Promise<void>((resolve) => receiver.listen(0, resolve));
-  const at = receiver.address();
-  if (typeof at === 'string' || at === null) throw new Error('no port');
-  // Not 127.0.0.1: the SSRF check refuses that, which is the point of it.
-  receiverUrl = `http://localhost.orbit-test.invalid:${at.port}/hook`;
 });
 
 after(async () => {
@@ -62,7 +66,7 @@ async function create(body: Record<string, unknown> = {}) {
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       name: 'My script',
-      url: 'https://example.com/hook',
+      url: PUBLIC_URL,
       events: ['file.uploaded'],
       ...body,
     }),
@@ -99,7 +103,13 @@ describe('where a webhook may point', () => {
   }
 
   it('allows an ordinary public address', async () => {
-    assert.equal((await checkTarget('https://example.com/hook')).ok, true);
+    assert.equal((await checkTarget(PUBLIC_URL)).ok, true);
+  });
+
+  it('still resolves a name before judging it', async () => {
+    // localhost is a name, not an address, and it has to be refused on what it
+    // resolves to rather than on how it is spelled.
+    assert.equal((await checkTarget('http://localhost:9/hook')).ok, false);
   });
 
   it('refuses a private address through the API, before storing anything', async () => {

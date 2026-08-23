@@ -14,13 +14,19 @@ import { ModelViewer } from './ModelViewer.js';
 import { HexViewer } from './HexViewer.js';
 import { PdfViewer } from './PdfViewer.js';
 import { formatBytes } from '../lib/format.js';
-import { previewKindFor, TEXT_PREVIEW_LIMIT } from '../lib/preview.js';
+import { browserCanDraw, previewKindFor, TEXT_PREVIEW_LIMIT } from '../lib/preview.js';
 
 interface Props {
   file: OrbitFile;
   /** Same-folder siblings, so the viewer can step through them. */
   siblings: OrbitFile[];
   contentUrl: (file: OrbitFile, download: boolean) => string;
+  /**
+   * A rendered picture of a file, from the provider, at roughly this many
+   * pixels. Optional: a caller that cannot build one simply gets the honest
+   * "no preview" screen for a format the browser cannot draw.
+   */
+  thumbnailUrl?: (file: OrbitFile, size: number) => string;
   onSelect: (file: OrbitFile) => void;
   onClose: () => void;
 }
@@ -30,7 +36,14 @@ interface Props {
  * so the provider's URL never reaches the browser — which is the whole reason
  * files are not simply opened in a new tab.
  */
-export function FilePreview({ file, siblings, contentUrl, onSelect, onClose }: Props) {
+export function FilePreview({
+  file,
+  siblings,
+  contentUrl,
+  thumbnailUrl,
+  onSelect,
+  onClose,
+}: Props) {
   const kind = previewKindFor(file);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -141,7 +154,12 @@ export function FilePreview({ file, siblings, contentUrl, onSelect, onClose }: P
       </header>
 
       <div className="preview-stage">
-        <FileViewer file={file} kind={kind} contentUrl={contentUrl} />
+        <FileViewer
+          file={file}
+          kind={kind}
+          contentUrl={contentUrl}
+          thumbnailUrl={thumbnailUrl}
+        />
       </div>
 
       <footer style={{ display: 'flex', justifyContent: 'center' }}>
@@ -183,14 +201,36 @@ export function FileViewer({
   file,
   kind = previewKindFor(file),
   contentUrl,
+  thumbnailUrl,
 }: {
   file: OrbitFile;
   kind?: ReturnType<typeof previewKindFor>;
   contentUrl: Props['contentUrl'];
+  thumbnailUrl?: Props['thumbnailUrl'];
 }) {
   const src = contentUrl(file, false);
 
   if (kind === 'image') {
+    /*
+     * A HEIC from a phone is an image the browser will not draw. The provider
+     * has a JPEG of it for its own interface, so that is shown instead - a
+     * picture of the file rather than the file, which is worth saying out loud
+     * because it is not the full-resolution original.
+     */
+    if (!browserCanDraw(file)) {
+      if (!thumbnailUrl) return <NoPreview file={file} contentUrl={contentUrl} />;
+
+      return (
+        <ImageViewer
+          src={thumbnailUrl(file, 1024)}
+          alt={file.name}
+          note={`A preview of this ${
+            file.name.split('.').pop()?.toUpperCase() ?? 'file'
+          }, which browsers cannot display. Download it for the original.`}
+        />
+      );
+    }
+
     return <ImageViewer src={src} alt={file.name} />;
   }
 

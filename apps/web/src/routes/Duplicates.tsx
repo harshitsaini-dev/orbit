@@ -11,7 +11,7 @@ import { FileListSkeleton } from '../components/Skeleton.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { ApiError, api } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
-import { fetchThumbnail, mightHaveThumbnail } from '../lib/thumbnails.js';
+import { fetchThumbnail, mightHaveThumbnail, thumbnailAddress } from '../lib/thumbnails.js';
 
 /**
  * The same file, found in more than one place.
@@ -515,6 +515,9 @@ export function Duplicates() {
           // exactly the comparison this page exists to help somebody make.
           siblings={previewing.group.files.map(asOrbitFile)}
           contentUrl={contentUrlFor(previewing.file.accountId)}
+          thumbnailUrl={(file, size) =>
+            thumbnailAddress(previewing.file.accountId, file.remoteId, size)
+          }
           onSelect={(next) => {
             const match = previewing.group.files.find((f) => f.remoteId === next.remoteId);
             if (match) setPreviewing({ group: previewing.group, file: match });

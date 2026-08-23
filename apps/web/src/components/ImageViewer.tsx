@@ -12,7 +12,24 @@ const MAX_ZOOM = ZOOM_STEPS[ZOOM_STEPS.length - 1]!;
  * enabled exactly when the image is larger than the frame, so a fitted image
  * cannot be dragged around pointlessly.
  */
-export function ImageViewer({ src, alt }: { src: string; alt: string }) {
+export function ImageViewer({
+  src,
+  alt,
+  note,
+}: {
+  src: string;
+  alt: string;
+  /**
+   * A line under the controls, for when the picture is not quite the file -
+   * a provider's rendering of a HEIC, say.
+   *
+   * Taken as a prop rather than wrapped around this component by the caller,
+   * because the frame is measured with a ResizeObserver and an extra centring
+   * box around it measures zero: the image then scales to nothing and the
+   * viewer shows an empty stage at 0%.
+   */
+  note?: string;
+}) {
   const frameRef = useRef<HTMLDivElement>(null);
   const [natural, setNatural] = useState<{ width: number; height: number } | null>(null);
   const [frame, setFrame] = useState<{ width: number; height: number } | null>(null);
@@ -126,7 +143,16 @@ export function ImageViewer({ src, alt }: { src: string; alt: string }) {
   }
 
   return (
-    <div style={{ display: 'grid', gridTemplateRows: '1fr auto', gap: 10, minHeight: 0, height: '100%', width: '100%' }}>
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateRows: note ? '1fr auto auto' : '1fr auto',
+        gap: 10,
+        minHeight: 0,
+        height: '100%',
+        width: '100%',
+      }}
+    >
       <div
         ref={frameRef}
         onWheel={onWheel}
@@ -234,6 +260,12 @@ export function ImageViewer({ src, alt }: { src: string; alt: string }) {
           </button>
         </div>
       </div>
+
+      {note && (
+        <p className="share-hint" style={{ margin: 0, textAlign: 'center' }}>
+          {note}
+        </p>
+      )}
     </div>
   );
 }

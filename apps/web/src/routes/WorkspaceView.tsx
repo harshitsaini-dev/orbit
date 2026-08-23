@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { thumbnailAddress } from '../lib/thumbnails.js';
 import type { OrbitFile, WorkspaceView as ViewName } from '@orbit/shared-types';
 import { DownloadIcon, StarIcon } from '../components/ActionIcon.js';
 import { FileGrid } from '../components/FileGrid.js';
@@ -367,6 +368,13 @@ export function WorkspaceViewPage({ view }: { view: ViewName }) {
           file={previewing}
           siblings={files}
           contentUrl={contentUrl}
+          thumbnailUrl={(file, size) =>
+            thumbnailAddress(
+              files.find((entry) => entry.remoteId === file.remoteId)?.accountId ?? '',
+              file.remoteId,
+              size,
+            )
+          }
           onSelect={(file) => setPreviewing(file as WorkspaceFile)}
           onClose={() => setPreviewing(null)}
         />
