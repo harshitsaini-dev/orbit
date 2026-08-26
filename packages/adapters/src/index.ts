@@ -11,6 +11,7 @@ import { PCloudAdapter } from './providers/pcloud.js';
 import { S3CompatibleAdapter } from './providers/s3-compatible.js';
 
 export * from './base.js';
+export { bulkMap, BULK_CONCURRENCY } from './bulk.js';
 export * from './providers/azure-blob.js';
 export * from './providers/bunny.js';
 export * from './providers/dropbox.js';

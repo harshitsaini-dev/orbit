@@ -1,3 +1,4 @@
+import { bulkMap } from '../bulk.js';
 import type {
   AccountTokens,
   AuthType,
@@ -263,25 +264,12 @@ export class AzureBlobAdapter extends BaseAdapter {
   }
 
   override async remove(tokens: AccountTokens, remoteIds: string[]): Promise<BulkResult> {
-    const result: BulkResult = { succeeded: [], failed: [] };
-
-    for (const remoteId of remoteIds) {
-      try {
-        // A folder is a prefix, so removing one means removing every blob
-        // under it - the marker alone would orphan the contents.
-        const keys = remoteId.endsWith('/') ? await this.keysUnder(tokens, remoteId) : [remoteId];
-        for (const key of keys) await this.raw(tokens, { method: 'DELETE', key });
-
-        result.succeeded.push(remoteId);
-      } catch (err) {
-        result.failed.push({
-          remoteId,
-          reason: err instanceof Error ? err.message : 'could not be deleted',
-        });
-      }
-    }
-
-    return result;
+    return bulkMap(remoteIds, async (remoteId) => {
+      // A folder is a prefix, so removing one means removing every blob
+      // under it - the marker alone would orphan the contents.
+      const keys = remoteId.endsWith('/') ? await this.keysUnder(tokens, remoteId) : [remoteId];
+      for (const key of keys) await this.raw(tokens, { method: 'DELETE', key });
+    });
   }
 
   override async star(): Promise<void> {

@@ -1,3 +1,4 @@
+import { bulkMap } from '../bulk.js';
 import type {
   AccountTokens,
   AuthType,
@@ -824,27 +825,15 @@ export class GoogleDriveAdapter extends BaseAdapter {
   }
 
   override async remove(tokens: AccountTokens, remoteIds: string[]): Promise<BulkResult> {
-    const result: BulkResult = { succeeded: [], failed: [] };
-
-    for (const remoteId of remoteIds) {
-      try {
-        await providerFetch(this.id, `${API}/files/${encodeURIComponent(remoteId)}`, {
-          method: 'PATCH',
-          headers: { ...this.auth(tokens), 'content-type': 'application/json' },
-          query: { supportsAllDrives: true },
-          body: JSON.stringify({ trashed: true }),
-        });
-        result.succeeded.push(remoteId);
-      } catch (err) {
-        // One failure must not abandon the rest of a bulk selection.
-        result.failed.push({
-          remoteId,
-          reason: err instanceof Error ? err.message : 'Unknown error',
-        });
-      }
-    }
-
-    return result;
+    // A few at a time, and one failure never abandons the rest of a selection.
+    return bulkMap(remoteIds, async (remoteId) => {
+      await providerFetch(this.id, `${API}/files/${encodeURIComponent(remoteId)}`, {
+        method: 'PATCH',
+        headers: { ...this.auth(tokens), 'content-type': 'application/json' },
+        query: { supportsAllDrives: true },
+        body: JSON.stringify({ trashed: true }),
+      });
+    });
   }
 
   // --- upload -------------------------------------------------------------

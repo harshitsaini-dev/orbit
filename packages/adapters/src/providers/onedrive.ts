@@ -1,3 +1,4 @@
+import { bulkMap } from '../bulk.js';
 import { mimeForName } from '@orbit/shared-types';
 import type {
   AccountTokens,
@@ -374,26 +375,14 @@ export class OneDriveAdapter extends BaseAdapter {
   }
 
   override async remove(tokens: AccountTokens, remoteIds: string[]): Promise<BulkResult> {
-    const result: BulkResult = { succeeded: [], failed: [] };
-
-    for (const remoteId of remoteIds) {
-      try {
-        // Graph's DELETE moves the item to the recycle bin, so this is
-        // recoverable in the same way Drive's trash is.
-        await providerFetch(this.id, `${GRAPH}/me/drive/items/${remoteId}`, {
-          method: 'DELETE',
-          headers: this.auth(tokens),
-        });
-        result.succeeded.push(remoteId);
-      } catch (err) {
-        result.failed.push({
-          remoteId,
-          reason: err instanceof Error ? err.message : 'Delete failed',
-        });
-      }
-    }
-
-    return result;
+    return bulkMap(remoteIds, async (remoteId) => {
+      // Graph's DELETE moves the item to the recycle bin, so this is
+      // recoverable in the same way Drive's trash is.
+      await providerFetch(this.id, `${GRAPH}/me/drive/items/${remoteId}`, {
+        method: 'DELETE',
+        headers: this.auth(tokens),
+      });
+    });
   }
 
   // --- upload -------------------------------------------------------------

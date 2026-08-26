@@ -1,3 +1,4 @@
+import { bulkMap } from '../bulk.js';
 import type {
   AccountTokens,
   AuthType,
@@ -231,27 +232,15 @@ export class BunnyAdapter extends BaseAdapter {
   }
 
   override async remove(tokens: AccountTokens, remoteIds: string[]): Promise<BulkResult> {
-    const result: BulkResult = { succeeded: [], failed: [] };
-
-    for (const remoteId of remoteIds) {
-      try {
-        // A trailing slash is how Bunny is told to remove a folder and
-        // everything under it rather than an object of that name.
-        const isFolder = remoteId.endsWith('/');
-        await providerFetch(this.id, `${this.url(tokens, remoteId)}${isFolder ? '/' : ''}`, {
-          method: 'DELETE',
-          headers: this.auth(tokens),
-        });
-        result.succeeded.push(remoteId);
-      } catch (err) {
-        result.failed.push({
-          remoteId,
-          reason: err instanceof Error ? err.message : 'could not be deleted',
-        });
-      }
-    }
-
-    return result;
+    return bulkMap(remoteIds, async (remoteId) => {
+      // A trailing slash is how Bunny is told to remove a folder and
+      // everything under it rather than an object of that name.
+      const isFolder = remoteId.endsWith('/');
+      await providerFetch(this.id, `${this.url(tokens, remoteId)}${isFolder ? '/' : ''}`, {
+        method: 'DELETE',
+        headers: this.auth(tokens),
+      });
+    });
   }
 
   override async star(): Promise<void> {

@@ -1,3 +1,4 @@
+import { bulkMap } from '../bulk.js';
 import { mimeForName } from '@orbit/shared-types';
 import type {
   AccountTokens,
@@ -444,23 +445,11 @@ export class DropboxAdapter extends BaseAdapter {
   }
 
   override async remove(tokens: AccountTokens, remoteIds: string[]): Promise<BulkResult> {
-    const result: BulkResult = { succeeded: [], failed: [] };
-
-    for (const remoteId of remoteIds) {
-      try {
-        // Dropbox keeps deleted files for 30 days, so this is recoverable in
-        // the same way Drive's trash is.
-        await this.rpc(tokens, '/files/delete_v2', { path: remoteId });
-        result.succeeded.push(remoteId);
-      } catch (err) {
-        result.failed.push({
-          remoteId,
-          reason: err instanceof Error ? err.message : 'Delete failed',
-        });
-      }
-    }
-
-    return result;
+    return bulkMap(remoteIds, async (remoteId) => {
+      // Dropbox keeps deleted files for 30 days, so this is recoverable in
+      // the same way Drive's trash is.
+      await this.rpc(tokens, '/files/delete_v2', { path: remoteId });
+    });
   }
 
   // --- upload -------------------------------------------------------------

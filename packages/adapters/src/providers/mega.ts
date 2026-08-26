@@ -1,3 +1,4 @@
+import { bulkMap } from '../bulk.js';
 import { PassThrough, Readable } from 'node:stream';
 import type {
   AccountTokens,
@@ -693,20 +694,16 @@ export class MegaAdapter extends BaseAdapter {
 
   override async remove(tokens: AccountTokens, remoteIds: string[]): Promise<BulkResult> {
     const session = await open(tokens);
-    const succeeded: string[] = [];
-    const failed: BulkResult['failed'] = [];
 
-    for (const remoteId of remoteIds) {
+    return bulkMap(remoteIds, async (remoteId) => {
       try {
         // To the bin, not destroyed: `delete(true)` is what purge is for.
         await nodeById(session, remoteId).delete(false);
-        succeeded.push(remoteId);
       } catch (err) {
-        failed.push({ remoteId, reason: asProviderError(err).message });
+        // megajs errors carry no useful message of their own.
+        throw asProviderError(err);
       }
-    }
-
-    return { succeeded, failed };
+    });
   }
 
   override async star(

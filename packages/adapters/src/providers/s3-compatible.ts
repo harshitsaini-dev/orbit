@@ -1,3 +1,4 @@
+import { bulkMap } from '../bulk.js';
 import { categorise } from '@orbit/shared-types';
 import type {
   AccountTokens,
@@ -319,26 +320,14 @@ export class S3CompatibleAdapter extends BaseAdapter {
   }
 
   override async remove(tokens: AccountTokens, remoteIds: string[]): Promise<BulkResult> {
-    const result: BulkResult = { succeeded: [], failed: [] };
-
-    for (const remoteId of remoteIds) {
-      try {
-        // Deleting a folder means deleting everything under its prefix; the
-        // marker object alone would leave the contents orphaned and invisible.
-        const keys = remoteId.endsWith('/') ? await this.allKeysUnder(tokens, remoteId) : [remoteId];
-        for (const key of keys) {
-          await this.request(tokens, { method: 'DELETE', key });
-        }
-        result.succeeded.push(remoteId);
-      } catch (err) {
-        result.failed.push({
-          remoteId,
-          reason: err instanceof Error ? err.message : 'Delete failed',
-        });
+    return bulkMap(remoteIds, async (remoteId) => {
+      // Deleting a folder means deleting everything under its prefix; the
+      // marker object alone would leave the contents orphaned and invisible.
+      const keys = remoteId.endsWith('/') ? await this.allKeysUnder(tokens, remoteId) : [remoteId];
+      for (const key of keys) {
+        await this.request(tokens, { method: 'DELETE', key });
       }
-    }
-
-    return result;
+    });
   }
 
   // --- upload -------------------------------------------------------------

@@ -5178,6 +5178,51 @@ body {
   }
 }
 
+/*
+ * How far a bulk delete has got.
+ *
+ * Sits directly above the select-all row, because that is where the number it
+ * is counting down was chosen. Reads as part of the list rather than as an
+ * alert - it is progress, not a problem.
+ */
+.delete-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0.15rem 0.5rem 0.75rem;
+}
+
+.delete-progress__label {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+  /* So the percentage does not shuffle the label as the digits change. */
+  font-variant-numeric: tabular-nums;
+}
+
+.delete-progress__track {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken, var(--surface));
+  overflow: hidden;
+}
+
+.delete-progress__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 240ms ease-out;
+}
+
+/* A batch lands at once, so without this the bar would jump rather than move. */
+@media (prefers-reduced-motion: reduce) {
+  .delete-progress__fill {
+    transition: none;
+  }
+}
+
 /* The same idea as Bin's `.trash-all`, on the file list. */
 .list-controls {
   display: flex;

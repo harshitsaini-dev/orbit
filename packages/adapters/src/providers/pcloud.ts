@@ -1,3 +1,4 @@
+import { bulkMap } from '../bulk.js';
 import type {
   AccountTokens,
   AuthType,
@@ -309,27 +310,15 @@ export class PCloudAdapter extends BaseAdapter {
   }
 
   override async remove(tokens: AccountTokens, remoteIds: string[]): Promise<BulkResult> {
-    const result: BulkResult = { succeeded: [], failed: [] };
-
-    for (const remoteId of remoteIds) {
-      try {
-        // Recursive for a folder: deleting the folder alone leaves what was in
-        // it unreachable rather than deleted.
-        await this.call(
-          tokens,
-          remoteId.startsWith('d') ? 'deletefolderrecursive' : 'deletefile',
-          idParams(remoteId),
-        );
-        result.succeeded.push(remoteId);
-      } catch (err) {
-        result.failed.push({
-          remoteId,
-          reason: err instanceof Error ? err.message : 'could not be deleted',
-        });
-      }
-    }
-
-    return result;
+    return bulkMap(remoteIds, async (remoteId) => {
+      // Recursive for a folder: deleting the folder alone leaves what was in
+      // it unreachable rather than deleted.
+      await this.call(
+        tokens,
+        remoteId.startsWith('d') ? 'deletefolderrecursive' : 'deletefile',
+        idParams(remoteId),
+      );
+    });
   }
 
   override async star(): Promise<void> {
