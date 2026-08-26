@@ -7,7 +7,7 @@ import { db } from '../lib/db.js';
 import { useAccount } from './accounts.js';
 import { readableAccountIds } from './sharing.js';
 import { decodeCursor, encodeCursor, type Cursor } from '../lib/cursor.js';
-import { mirrorCoverage, searchMirror } from './mirror.js';
+import { MIRROR_ANSWERS_LISTINGS, mirrorCoverage, searchMirror } from './mirror.js';
 import type { ViewResult, WorkspaceFile } from './views.js';
 
 export interface SearchRequest extends SearchQuery {
@@ -73,7 +73,7 @@ export async function searchWorkspace(
    * A continuation stays with whichever side started it, for the same reason.
    */
   const continuing = options.cursor?.startsWith('m');
-  if (!request.fresh && all.length > 0 && (continuing || !options.cursor)) {
+  if (MIRROR_ANSWERS_LISTINGS && !request.fresh && all.length > 0 && (continuing || !options.cursor)) {
     const coverage = await Promise.all(all.map((row) => mirrorCoverage(row.id)));
 
     if (coverage.every((entry) => entry.rows > 0)) {

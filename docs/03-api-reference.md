@@ -548,6 +548,18 @@ drive rather than taking one away, and somebody trusted to upload is trusted to 
 `{ accountId, remoteId }` → `204`. Needs `delete`, and is gated again on `purgeTrash`. This is the
 one operation in Orbit with nothing behind it.
 
+### `POST /api/trash/restore-many` · `POST /api/trash/purge-many`
+`{ files: [{ accountId, remoteId }] }` → `200`, or **`207` when the batch was mixed**, so a caller
+cannot read a success as "all done". Both answer `{ succeeded, failed }`, and `failed` names each
+file and why.
+
+**At most 200 files per request.** Each one is a call to a provider, and the API is behind a proxy
+that closes a request after a hundred seconds — an unbounded list is a request that gets cut with
+nothing reported. The web client sends 50 at a time and shows progress across the batches.
+
+Within one drive the files are worked through a few at a time; separate drives run in parallel,
+since they are separate services with separate limits.
+
 ## Schedules
 
 Jobs that run again on their own, described by a preset and a time rather than a cron expression.

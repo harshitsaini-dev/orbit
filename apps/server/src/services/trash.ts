@@ -1,4 +1,5 @@
 import type { OrbitFile } from '@orbit/shared-types';
+import { bulkMap } from '@orbit/adapters';
 import { useAccount } from './accounts.js';
 import { readableAccountIds } from './sharing.js';
 import { accounts, deletions } from '@orbit/db';
@@ -245,12 +246,20 @@ export interface BulkOutcome {
 /**
  * Restores or destroys a whole selection.
  *
- * Grouped by drive, and **one at a time within each drive**. Every provider
- * here does this a file at a time anyway - Drive patches one id, Dropbox
- * restores one revision - so firing forty at once buys nothing and is the
- * shape that gets an account rate limited for something the user thought was
- * a single action. Different drives do run at once, since they are different
- * services with separate limits.
+ * Grouped by drive, because different drives are different services with
+ * separate limits and there is no reason to make one wait for another. Within
+ * a drive it runs a few at a time rather than one after another.
+ *
+ * It used to be strictly one at a time, on the reasoning that every provider
+ * here works a file at a time anyway so concurrency bought nothing. That was
+ * wrong in a way that only showed at scale: two hundred files at a third of a
+ * second each is over a minute, and the API is behind a proxy that closes a
+ * request after a hundred seconds. The request was cut and the caller was told
+ * nothing - the same failure that made a large delete appear to hang.
+ *
+ * `bulkMap` keeps the limit modest and `providerFetch` backs off when a
+ * provider says to slow down, which is the part that made the original worry
+ * about rate limits answerable rather than a reason to stay slow.
  *
  * Never throws for one file. A selection of forty where two fail should report
  * two failures, not lose the other thirty-eight.
@@ -269,28 +278,20 @@ async function eachInTurn(
 
   await Promise.all(
     [...byAccount.entries()].map(async ([accountId, remoteIds]) => {
-      for (const remoteId of remoteIds) {
-        try {
-          const result = await act(userId, accountId, remoteId);
+      const result = await bulkMap(remoteIds, async (remoteId) => {
+        const acted = await act(userId, accountId, remoteId);
+        if (acted.ok) return;
 
-          if (result.ok) outcome.succeeded.push({ accountId, remoteId });
-          else {
-            outcome.failed.push({
-              accountId,
-              remoteId,
-              reason:
-                result.reason === 'unsupported'
-                  ? 'this drive does not allow it'
-                  : 'no such account',
-            });
-          }
-        } catch (err) {
-          outcome.failed.push({
-            accountId,
-            remoteId,
-            reason: err instanceof Error ? err.message : 'failed',
-          });
-        }
+        // Thrown so bulkMap records it as a failure with this reason, rather
+        // than every caller having to carry two shapes of "did not work".
+        throw new Error(
+          acted.reason === 'unsupported' ? 'this drive does not allow it' : 'no such account',
+        );
+      });
+
+      for (const remoteId of result.succeeded) outcome.succeeded.push({ accountId, remoteId });
+      for (const entry of result.failed) {
+        outcome.failed.push({ accountId, remoteId: entry.remoteId, reason: entry.reason });
       }
     }),
   );

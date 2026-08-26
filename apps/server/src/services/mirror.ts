@@ -21,12 +21,47 @@ import type { ViewResult, WorkspaceFile } from './views.js';
  * file bytes - and nothing about where bytes come from, because opening or
  * downloading a file still goes to the provider.
  *
- * What it does change is freshness, and that is the whole trade: a listing is
- * as current as the last sync pass. So the mirror answers listings and
- * searches - where being a few minutes behind is a smaller cost than being
- * thirty seconds slow - and every route that acts on a file still resolves it
- * against the provider, where being wrong is not survivable.
+ * What it does change is freshness, and that was meant to be the whole trade:
+ * a listing as current as the last sync pass, in exchange for not waiting on a
+ * chain of round trips.
+ *
+ * It turned out not to be the whole trade - see MIRROR_ANSWERS_LISTINGS below,
+ * which is why none of this currently answers a listing. The queries and their
+ * tests are kept because the shortcoming is in what the mirror *contains*, not
+ * in how it is read.
  */
+
+/**
+ * Whether the mirror may answer listings and searches. It may not, yet.
+ *
+ * The mirror is not a file tree, and reading it as one was a mistake made by
+ * assuming rather than checking. It was built to answer "what do you have" -
+ * the storage breakdown and the duplicate finder - and both of those need
+ * names, sizes and checksums, never paths.
+ *
+ * Two things follow from that, and both are visibly wrong when browsing:
+ *
+ *   - **Every adapter drops folders from its flat enumeration.** So a folder
+ *     listing out of the mirror shows files and no subfolders at all.
+ *   - **Google Drive files have no real path in it.** `listAllFiles` and the
+ *     delta both filed everything as `/${name}`, so 4,860 of 5,214 rows sat at
+ *     the root. Browsing the root showed the whole drive flattened, and a file
+ *     appeared to come back every time a sync pass rewrote its row.
+ *
+ * Pressing Refresh went to the provider and looked right, which made a real
+ * data problem read as a display glitch.
+ *
+ * Everything else the mirror work added stands and is still worth having: the
+ * created date, the indexes, the FTS table, write-through on every mutation,
+ * and a delta that now resolves real paths. What is switched off is only the
+ * decision to *read* it for browsing and search, until it actually models
+ * folders and paths for every provider - which is its own piece of work, with
+ * its own re-enumeration of what is already stored.
+ *
+ * Flip this when that is true. The read path and its tests are left in place
+ * deliberately, so turning it back on is one line rather than a rewrite.
+ */
+export const MIRROR_ANSWERS_LISTINGS = false;
 
 /** Rows per page. Larger than a provider page, because there is no round trip. */
 export const MIRROR_PAGE = 1000;

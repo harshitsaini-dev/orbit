@@ -5285,7 +5285,13 @@ body {
 
 /* Select-all sits above the rows it applies to, and says how many that is —
    which is not the same number as everything in the bin once a filter is on. */
+/* A row now, not a single tick: the page checkbox sits beside the control that
+   reaches past it, the same pairing the file list uses. */
 .trash-all {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
   padding: 0.35rem 0.6rem 0.6rem;
   font-size: 13px;
 }

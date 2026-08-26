@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { catalogueEntry, type OrbitFile } from '@orbit/shared-types';
 import { thumbnailAddress } from '../lib/thumbnails.js';
 import { Checkbox } from '../components/Checkbox.js';
@@ -15,12 +16,36 @@ import {
   useListView,
 } from '../components/ListControls.js';
 import { ConfirmDialog } from '../components/NameDialog.js';
+import { Pagination } from '../components/Pagination.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { FileListSkeleton } from '../components/Skeleton.js';
 import { StatusScreen, statusKindFor } from '../components/StatusScreen.js';
 import { ApiError, api } from '../lib/api.js';
 import { useRangeSelection } from '../lib/selection.js';
 import { formatBytes } from '../lib/format.js';
+
+/*
+ * The bin has no ceiling either.
+ *
+ * It used to stop at whatever the first page happened to hold - two hundred
+ * files - behind a "Load more" button. That is the same dead end My Drive had:
+ * a bin is where somebody goes to find one file among everything they have
+ * ever deleted, and a file past the cap could not be found by any means.
+ *
+ * Now it loads until every drive says there is nothing left, and pages over
+ * the result. The count says how far it has got while that happens.
+ */
+
+/** Rows per page. Past this a single list is slow to render and worse to read. */
+const PAGE_SIZE = 1000;
+
+/*
+ * Files per restore or purge request, and it must stay under the route's cap
+ * of two hundred. Well under, because each one is a call to a provider and the
+ * API is behind a proxy that closes a request after a hundred seconds - the
+ * failure that made a large delete appear to hang rather than finish.
+ */
+const ACTION_BATCH = 50;
 
 /**
  * What has been deleted but not yet destroyed.
@@ -88,6 +113,9 @@ export function Trash() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [viewMode, setViewMode] = useListView('trash');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [params, setParams] = useSearchParams();
+  /** Set only while a selection too large for one request is being worked through. */
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [purgingMany, setPurgingMany] = useState(false);
   const [previewing, setPreviewing] = useState<TrashedFile | null>(null);
 
@@ -117,11 +145,73 @@ export function Trash() {
     void load();
   }, [load]);
 
+  /**
+   * The rest of the bin, fetched behind the first page.
+   *
+   * The first page renders immediately and the remainder arrives after it, so
+   * a large bin is usable straight away rather than either truncated or blank
+   * until every drive has answered. It runs to the end: nothing is unreachable
+   * and no page needs a button to get to.
+   */
+  useEffect(() => {
+    if (!data?.nextCursor) return;
+
+    const controller = new AbortController();
+    let cancelled = false;
+
+    void (async () => {
+      setLoadingMore(true);
+      let cursor: string | undefined = data.nextCursor;
+
+      try {
+        while (cursor && !cancelled) {
+          const next: TrashResponse = await api<TrashResponse>(
+            `/api/trash?cursor=${encodeURIComponent(cursor)}`,
+            { signal: controller.signal },
+          );
+
+          if (cancelled) return;
+
+          setData((current) =>
+            current ? { ...next, files: [...current.files, ...next.files] } : next,
+          );
+          cursor = next.nextCursor;
+        }
+      } catch (err) {
+        // A failed continuation leaves what already loaded in place; the count
+        // still says more exists.
+        if ((err as Error).name !== 'AbortError') setNotice('Could not load the rest of the bin.');
+      } finally {
+        if (!cancelled) setLoadingMore(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, [data?.nextCursor]);
+
   const all = data?.files ?? [];
   const { filter, setFilter, shown: matching } = useFileFilter(all);
   const { sort, setSort, descending, toggleDirection, sorted } = useFileSort('trash', matching);
 
   const keyOf = (file: TrashedFile) => `${file.accountId}:${file.remoteId}`;
+
+  // One page at a time reaches the DOM; the rest is held but not rendered.
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const currentPage = Math.min(Math.max(1, Number(params.get('page')) || 1), pageCount);
+  const paged =
+    pageCount > 1
+      ? sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+      : sorted;
+
+  function goToPage(next: number): void {
+    const updated = new URLSearchParams(params);
+    if (next <= 1) updated.delete('page');
+    else updated.set('page', String(next));
+    setParams(updated, { replace: false });
+  }
 
   function toggle(key: string): void {
     setSelected((current) => {
@@ -132,9 +222,13 @@ export function Trash() {
     });
   }
 
-  /** Everything currently shown, which is not the same as everything there is. */
-  const shownKeys = sorted.map(keyOf);
+  /** The rows actually rendered, which is one page of what a filter left. */
+  const shownKeys = paged.map(keyOf);
   const allShownSelected = shownKeys.length > 0 && shownKeys.every((key) => selected.has(key));
+
+  /** Every row the filter left, across every page. */
+  const everyKey = sorted.map(keyOf);
+  const allSelected = everyKey.length > 0 && everyKey.every((key) => selected.has(key));
 
   function toggleAll(): void {
     // Selecting "all" while a filter is on must mean the rows in front of
@@ -161,6 +255,11 @@ export function Trash() {
     container: listRef,
   });
 
+  /*
+   * Every selected row, not every rendered one. Taking this from the page
+   * would mean a restore announcing the full count and acting on a slice - the
+   * same wrong-scope bug the file list had before select-all crossed pages.
+   */
   const chosen = sorted.filter((file) => selected.has(keyOf(file)));
   /** A selection cannot be destroyed unless every file in it may be. */
   const canPurgeChosen = chosen.length > 0 && chosen.every((file) => file.canPurge);
@@ -172,23 +271,47 @@ export function Trash() {
     const files = chosen.map((file) => ({ accountId: file.accountId, remoteId: file.remoteId }));
 
     try {
-      const outcome = await api<{ failed: Array<{ reason: string }>; succeeded: unknown[] }>(
-        kind === 'restore' ? '/api/trash/restore-many' : '/api/trash/purge-many',
-        { method: 'POST', body: { files } },
-      );
+      /*
+       * In batches, because the route takes at most two hundred and the
+       * selection can now be the whole bin. Sequentially rather than at once:
+       * each batch is a run of provider calls, and firing several together is
+       * the surest way to be rate-limited on exactly the selection sizes where
+       * that hurts.
+       */
+      const succeeded: unknown[] = [];
+      const failed: Array<{ reason: string }> = [];
+      let done = 0;
+
+      setProgress({ done: 0, total: files.length });
+
+      for (let start = 0; start < files.length; start += ACTION_BATCH) {
+        const batch = files.slice(start, start + ACTION_BATCH);
+
+        const outcome = await api<{ failed: Array<{ reason: string }>; succeeded: unknown[] }>(
+          kind === 'restore' ? '/api/trash/restore-many' : '/api/trash/purge-many',
+          { method: 'POST', body: { files: batch } },
+        );
+
+        succeeded.push(...outcome.succeeded);
+        failed.push(...outcome.failed);
+        done += batch.length;
+        setProgress({ done, total: files.length });
+      }
 
       setSelected(new Set());
       await load();
 
       // A mixed batch says so. Reporting "done" for a selection where two
       // failed is how somebody discovers it a week later.
-      if (outcome.failed.length > 0) {
+      if (failed.length > 0) {
         setNotice(
-          `${outcome.succeeded.length} done, ${outcome.failed.length} could not be: ${outcome.failed[0]!.reason}`,
+          `${succeeded.length} done, ${failed.length} could not be: ${failed[0]!.reason}`,
         );
       }
     } catch (err) {
       setNotice(err instanceof ApiError ? err.message : 'That did not work');
+    } finally {
+      setProgress(null);
     }
   }
 
@@ -233,23 +356,6 @@ export function Trash() {
     }
   }
 
-  async function loadMore(): Promise<void> {
-    if (!data?.nextCursor || loadingMore) return;
-    setLoadingMore(true);
-
-    try {
-      const next = await api<TrashResponse>(
-        `/api/trash?cursor=${encodeURIComponent(data.nextCursor)}`,
-      );
-      setData((current) =>
-        current ? { ...next, files: [...current.files, ...next.files] } : next,
-      );
-    } catch {
-      setNotice('Could not load any more');
-    } finally {
-      setLoadingMore(false);
-    }
-  }
 
   if (error && data === null) {
     return (
@@ -273,7 +379,7 @@ export function Trash() {
                 ? 'Looking through every drive that keeps a bin…'
                 : all.length === 0
                   ? 'Nothing deleted is waiting to be recovered.'
-                  : `${all.length} ${all.length === 1 ? 'file' : 'files'} deleted but not yet destroyed.`}
+                  : `${all.length.toLocaleString()} ${all.length === 1 ? 'file' : 'files'} deleted but not yet destroyed.`}
             </p>
           </div>
 
@@ -381,17 +487,65 @@ export function Trash() {
           {/* The same control as every other tick in the app, rather than the
               browser's own - two kinds of checkbox on one page reads as one of
               them being broken. */}
+          {/*
+            * Above the selection it is describing, for the same reason as on
+            * the file list: a count that only lives in a modal is a count
+            * nobody can see beside the rows it is clearing.
+            */}
+          {progress && (
+            <div className="delete-progress" role="status" aria-live="polite">
+              <div className="delete-progress__label">
+                <span>
+                  Working through {progress.done.toLocaleString()} of{' '}
+                  {progress.total.toLocaleString()}
+                </span>
+                <span>{Math.round((progress.done / progress.total) * 100)}%</span>
+              </div>
+              <div
+                className="delete-progress__track"
+                role="progressbar"
+                aria-valuenow={progress.done}
+                aria-valuemin={0}
+                aria-valuemax={progress.total}
+              >
+                <div
+                  className="delete-progress__fill"
+                  style={{ width: `${(progress.done / progress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           <div className="trash-all">
             <Checkbox
               checked={allShownSelected}
               onChange={toggleAll}
-              label={`${allShownSelected ? 'Unselect' : 'Select'} all ${sorted.length}${filter.trim() ? ' shown' : ''}`}
+              label={
+                pageCount > 1
+                  ? `Select page (${paged.length.toLocaleString()})`
+                  : `${allShownSelected ? 'Unselect' : 'Select'} all ${sorted.length.toLocaleString()}${filter.trim() ? ' shown' : ''}`
+              }
             />
+
+            {/* Reaching past the page you can see is a different intention
+                from ticking the list in front of you, so it gets its own
+                control and its own count. */}
+            {pageCount > 1 && (
+              <button
+                type="button"
+                className="list-controls__all"
+                onClick={() => setSelected(allSelected ? new Set() : new Set(everyKey))}
+              >
+                {allSelected
+                  ? 'Clear selection'
+                  : `Select all ${sorted.length.toLocaleString()}${filter.trim() ? ' shown' : ''}`}
+              </button>
+            )}
           </div>
 
           {viewMode === 'grid' && (
             <FileGrid
-              files={sorted}
+              files={paged}
               accountIdFor={(file) => (file as TrashedFile).accountId}
               selected={selected}
               // The bin spans drives, so a remote id alone does not identify a
@@ -436,7 +590,7 @@ export function Trash() {
 
           {viewMode === 'list' && (
           <ul className="trash-list">
-            {sorted.map((file) => (
+            {paged.map((file) => (
               <li
                 key={keyOf(file)}
                 data-file={keyOf(file)}
@@ -519,17 +673,23 @@ export function Trash() {
           </ul>
           )}
 
-          {data?.nextCursor && (
-            <div style={{ display: 'grid', placeItems: 'center', padding: '0.9rem 0 0.3rem' }}>
-              <button
-                type="button"
-                className="clay-button"
-                disabled={loadingMore}
-                onClick={() => void loadMore()}
-              >
-                {loadingMore ? 'Loading…' : 'Load more'}
-              </button>
-            </div>
+          <Pagination
+            page={currentPage}
+            pageCount={pageCount}
+            totalItems={sorted.length}
+            pageSize={PAGE_SIZE}
+            onChange={goToPage}
+          />
+
+          {/* Says the list is still growing, rather than leaving a button to
+              press for the rest of it. */}
+          {loadingMore && (
+            <p
+              style={{ color: 'var(--text-muted)', fontSize: 13, padding: '0.75rem', margin: 0 }}
+              aria-live="polite"
+            >
+              {sorted.length.toLocaleString()} so far, still looking through every drive…
+            </p>
           )}
         </section>
       )}

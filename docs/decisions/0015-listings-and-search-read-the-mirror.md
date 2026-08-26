@@ -1,6 +1,6 @@
 # 0015 — Listings and search read the mirror
 
-Status: accepted
+Status: **reversed 2026-08-26** — see "What this got wrong" at the end
 Date: 2026-08-23
 
 ## Context
@@ -92,3 +92,48 @@ whose provider has no delta feed. Those drives would appear empty rather than sl
 coverage, and it needs one opaque cursor holding a row offset and a set of provider page tokens.
 Getting that wrong is a result set that quietly loses files, which is the one failure mode a
 file manager cannot have. All-or-nothing per query instead.
+
+---
+
+## What this got wrong
+
+**Reversed on 2026-08-26.** `MIRROR_ANSWERS_LISTINGS` is `false`; listings and searches go to the
+provider again.
+
+The decision above rests on a sentence that was never checked: that the mirror describes the same
+tree the provider does. It does not, and could not, because of what it was built for. The storage
+breakdown and the duplicate finder ask *what do you have* — names, sizes, checksums — and neither
+has ever needed a path.
+
+So two things were true the whole time and neither was noticed:
+
+- **Every adapter drops folders from its flat enumeration.** `listAllFiles` on Drive filters
+  `mimeType != folder`; Dropbox filters `!file.isFolder`; OneDrive filters `!item.folder`. A
+  folder listing read out of the mirror therefore shows files and no subfolders at all.
+- **Drive files had no real path in it.** Both `listAllFiles` and the delta filed everything as
+  `/${name}`. In production that was **4,860 of 5,214 rows sitting at the root**.
+
+What the user saw: browsing showed the whole drive flattened into the root with its folders
+missing, and a file appeared to come back every fifteen minutes as each sync pass rewrote its row.
+Pressing Refresh went to the provider and looked correct, which made a real data problem read as a
+display glitch — the most expensive kind of wrong, because it points the search away from the
+cause.
+
+**The lesson is narrow and worth stating.** The performance reasoning was sound and the query work
+was sound. The failure was accepting "the mirror has the files" as equivalent to "the mirror has
+the folder structure", when one `SELECT` against production would have shown otherwise in seconds.
+The check that would have caught it cost nothing and was not run.
+
+**What stands.** Nothing here is deleted, because none of it is the part that was wrong: the
+`created_at` column, the name and date indexes, the FTS5 table, write-through on every mutation,
+and a delta that now resolves real ancestor paths instead of assuming the root. The read path and
+its sixteen tests stay too. Turning it back on is one constant.
+
+**What turning it back on requires**, and it is a separate piece of work:
+
+1. Every adapter's flat enumeration includes folders.
+2. Every adapter's flat enumeration reports a real virtual path — for Drive that means walking
+   ancestors, which `resolveVirtualPath` already does and the delta now uses.
+3. A re-enumeration of what is already stored, since existing rows carry the wrong paths.
+4. A test that browsing a mirrored subfolder returns its subfolders, which is the assertion whose
+   absence let this ship.

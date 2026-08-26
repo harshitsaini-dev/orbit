@@ -123,27 +123,33 @@ describe('GET /api/files', () => {
   });
 
   /*
-   * The listing reads the local mirror when it has been filled, and the
-   * provider when it has not. These cover the three cases that decide which:
-   * no rows, rows, and a caller who explicitly wants the provider.
+   * A listing comes from the provider, and does so even when the mirror holds
+   * rows for the account.
+   *
+   * The mirror briefly answered these, and it was wrong to let it: it holds no
+   * folders and, on Drive, no real paths, so browsing it showed a flattened
+   * drive with its subfolders missing. `MIRROR_ANSWERS_LISTINGS` is the switch,
+   * and this is the test that fails first if it is flipped back on before the
+   * mirror actually models a tree.
    */
-  it('asks the provider when the mirror has nothing for the account', async () => {
+  it('asks the provider even when the mirror has rows for the account', async () => {
     let asked = 0;
     stub('listFolder', async () => {
       asked += 1;
-      return { files: [] };
-    });
-
-    const res = await fetch(`${baseUrl}/api/files?accountId=${accountId}&path=/`);
-    const body = (await res.json()) as { source: string };
-
-    assert.equal(body.source, 'provider');
-    assert.equal(asked, 1);
-  });
-
-  it('answers from the mirror without touching the provider', async () => {
-    stub('listFolder', async () => {
-      throw new Error('the provider must not be asked');
+      return {
+        files: [
+          {
+            remoteId: 'p1',
+            name: 'FromProvider.txt',
+            virtualPath: '/FromProvider.txt',
+            mimeType: 'text/plain',
+            sizeBytes: 4,
+            isFolder: false,
+            starred: false,
+            modifiedAt: '2026-01-02T00:00:00.000Z',
+          },
+        ],
+      };
     });
 
     await rememberInMirror(accountId, [
@@ -162,86 +168,20 @@ describe('GET /api/files', () => {
     const res = await fetch(`${baseUrl}/api/files?accountId=${accountId}&path=/`);
     const body = (await res.json()) as { files: Array<{ name: string }>; source: string };
 
-    assert.equal(res.status, 200);
-    assert.equal(body.source, 'mirror');
-    assert.equal(body.files[0]?.name, 'Mirrored.txt');
+    assert.equal(body.source, 'provider');
+    assert.equal(body.files[0]?.name, 'FromProvider.txt');
+    assert.equal(asked, 1);
   });
 
-  it('goes past the mirror when asked for something fresh', async () => {
-    await rememberInMirror(accountId, [
-      {
-        remoteId: 'm1',
-        name: 'Stale.txt',
-        virtualPath: '/Stale.txt',
-        mimeType: 'text/plain',
-        sizeBytes: 4,
-        isFolder: false,
-        starred: false,
-        modifiedAt: '2026-01-01T00:00:00.000Z',
-      },
-    ]);
+  it('says which side answered, so a client can say how old it is', async () => {
+    stub('listFolder', async () => ({ files: [] }));
 
-    stub('listFolder', async () => ({
-      files: [
-        {
-          remoteId: 'p1',
-          name: 'Current.txt',
-          virtualPath: '/Current.txt',
-          mimeType: 'text/plain',
-          sizeBytes: 4,
-          isFolder: false,
-          starred: false,
-          modifiedAt: '2026-01-02T00:00:00.000Z',
-        },
-      ],
-    }));
-
-    const res = await fetch(`${baseUrl}/api/files?accountId=${accountId}&path=/&fresh=1`);
-    const body = (await res.json()) as { files: Array<{ name: string }>; source: string };
+    const res = await fetch(`${baseUrl}/api/files?accountId=${accountId}&path=/`);
+    const body = (await res.json()) as { source: string; syncedAt: string | null };
 
     assert.equal(body.source, 'provider');
-    assert.equal(body.files[0]?.name, 'Current.txt');
-  });
-
-  /*
-   * An unmirrored folder and an empty one are the same query result. Falling
-   * through is what stops a drive whose mirror is partial - capped enumeration,
-   * a provider with no delta feed - from being reported as empty.
-   */
-  it('falls through to the provider for a folder the mirror does not cover', async () => {
-    await rememberInMirror(accountId, [
-      {
-        remoteId: 'm1',
-        name: 'Elsewhere.txt',
-        virtualPath: '/Elsewhere.txt',
-        mimeType: 'text/plain',
-        sizeBytes: 4,
-        isFolder: false,
-        starred: false,
-        modifiedAt: '2026-01-01T00:00:00.000Z',
-      },
-    ]);
-
-    stub('listFolder', async () => ({
-      files: [
-        {
-          remoteId: 'p1',
-          name: 'Deep.txt',
-          virtualPath: '/Unsynced/Deep.txt',
-          mimeType: 'text/plain',
-          sizeBytes: 4,
-          isFolder: false,
-          starred: false,
-          modifiedAt: '2026-01-02T00:00:00.000Z',
-        },
-      ],
-    }));
-
-    const res = await fetch(`${baseUrl}/api/files?accountId=${accountId}&path=/Unsynced`);
-    const body = (await res.json()) as { files: Array<{ name: string }>; source: string };
-
-    assert.equal(body.source, 'provider');
-    assert.equal(body.files[0]?.name, 'Deep.txt');
+    // Null from the provider, which is current by definition.
+    assert.equal(body.syncedAt, null);
   });
 
   /*

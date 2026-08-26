@@ -654,13 +654,17 @@ would be storing a user's file, which is the one thing this product does not do.
   TURN is bandwidth somebody pays for. The screen says so and points at upload-and-share.
 - Migrations do not run at boot. A deploy carries the code, not the schema - `npm run db:migrate`
   against the production database is a separate step, and forgetting it is a 500 on a new table.
-- A listing or search answered from the mirror is as current as the last sync pass (`SYNC_CRON`,
-  every fifteen minutes). The user's own changes are written through immediately, so this only
-  shows up for changes made outside Orbit. The count line says "synced 4m ago" and Refresh sends
-  `fresh=1`, which goes to the provider.
-- Mirror name search is FTS5 over tokens with prefix matching: `repo` finds `report`, `port` does
-  not. Provider search mostly behaves the same way, so it is not a regression, but it will read
-  as one if somebody expects substring matching.
+- **The mirror does not back listings or search** (`MIRROR_ANSWERS_LISTINGS = false`). It holds no
+  folders — every adapter's flat enumeration filters them out — and Drive files were filed at
+  `/${name}`, so browsing it showed a flattened drive. Reversed 2026-08-26; see ADR 0015. The
+  indexes, FTS table, `created_at` and write-through all stand, and the read path is kept behind
+  that constant. Turning it back on needs folders and real paths in every adapter's enumeration,
+  a re-enumeration of existing rows, and a test that a mirrored folder returns its subfolders.
+- Drive's mirror rows still carry the old root-level paths for anything that has not changed since
+  2026-08-26. Harmless while nothing reads them for browsing — the breakdown and duplicate finder
+  never use paths — but they are wrong and a re-enumeration is what fixes them.
+- The Bin loads in full too, and pages the same way. It reaches every drive that keeps one, so a
+  bin spanning several accounts is as many round trips as there are pages across all of them.
 - A folder loads in full, so a very large one holds every row in memory and pages over them at
   a thousand at a time. Selecting all of them selects all of them - a bulk delete across fifty
   thousand files is fifty thousand provider calls, and there is no undo beyond the provider's

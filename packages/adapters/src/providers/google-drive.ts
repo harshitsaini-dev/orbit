@@ -936,13 +936,31 @@ export class GoogleDriveAdapter extends BaseAdapter {
     const changed: OrbitFile[] = [];
     const deletedRemoteIds: string[] = [];
 
+    /*
+     * Ancestors are resolved, not assumed.
+     *
+     * This used to hand every changed file the path `/${name}` - the root -
+     * because nothing read the mirror's paths and a wrong one cost nothing.
+     * Once browsing started reading them it cost a great deal: each sync pass
+     * rewrote the row for every file that had changed, so files appeared in
+     * the root of My Drive, vanished from the folder they actually live in,
+     * and came back every fifteen minutes. Pressing Refresh went to the
+     * provider and looked right, which made it read as a display glitch.
+     *
+     * The cache is shared across the page and is why this is affordable: a
+     * pass of five hundred changes is usually a handful of distinct folders.
+     */
+    const ancestors = new Map<string, { name: string; parent?: string }>();
+
     for (const change of page.changes ?? []) {
       // A trashed file is a deletion as far as the mirror is concerned.
       if (change.removed || !change.file || change.file.trashed) {
         deletedRemoteIds.push(change.fileId);
         continue;
       }
-      changed.push(toOrbitFile(change.file, `/${change.file.name}`));
+
+      const file = change.file;
+      changed.push(toOrbitFile(file, await this.resolveVirtualPath(tokens, file, ancestors)));
     }
 
     return {

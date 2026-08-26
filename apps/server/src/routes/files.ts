@@ -14,6 +14,7 @@ import { sendProviderError } from '../lib/provider-error.js';
 import { searchWorkspace } from '../services/search.js';
 import { listWorkspaceView } from '../services/views.js';
 import {
+  MIRROR_ANSWERS_LISTINGS,
   forgetFromMirror,
   listFolderFromMirror,
   forgetWithSubtrees,
@@ -87,7 +88,7 @@ filesRouter.get('/api/files', requireAuth, async (req, res, next) => {
     };
 
     const page = await (async (): Promise<ListingPage> => {
-      if (fresh === '1') return live();
+      if (!MIRROR_ANSWERS_LISTINGS || fresh === '1') return live();
       // A continuation already carries which side answered; switching sources
       // mid-listing would repeat rows or skip them.
       if (pageToken) return pageToken.startsWith('m') ? mirrored(pageToken) : live();
