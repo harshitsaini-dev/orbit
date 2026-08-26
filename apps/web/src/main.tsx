@@ -5,6 +5,7 @@ import { App } from './App.js';
 import { ErrorBoundary } from './components/ErrorBoundary.js';
 import { AuthProvider } from './lib/auth.js';
 import { ThemeProvider } from './lib/theme.js';
+import { BulkProvider } from './lib/bulk.js';
 import { UploadsProvider } from './lib/uploads.js';
 import './styles/global.css';
 
@@ -21,9 +22,13 @@ createRoot(container).render(
           {/* Above the router: an upload has to survive navigating away from
               the folder that started it. */}
           <UploadsProvider>
-            <ErrorBoundary>
-              <App />
-            </ErrorBoundary>
+            {/* And for the same reason: a bulk delete of fifty thousand files
+                must not stop because somebody went to look at Quota. */}
+            <BulkProvider>
+              <ErrorBoundary>
+                <App />
+              </ErrorBoundary>
+            </BulkProvider>
           </UploadsProvider>
         </AuthProvider>
       </BrowserRouter>

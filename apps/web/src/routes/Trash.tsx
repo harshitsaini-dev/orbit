@@ -16,6 +16,7 @@ import {
   useListView,
 } from '../components/ListControls.js';
 import { ConfirmDialog } from '../components/NameDialog.js';
+import { useBulk } from '../lib/bulk.js';
 import { Pagination } from '../components/Pagination.js';
 import { ProviderIcon } from '../components/ProviderIcon.js';
 import { FileListSkeleton } from '../components/Skeleton.js';
@@ -38,14 +39,6 @@ import { formatBytes } from '../lib/format.js';
 
 /** Rows per page. Past this a single list is slow to render and worse to read. */
 const PAGE_SIZE = 1000;
-
-/*
- * Files per restore or purge request, and it must stay under the route's cap
- * of two hundred. Well under, because each one is a call to a provider and the
- * API is behind a proxy that closes a request after a hundred seconds - the
- * failure that made a large delete appear to hang rather than finish.
- */
-const ACTION_BATCH = 50;
 
 /**
  * What has been deleted but not yet destroyed.
@@ -113,9 +106,14 @@ export function Trash() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [viewMode, setViewMode] = useListView('trash');
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const bulk = useBulk();
   const [params, setParams] = useSearchParams();
-  /** Set only while a selection too large for one request is being worked through. */
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  /*
+   * From the queue, not from state held here, so walking off the page and
+   * coming back shows the job still running rather than nothing at all. The
+   * header carries it everywhere else.
+   */
+  const progress = bulk.active ? { done: bulk.active.done, total: bulk.active.total } : null;
   const [purgingMany, setPurgingMany] = useState(false);
   const [previewing, setPreviewing] = useState<TrashedFile | null>(null);
 
@@ -144,6 +142,10 @@ export function Trash() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // A job now finishes wherever the reader happens to be, so the bin refreshes
+  // itself rather than showing files that have already gone.
+  useEffect(() => bulk.onFinished(() => void load()), [bulk, load]);
 
   /**
    * The rest of the bin, fetched behind the first page.
@@ -264,55 +266,26 @@ export function Trash() {
   /** A selection cannot be destroyed unless every file in it may be. */
   const canPurgeChosen = chosen.length > 0 && chosen.every((file) => file.canPurge);
 
-  async function actOnMany(kind: 'restore' | 'purge'): Promise<void> {
+  /**
+   * Hands the selection to the queue above the router.
+   *
+   * The bin is where somebody empties thousands of files at once, and that is
+   * minutes of work at the providers. Running it here meant navigating away
+   * killed it; the queue batches, counts and reports from the header, so it
+   * finishes wherever the reader ends up. Nothing to catch - a failure lands
+   * on the job rather than throwing.
+   */
+  function actOnMany(kind: 'restore' | 'purge'): void {
     setNotice(null);
     setPurgingMany(false);
 
-    const files = chosen.map((file) => ({ accountId: file.accountId, remoteId: file.remoteId }));
+    bulk.run(
+      kind,
+      chosen.map((file) => ({ accountId: file.accountId, remoteId: file.remoteId })),
+      `${chosen.length.toLocaleString()} ${chosen.length === 1 ? 'file' : 'files'}`,
+    );
 
-    try {
-      /*
-       * In batches, because the route takes at most two hundred and the
-       * selection can now be the whole bin. Sequentially rather than at once:
-       * each batch is a run of provider calls, and firing several together is
-       * the surest way to be rate-limited on exactly the selection sizes where
-       * that hurts.
-       */
-      const succeeded: unknown[] = [];
-      const failed: Array<{ reason: string }> = [];
-      let done = 0;
-
-      setProgress({ done: 0, total: files.length });
-
-      for (let start = 0; start < files.length; start += ACTION_BATCH) {
-        const batch = files.slice(start, start + ACTION_BATCH);
-
-        const outcome = await api<{ failed: Array<{ reason: string }>; succeeded: unknown[] }>(
-          kind === 'restore' ? '/api/trash/restore-many' : '/api/trash/purge-many',
-          { method: 'POST', body: { files: batch } },
-        );
-
-        succeeded.push(...outcome.succeeded);
-        failed.push(...outcome.failed);
-        done += batch.length;
-        setProgress({ done, total: files.length });
-      }
-
-      setSelected(new Set());
-      await load();
-
-      // A mixed batch says so. Reporting "done" for a selection where two
-      // failed is how somebody discovers it a week later.
-      if (failed.length > 0) {
-        setNotice(
-          `${succeeded.length} done, ${failed.length} could not be: ${failed[0]!.reason}`,
-        );
-      }
-    } catch (err) {
-      setNotice(err instanceof ApiError ? err.message : 'That did not work');
-    } finally {
-      setProgress(null);
-    }
+    setSelected(new Set());
   }
 
   function forget(file: TrashedFile): void {
@@ -387,7 +360,7 @@ export function Trash() {
 
           {selected.size > 0 && (
             <>
-              <button type="button" className="clay-button" onClick={() => void actOnMany('restore')}>
+              <button type="button" className="clay-button" onClick={() => actOnMany('restore')}>
                 Restore {selected.size}
               </button>
               <button
@@ -739,7 +712,7 @@ export function Trash() {
           description="This is the one thing in Orbit with nothing behind it. They leave the providers' bins immediately and cannot be recovered by anybody, including the providers."
           confirmLabel={`Destroy ${chosen.length}`}
           destructive
-          onConfirm={() => void actOnMany('purge')}
+          onConfirm={() => actOnMany('purge')}
           onClose={() => setPurgingMany(false)}
         />
       )}

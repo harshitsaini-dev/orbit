@@ -50,6 +50,7 @@ import { api, ApiError } from '../lib/api.js';
 import { formatBytes } from '../lib/format.js';
 import { forgetFolder, readFolder, writeFolder } from '../lib/cache.js';
 import { previewKindFor } from '../lib/preview.js';
+import { useBulk } from '../lib/bulk.js';
 import { useUploads } from '../lib/uploads.js';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -173,10 +174,18 @@ export function MyDrive() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [previewing, setPreviewing] = useState<OrbitFile | null>(null);
+  const bulk = useBulk();
   /** A refresh behind a cached listing, which must not blank the page. */
   const [refreshing, setRefreshing] = useState(false);
-  /** Set only while a selection too large for one request is being deleted. */
-  const [deleteProgress, setDeleteProgress] = useState<{ done: number; total: number } | null>(null);
+  /*
+   * Progress comes from the queue rather than from state held here, so leaving
+   * the page and coming back shows the job still running rather than nothing.
+   * The header carries it everywhere else.
+   */
+  const deleteProgress =
+    bulk.active && bulk.active.kind === 'delete'
+      ? { done: bulk.active.done, total: bulk.active.total }
+      : null;
   const phone = useMediaQuery(PHONE);
 
   // Dialogs replace window.prompt and window.confirm, which the browser draws
@@ -278,6 +287,9 @@ export function MyDrive() {
   // The queue lives above the router now, so the open folder has to be told a
   // batch landed rather than finding out because it owned the uploader.
   useEffect(() => uploads.onFinished(() => void load()), [uploads, load]);
+
+  // Same for a bulk delete, which now finishes wherever the reader happens to be.
+  useEffect(() => bulk.onFinished(() => void load()), [bulk, load]);
 
   /**
    * A folder is not its first page. The first page renders immediately and the
@@ -706,81 +718,26 @@ export function MyDrive() {
   }
 
   /**
-   * Deletes a selection of any size, in batches.
+   * Hands a delete to the queue that lives above the router.
    *
-   * The route takes at most `DELETE_BATCH` ids per request, and it says so
-   * rather than silently truncating. Sending the whole selection used to be
-   * fine because a selection was one page; select-all across pages made it
-   * thousands, and the request came straight back as a 400 - so pressing
-   * Delete on a large selection deleted nothing at all and said something
-   * about `remoteIds` being required.
+   * It used to run here, which meant navigating away mid-delete unmounted the
+   * loop doing the deleting: the bar disappeared and the work stopped with it.
+   * A delete of fifty thousand files is minutes of work, and nobody should
+   * have to sit on one page watching it.
    *
-   * Batches run one after another rather than at once. Each one is a run of
-   * calls to the provider, and firing them all in parallel is the surest way
-   * to be rate-limited on a selection large enough to care about.
+   * The queue batches, counts, and reports from the header, so the job is
+   * visible from wherever the reader ends up.
    */
-  async function remove(files: OrbitFile[]) {
-    setBusyId('delete');
-    /*
-     * The dialog goes now rather than at the end. Its warning has been read
-     * and agreed to, and keeping it up for the minutes a large delete takes
-     * only hides the list it is talking about. Progress moves to a bar above
-     * the selection, where the count it is counting can be seen.
-     */
+  function remove(files: OrbitFile[]) {
     setDialog(null);
-    setDeleteProgress({ done: 0, total: files.length });
 
-    const ids = files.map((file) => file.remoteId);
-    const failures: Array<{ remoteId: string; reason: string }> = [];
-    let done = 0;
+    bulk.run(
+      'delete',
+      files.map((file) => ({ accountId, remoteId: file.remoteId })),
+      `${files.length.toLocaleString()} ${files.length === 1 ? 'file' : 'files'}`,
+    );
 
-    try {
-      for (let start = 0; start < ids.length; start += DELETE_BATCH) {
-        const batch = ids.slice(start, start + DELETE_BATCH);
-
-        const result = await api<{
-          succeeded: string[];
-          failed: Array<{ remoteId: string; reason: string }>;
-        }>('/api/files', { method: 'DELETE', body: { accountId, remoteIds: batch } });
-
-        failures.push(...result.failed);
-        done += batch.length;
-        setDeleteProgress({ done, total: ids.length });
-      }
-
-      if (failures.length > 0) {
-        /*
-         * Named rather than counted when it is a quota, because the remedy is
-         * different: a permission failure will not fix itself and waiting is
-         * the wrong response, where a rate limit clears on its own.
-         */
-        const throttled = failures.filter((entry) => /rate|quota/i.test(entry.reason)).length;
-
-        setError(
-          throttled > 0
-            ? `${failures.length.toLocaleString()} of ${files.length.toLocaleString()} could not be deleted — ${throttled.toLocaleString()} hit the provider's rate limit. Waiting a minute and retrying those usually works.`
-            : `${failures.length.toLocaleString()} of ${files.length.toLocaleString()} could not be deleted.`,
-        );
-      }
-
-      await forgetFolder(accountId, path);
-      await load();
-    } catch (err) {
-      /*
-       * A batch failing outright leaves the earlier ones deleted. Saying how
-       * far it got is the difference between a retry that finishes the job and
-       * one that looks like it did nothing.
-       */
-      const reached = done > 0 ? ` ${done.toLocaleString()} of ${files.length.toLocaleString()} were deleted first.` : '';
-      setError((err instanceof ApiError ? err.message : 'Could not delete') + reached);
-      if (done > 0) {
-        await forgetFolder(accountId, path);
-        await load();
-      }
-    } finally {
-      setBusyId(null);
-      setDeleteProgress(null);
-    }
+    setSelected(new Set());
   }
 
   /** Hands files to the app-level queue, which reports from the header. */

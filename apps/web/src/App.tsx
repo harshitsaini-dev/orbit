@@ -24,6 +24,7 @@ import {
 } from './components/Icons.js';
 import { StatusScreen } from './components/StatusScreen.js';
 import { Spotlight, useSpotlightShortcut } from './components/Spotlight.js';
+import { BulkIndicator } from './components/BulkIndicator.js';
 import { UpdatePrompt } from './components/UpdatePrompt.js';
 import { UploadIndicator } from './components/UploadIndicator.js';
 import { api } from './lib/api.js';
@@ -211,6 +212,7 @@ function Workspace({ online }: { online: boolean }) {
             <kbd>{navigator.platform.startsWith('Mac') ? '⌘' : 'Ctrl'} K</kbd>
           </button>
 
+          <BulkIndicator />
           <UploadIndicator />
           <AccountMenu />
         </div>
