@@ -2307,10 +2307,57 @@ body {
   position: fixed;
   z-index: 201;
   min-width: 190px;
+  max-width: min(20rem, calc(100vw - 1rem));
   padding: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-radius: var(--radius-md);
+  /*
+   * A ceiling, because a menu is not always eight actions long.
+   *
+   * With twenty-one connected drives the switcher ran from the top of the
+   * viewport to the bottom and off the end of it - the last few could not be
+   * reached at all. The list scrolls inside instead, and the measuring pass
+   * that decides whether to flip the menu upwards now has a bounded height to
+   * work with rather than one taller than the screen.
+   */
+  max-height: min(24rem, calc(100dvh - 2rem));
+}
+
+/* Only the items scroll; a filter field that scrolled away would defeat itself. */
+.context-menu__list {
   display: grid;
   gap: 1px;
-  border-radius: var(--radius-md);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.context-menu__filter {
+  width: 100%;
+  padding: 0.4rem 0.6rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken, var(--surface));
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+
+.context-menu__filter::placeholder {
+  color: var(--text-muted);
+}
+
+.context-menu__filter:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.context-menu__empty {
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
 .context-menu:focus {
@@ -2331,6 +2378,15 @@ body {
   font-size: 13.5px;
   text-align: left;
   cursor: pointer;
+}
+
+/* Now that the menu has a width, a long address is clipped rather than
+   widening it or spilling out of it. */
+.context-menu__label {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .context-menu button[data-active] {

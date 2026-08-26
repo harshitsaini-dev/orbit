@@ -74,6 +74,15 @@ export function DrivePicker({
         <ContextMenu
           anchor={anchor}
           label="Switch drive"
+          /*
+           * A field once the list is past scanning, and not before.
+           *
+           * Three drives are read at a glance and a search box over them is
+           * clutter. Twenty-one Gmail addresses that differ by four characters
+           * in the middle are not readable at any speed, and typing those four
+           * characters is the only way through.
+           */
+          {...(accounts.length > 8 ? { filterPlaceholder: 'Search drives' } : {})}
           onClose={() => {
             setAnchor(null);
             // Focus goes back where it came from, or a keyboard user is left

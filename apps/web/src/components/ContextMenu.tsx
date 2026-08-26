@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 /**
  * The right-click menu for a file or a folder.
@@ -35,15 +35,33 @@ export function ContextMenu({
   items,
   onClose,
   label,
+  filterPlaceholder,
 }: {
   anchor: MenuAnchor;
   items: MenuItem[];
   onClose: () => void;
   label: string;
+  /**
+   * Turns on a filter field at the top, with this as its placeholder.
+   *
+   * Opt-in rather than automatic. A right-click menu has eight actions and
+   * knows all of them by heart; a list of twenty-one Gmail addresses is
+   * something nobody can scan, and the only way to tell them apart is to type
+   * the part that differs.
+   */
+  filterPlaceholder?: string;
 }) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const filterRef = useRef<HTMLInputElement>(null);
   const [position, setPosition] = useState<MenuAnchor>(anchor);
   const [active, setActive] = useState(0);
+  const [query, setQuery] = useState('');
+
+  const shown = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return items;
+    return items.filter((item) => item.label.toLowerCase().includes(term));
+  }, [items, query]);
 
   // Measured after mount rather than guessed: the menu's height depends on how
   // many actions this particular file has, and flipping it upwards is only
@@ -60,11 +78,25 @@ export function ContextMenu({
         : anchor.y;
 
     setPosition({ x: Math.max(MARGIN, x), y });
-    element.focus();
+
+    // The field, when there is one: somebody who opened a list of twenty-one
+    // drives opened it to find one, and should be able to start typing.
+    if (filterRef.current) filterRef.current.focus();
+    else element.focus();
   }, [anchor]);
 
   useEffect(() => {
-    const close = () => onClose();
+    /*
+     * A scroll *inside* the menu is not a scroll away from it.
+     *
+     * The list scrolls now that it is capped, and closing on any scroll at all
+     * meant a long menu shut itself the moment somebody reached for what was
+     * below the fold.
+     */
+    const close = (event?: Event) => {
+      if (event && menuRef.current?.contains(event.target as Node)) return;
+      onClose();
+    };
 
     // Capture, so a scroll inside the file list closes it too rather than only
     // a scroll of the window.
@@ -78,15 +110,43 @@ export function ContextMenu({
     };
   }, [onClose]);
 
-  const usable = items.filter((item) => !item.disabled);
+  const usable = shown.filter((item) => !item.disabled);
 
   function move(delta: number) {
     setActive((current) => {
       const next = current + delta;
-      if (next < 0) return items.length - 1;
-      if (next >= items.length) return 0;
+      if (next < 0) return shown.length - 1;
+      if (next >= shown.length) return 0;
       return next;
     });
+  }
+
+  /** Every key that drives the menu, wherever focus is - list or filter field. */
+  function onKeyDown(event: React.KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      onClose();
+    } else if (event.key === 'ArrowDown') {
+      move(1);
+    } else if (event.key === 'ArrowUp') {
+      move(-1);
+    } else if (event.key === 'Enter') {
+      const item = shown[active];
+      if (item && !item.disabled) {
+        item.onSelect();
+        onClose();
+      }
+    } else if (event.key === ' ' && !filterPlaceholder) {
+      // Only without a filter field, where a space is a keystroke rather than
+      // a selection.
+      const item = shown[active];
+      if (item && !item.disabled) {
+        item.onSelect();
+        onClose();
+      }
+    } else {
+      return;
+    }
+    event.preventDefault();
   }
 
   return (
@@ -115,43 +175,50 @@ export function ContextMenu({
         tabIndex={-1}
         className="clay context-menu"
         style={{ left: position.x, top: position.y }}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            onClose();
-          } else if (event.key === 'ArrowDown') {
-            move(1);
-          } else if (event.key === 'ArrowUp') {
-            move(-1);
-          } else if (event.key === 'Enter' || event.key === ' ') {
-            const item = items[active];
-            if (item && !item.disabled) {
-              item.onSelect();
-              onClose();
-            }
-          } else {
-            return;
-          }
-          event.preventDefault();
-        }}
+        onKeyDown={onKeyDown}
       >
-        {items.map((item, index) => (
-          <button
-            key={item.label}
-            type="button"
-            role="menuitem"
-            disabled={item.disabled}
-            data-danger={item.danger ? '' : undefined}
-            data-active={index === active && usable.length > 0 ? '' : undefined}
-            onMouseEnter={() => setActive(index)}
-            onClick={() => {
-              item.onSelect();
-              onClose();
+        {filterPlaceholder && (
+          <input
+            ref={filterRef}
+            type="text"
+            className="context-menu__filter"
+            placeholder={filterPlaceholder}
+            aria-label={filterPlaceholder}
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              // Back to the top, or Enter would choose a row from the previous
+              // set of matches.
+              setActive(0);
             }}
-          >
-            <span className="context-menu__icon">{item.icon}</span>
-            {item.label}
-          </button>
-        ))}
+          />
+        )}
+
+        <div className="context-menu__list">
+          {shown.map((item, index) => (
+            <button
+              key={item.label}
+              type="button"
+              role="menuitem"
+              disabled={item.disabled}
+              data-danger={item.danger ? '' : undefined}
+              data-active={index === active && usable.length > 0 ? '' : undefined}
+              onMouseEnter={() => setActive(index)}
+              onClick={() => {
+                item.onSelect();
+                onClose();
+              }}
+            >
+              <span className="context-menu__icon">{item.icon}</span>
+              {/* Its own element so it can be truncated: an ellipsis cannot be
+                  applied to a bare text node inside a flex row. */}
+              <span className="context-menu__label">{item.label}</span>
+            </button>
+          ))}
+
+          {/* Said rather than shown as an empty box, which reads as broken. */}
+          {shown.length === 0 && <p className="context-menu__empty">No matches</p>}
+        </div>
       </div>
     </>
   );
