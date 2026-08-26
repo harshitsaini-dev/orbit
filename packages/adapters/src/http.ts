@@ -11,7 +11,29 @@ export interface RequestOptions {
 }
 
 const RETRYABLE = new Set([408, 429, 500, 502, 503, 504]);
-const MAX_ATTEMPTS = 4;
+const MAX_ATTEMPTS = 6;
+
+/**
+ * The reasons Google puts behind a 403 when it means "slow down".
+ *
+ * Drive answers a rate limit with 403 at least as often as with 429, and a
+ * plain 403 is also how it says "you may not touch this file". Retrying both
+ * would hammer a permission error; retrying neither abandons a bulk delete
+ * partway through the moment the quota bites. The reason string is the only
+ * thing that tells them apart.
+ *
+ * `userRateLimitExceeded` is the per-user cap and clears in seconds.
+ * `rateLimitExceeded` is the project cap. `quotaExceeded` covers both a
+ * per-minute quota, which is worth waiting out, and a daily one, which is not
+ * - but the attempt ceiling bounds how long that mistake can cost.
+ */
+const RATE_LIMIT_REASONS = ['userratelimitexceeded', 'ratelimitexceeded', 'quotaexceeded'];
+
+/** True when a 403 body says the limit was rate, not permission. */
+function isRateLimited(body: string): boolean {
+  const lower = body.toLowerCase();
+  return RATE_LIMIT_REASONS.some((reason) => lower.includes(reason));
+}
 
 function backoffMs(attempt: number, retryAfter: string | null): number {
   if (retryAfter) {
@@ -62,12 +84,22 @@ export async function providerFetch(
 
     if (response.ok) return response;
 
-    if (RETRYABLE.has(response.status) && attempt < MAX_ATTEMPTS - 1) {
+    /*
+     * Read once. The body is needed both to decide whether a 403 is a rate
+     * limit and to build the error message, and a Response body can only be
+     * consumed once - reading it twice threw "body used already" and turned a
+     * quota error into an unrelated one.
+     */
+    const body = await response.text().catch(() => '');
+    const worthRetrying =
+      RETRYABLE.has(response.status) || (response.status === 403 && isRateLimited(body));
+
+    if (worthRetrying && attempt < MAX_ATTEMPTS - 1) {
       await sleep(backoffMs(attempt, response.headers.get('retry-after')));
       continue;
     }
 
-    throw new ProviderError(provider, response.status, await describe(response));
+    throw new ProviderError(provider, response.status, describe(body, response));
   }
 
   throw new ProviderError(
@@ -78,8 +110,7 @@ export async function providerFetch(
 }
 
 /** Pulls a useful message out of a provider error body without dumping the lot. */
-async function describe(response: Response): Promise<string> {
-  const text = await response.text().catch(() => '');
+function describe(text: string, response: Response): string {
   if (!text) return response.statusText || 'Request failed';
 
   try {

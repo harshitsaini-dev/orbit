@@ -77,6 +77,17 @@ const API_BASE = import.meta.env.VITE_API_URL ?? '';
 /** Rows per page. Past this a single list is slow to render and worse to read. */
 const PAGE_SIZE = 1000;
 
+/*
+ * Ids per delete request, and it must not exceed the route's own cap.
+ *
+ * Below that cap for a second reason: the server deletes them one at a time at
+ * the provider, so a batch is a run of round trips held open by one request. A
+ * hundred is a few seconds of work - large enough that a big selection is not
+ * hundreds of requests, small enough that no single one sits near a proxy
+ * timeout.
+ */
+const DELETE_BATCH = 100;
+
 interface WorkspaceSearchFile extends OrbitFile {
   accountId: string;
   provider: string;
@@ -161,6 +172,8 @@ export function MyDrive() {
   const [previewing, setPreviewing] = useState<OrbitFile | null>(null);
   /** A refresh behind a cached listing, which must not blank the page. */
   const [refreshing, setRefreshing] = useState(false);
+  /** Set only while a selection too large for one request is being deleted. */
+  const [deleteProgress, setDeleteProgress] = useState<{ done: number; total: number } | null>(null);
   const phone = useMediaQuery(PHONE);
 
   // Dialogs replace window.prompt and window.confirm, which the browser draws
@@ -689,23 +702,75 @@ export function MyDrive() {
     }
   }
 
+  /**
+   * Deletes a selection of any size, in batches.
+   *
+   * The route takes at most `DELETE_BATCH` ids per request, and it says so
+   * rather than silently truncating. Sending the whole selection used to be
+   * fine because a selection was one page; select-all across pages made it
+   * thousands, and the request came straight back as a 400 - so pressing
+   * Delete on a large selection deleted nothing at all and said something
+   * about `remoteIds` being required.
+   *
+   * Batches run one after another rather than at once. Each one is a run of
+   * calls to the provider, and firing them all in parallel is the surest way
+   * to be rate-limited on a selection large enough to care about.
+   */
   async function remove(files: OrbitFile[]) {
     setBusyId('delete');
+    setDeleteProgress(files.length > DELETE_BATCH ? { done: 0, total: files.length } : null);
+
+    const ids = files.map((file) => file.remoteId);
+    const failures: Array<{ remoteId: string; reason: string }> = [];
+    let done = 0;
+
     try {
-      const result = await api<{ succeeded: string[]; failed: Array<{ remoteId: string; reason: string }> }>(
-        '/api/files',
-        { method: 'DELETE', body: { accountId, remoteIds: files.map((f) => f.remoteId) } },
-      );
-      if (result.failed.length > 0) {
-        setError(`${result.failed.length} of ${files.length} could not be deleted.`);
+      for (let start = 0; start < ids.length; start += DELETE_BATCH) {
+        const batch = ids.slice(start, start + DELETE_BATCH);
+
+        const result = await api<{
+          succeeded: string[];
+          failed: Array<{ remoteId: string; reason: string }>;
+        }>('/api/files', { method: 'DELETE', body: { accountId, remoteIds: batch } });
+
+        failures.push(...result.failed);
+        done += batch.length;
+        if (ids.length > DELETE_BATCH) setDeleteProgress({ done, total: ids.length });
       }
+
+      if (failures.length > 0) {
+        /*
+         * Named rather than counted when it is a quota, because the remedy is
+         * different: a permission failure will not fix itself and waiting is
+         * the wrong response, where a rate limit clears on its own.
+         */
+        const throttled = failures.filter((entry) => /rate|quota/i.test(entry.reason)).length;
+
+        setError(
+          throttled > 0
+            ? `${failures.length.toLocaleString()} of ${files.length.toLocaleString()} could not be deleted — ${throttled.toLocaleString()} hit the provider's rate limit. Waiting a minute and retrying those usually works.`
+            : `${failures.length.toLocaleString()} of ${files.length.toLocaleString()} could not be deleted.`,
+        );
+      }
+
       setDialog(null);
       await forgetFolder(accountId, path);
       await load();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not delete');
+      /*
+       * A batch failing outright leaves the earlier ones deleted. Saying how
+       * far it got is the difference between a retry that finishes the job and
+       * one that looks like it did nothing.
+       */
+      const reached = done > 0 ? ` ${done.toLocaleString()} of ${files.length.toLocaleString()} were deleted first.` : '';
+      setError((err instanceof ApiError ? err.message : 'Could not delete') + reached);
+      if (done > 0) {
+        await forgetFolder(accountId, path);
+        await load();
+      }
     } finally {
       setBusyId(null);
+      setDeleteProgress(null);
     }
   }
 
@@ -1536,12 +1601,24 @@ export function MyDrive() {
           title={
             dialog.files.length === 1
               ? `Delete ${dialog.files[0]!.name}?`
-              : `Delete ${dialog.files.length} items?`
+              : `Delete ${dialog.files.length.toLocaleString()} items?`
           }
           description={
-            capabilities?.trash
-              ? "They move to the provider's own bin, where they can still be recovered. Orbit's Bin page lists them."
-              : 'This provider keeps no bin. They are gone the moment you confirm, and nobody — including the provider — can bring them back.'
+            /*
+             * Progress replaces the warning once it has started, because by
+             * then the warning has been read and the only useful thing to say
+             * is how far along it is. A large selection is deleted one file at
+             * a time at the provider and takes minutes; without a number on
+             * screen that is indistinguishable from a hang.
+             */
+            deleteProgress
+              ? `Deleting ${deleteProgress.done.toLocaleString()} of ${deleteProgress.total.toLocaleString()}… this runs one file at a time at the provider, so a large selection takes a while. Leaving this page stops it.`
+              : (capabilities?.trash
+                  ? "They move to the provider's own bin, where they can still be recovered. Orbit's Bin page lists them."
+                  : 'This provider keeps no bin. They are gone the moment you confirm, and nobody — including the provider — can bring them back.') +
+                (dialog.files.length > DELETE_BATCH
+                  ? ` ${dialog.files.length.toLocaleString()} files go in batches of ${DELETE_BATCH}, so this will take a few minutes.`
+                  : '')
           }
           confirmLabel={capabilities?.trash ? 'Move to bin' : 'Delete for ever'}
           destructive

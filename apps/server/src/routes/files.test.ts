@@ -244,6 +244,40 @@ describe('GET /api/files', () => {
     assert.equal(body.files[0]?.name, 'Deep.txt');
   });
 
+  /*
+   * Select-all across pages makes a selection of thousands, and the whole lot
+   * used to be sent in one request - which came back 400 saying `remoteIds is
+   * required`, so Delete on a large selection deleted nothing and explained
+   * nothing. The client batches now; this is the message a caller that does
+   * not batch gets.
+   */
+  it('says how many ids it takes when given too many', async () => {
+    const res = await json('/api/files', 'DELETE', {
+      accountId,
+      remoteIds: Array.from({ length: 501 }, (_, i) => `f${i}`),
+    });
+
+    assert.equal(res.status, 400);
+    const body = (await res.json()) as { error: { message: string } };
+    assert.match(body.error.message, /at most 500/);
+  });
+
+  it('takes a full batch at the cap', async () => {
+    stub('remove', async (_t: unknown, ids: string[]) => ({
+      succeeded: ids,
+      failed: [],
+    }));
+
+    const res = await json('/api/files', 'DELETE', {
+      accountId,
+      remoteIds: Array.from({ length: 500 }, (_, i) => `f${i}`),
+    });
+
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as { succeeded: string[] };
+    assert.equal(body.succeeded.length, 500);
+  });
+
   it('404s for an account the user does not have', async () => {
     assert.equal((await fetch(`${baseUrl}/api/files?accountId=nope`)).status, 404);
   });

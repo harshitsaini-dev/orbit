@@ -580,15 +580,35 @@ filesRouter.patch('/api/files/:id', requireAuth, async (req, res, next) => {
   }
 });
 
+/**
+ * The cap is real and the client batches under it.
+ *
+ * One request means one run of provider calls held open, so an unbounded list
+ * is a request that never returns. The client sends batches; this exists so a
+ * caller that does not is told why rather than having its list truncated.
+ */
+export const MAX_DELETE_IDS = 500;
+
 const deleteBody = z.object({
   accountId: z.string().min(1),
-  remoteIds: z.array(z.string().min(1)).min(1).max(500),
+  remoteIds: z.array(z.string().min(1)).min(1).max(MAX_DELETE_IDS),
 });
 
 filesRouter.delete('/api/files', requireAuth, async (req, res, next) => {
   const parsed = deleteBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: { code: 'invalid_request', message: 'remoteIds is required' } });
+    // Said precisely, because "remoteIds is required" for a list of two
+    // thousand ids reads as a bug in the client rather than as a limit.
+    const tooMany = Array.isArray(req.body?.remoteIds) && req.body.remoteIds.length > MAX_DELETE_IDS;
+
+    res.status(400).json({
+      error: {
+        code: 'invalid_request',
+        message: tooMany
+          ? `Delete at most ${MAX_DELETE_IDS} files per request; send the rest in further batches.`
+          : 'remoteIds is required',
+      },
+    });
     return;
   }
 
