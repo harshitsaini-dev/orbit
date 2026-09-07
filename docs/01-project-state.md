@@ -691,9 +691,16 @@ would be storing a user's file, which is the one thing this product does not do.
 - `npm run typecheck` at the repo root fails: the script is `tsc --build` but there is no root
   `tsconfig.json`, only `tsconfig.base.json`. Typecheck per workspace (`-w @orbit/web`) until
   the script is fixed.
-- Two known flakes, both only under the full parallel run and both passing in isolation: one
-  server unit test, and `providers.spec.ts` on the `mobile` project. Neither has been chased to
-  a cause; they are recorded so a red run is read rather than assumed.
+- **Several Playwright specs are flaky under the full parallel run** and pass on retry or in
+  isolation: `providers.spec.ts` and `handoff.spec.ts` on mobile, and the "fits the screen" cases
+  in `mobile-pages.spec.ts` — which vary from run to run, the signature of contention rather than
+  a bug. One server unit test flakes the same way. None has been chased to a cause; they are
+  written down so a red run is read rather than assumed to be new.
+- **A test can pass locally and fail on CI because of `.env`.** `quota-filter` did: a developer
+  machine has provider keys, CI has none, so a provider appears in the "coming soon" list there
+  and not here, and a page-wide locator counted it twice. Worth reaching for first when CI
+  disagrees with a local run — `DROPBOX_CLIENT_ID= GOOGLE_CLIENT_ID= npx playwright test`
+  reproduces it.
 - `npm run build --workspaces` fails too, for a duller reason: `@orbit/adapters` has no `build`
   script, and `--workspaces` treats a missing script as an error. Only `@orbit/web` and
   `@orbit/server` build; name them explicitly.

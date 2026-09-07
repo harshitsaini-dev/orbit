@@ -51,7 +51,18 @@ test.describe('the account filter', () => {
     const box = page.getByPlaceholder(/Filter \d+ accounts/);
     await expect(box).toBeVisible();
 
-    const cards = page.locator('.clay-sunken', { has: page.locator('strong') });
+    /*
+     * Scoped to the connected accounts, not to every card on the page.
+     *
+     * The providers this instance has no keys for are listed above them in
+     * cards of the same class. Locally the keys are in `.env` so Dropbox was
+     * not among them and the count was one; on CI there are no keys, Dropbox
+     * appeared in both lists, and this failed on all three projects. The test
+     * was written against one machine's configuration.
+     */
+    const cards = page
+      .getByRole('list', { name: 'Connected accounts' })
+      .locator('.clay-sunken', { has: page.locator('strong') });
 
     await box.fill('gameid');
     await expect(page.getByText('gameid8839@gmail.com')).toBeVisible();

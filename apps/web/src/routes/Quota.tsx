@@ -334,7 +334,16 @@ export function Quota() {
         )}
 
         {accounts && accounts.length > 0 && (
-          <ul style={{ listStyle: 'none', padding: 0, margin: '1.25rem 0 0', display: 'grid', gap: 12 }}>
+          /*
+            Named, because it is not the only list of drives on this page: the
+            providers this instance has no keys for are listed above it. A
+            screen reader had no way to tell "the drives you have connected"
+            from "the drives you could", and neither did a test.
+          */
+          <ul
+            aria-label="Connected accounts"
+            style={{ listStyle: 'none', padding: 0, margin: '1.25rem 0 0', display: 'grid', gap: 12 }}
+          >
             {shownAccounts.map((account) => (
               <li key={account.id} className="clay-sunken" style={{ padding: '1rem 1.15rem', display: 'grid', gap: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
