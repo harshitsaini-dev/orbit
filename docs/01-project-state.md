@@ -1,6 +1,6 @@
 # Project state
 
-_Last updated: 2026-08-23_
+_Last updated: 2026-08-26_
 
 ## Current phase
 
@@ -103,15 +103,19 @@ the provider offers no stable identity store `NULL` there, and SQLite counts
 NULLs as distinct, so those never deduplicate: merging two connections that only
 *might* be the same is worse than keeping a duplicate.
 
-## Verification (last run, 2026-08-23)
+## Verification (last run, 2026-08-26)
 
 | Check | Result |
 |---|---|
-| `npm run typecheck -w @orbit/server -w @orbit/web` | clean (the root script is broken — see known issues) |
-| `npm test --workspaces` | 972 pass, 0 fail |
+| `npm run typecheck -w @orbit/server -w @orbit/web -w @orbit/adapters` | clean (the root script is broken — see known issues) |
+| `npm test --workspaces` | 987 pass, 0 fail |
 | `npm run lint` | 0 errors |
-| `npm run build --workspaces` | clean |
-| `npx playwright test` (headed) | 222 pass, 0 fail across desktop, tablet and mobile |
+| `npm run build -w @orbit/web -w @orbit/server` | clean |
+| `npx playwright test` | 399 specs across desktop, tablet and mobile |
+
+The Playwright figure is the suite's size. The specs touched by the last few days of work —
+browsing, search filters, multi-select, file actions, the bin, the bulk-job queue and the drive
+picker — were run headed and pass; the full three-project sweep was not re-run end to end.
 
 Verified against the live account: 842 files, 11.9 GB scanned, categories summing exactly to the
 provider's own usage figure once the trash allowance is included. The EXIF reader was checked
@@ -675,3 +679,6 @@ would be storing a user's file, which is the one thing this product does not do.
 - `npm run typecheck` at the repo root fails: the script is `tsc --build` but there is no root
   `tsconfig.json`, only `tsconfig.base.json`. Typecheck per workspace (`-w @orbit/web`) until
   the script is fixed.
+- `npm run build --workspaces` fails too, for a duller reason: `@orbit/adapters` has no `build`
+  script, and `--workspaces` treats a missing script as an error. Only `@orbit/web` and
+  `@orbit/server` build; name them explicitly.

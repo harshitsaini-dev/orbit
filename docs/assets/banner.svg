@@ -1,0 +1,162 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 400" width="1280" height="400" role="img" aria-label="Orbit — one workspace for every cloud drive you own">
+  <title>Orbit</title>
+
+  <!--
+    The README banner.
+
+    Built from the app's own tokens rather than approximated. In the dark
+    theme #12151f is the page background, #1c1f2b the surface, #6c8cff the
+    default accent and #98a1b8 the muted text. The mark is the same geometry
+    as BrandMark.tsx and the favicon, scaled up.
+
+    Deliberately plain SVG: no style block, no CSS variables, no animation.
+    GitHub sanitises all three, and a banner that renders here and not there
+    is not a banner.
+
+    Note for anyone editing: an XML comment may not contain two hyphens in a
+    row, so the token names are spelled out rather than written as they are in
+    tokens.css. Strict parsers reject the file outright; browsers do not, which
+    is exactly how a broken one would reach a README unnoticed.
+  -->
+
+  <defs>
+    <linearGradient id="page" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#161a26" />
+      <stop offset="55%" stop-color="#12151f" />
+      <stop offset="100%" stop-color="#0e111a" />
+    </linearGradient>
+
+    <!-- The accent glow behind the mark: the glow token, as a fill. -->
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#6c8cff" stop-opacity="0.30" />
+      <stop offset="60%" stop-color="#6c8cff" stop-opacity="0.08" />
+      <stop offset="100%" stop-color="#6c8cff" stop-opacity="0" />
+    </radialGradient>
+
+    <radialGradient id="core" cx="36%" cy="30%" r="74%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="34%" stop-color="#b3c4ff" />
+      <stop offset="100%" stop-color="#6c8cff" />
+    </radialGradient>
+
+    <linearGradient id="ring" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6c8cff" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#6c8cff" stop-opacity="0.35" />
+    </linearGradient>
+
+    <!-- Faint arcs across the right, echoing the three.js hero on the landing page. -->
+    <linearGradient id="arc" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6c8cff" stop-opacity="0" />
+      <stop offset="50%" stop-color="#6c8cff" stop-opacity="0.22" />
+      <stop offset="100%" stop-color="#6c8cff" stop-opacity="0" />
+    </linearGradient>
+
+    <!-- Claymorphism: one soft dark shadow and one soft light one. -->
+    <filter id="clay" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="6" dy="6" stdDeviation="9" flood-color="#000000" flood-opacity="0.55" />
+      <feDropShadow dx="-5" dy="-5" stdDeviation="8" flood-color="#ffffff" flood-opacity="0.05" />
+    </filter>
+
+    <clipPath id="lower">
+      <rect x="0" y="150" width="300" height="200" />
+    </clipPath>
+    <clipPath id="hub">
+      <circle cx="150" cy="150" r="43" />
+    </clipPath>
+
+    <clipPath id="frame">
+      <rect x="0" y="0" width="1280" height="400" rx="28" />
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <rect width="1280" height="400" fill="url(#page)" />
+
+    <!-- Orbits sweeping off the right edge. -->
+    <g fill="none" stroke="url(#arc)" stroke-width="2">
+      <ellipse cx="1090" cy="200" rx="330" ry="132" transform="rotate(-18 1090 200)" />
+      <ellipse cx="1130" cy="200" rx="250" ry="238" transform="rotate(12 1130 200)" />
+      <ellipse cx="1060" cy="200" rx="392" ry="76" transform="rotate(-30 1060 200)" />
+    </g>
+
+    <!-- Bodies on those paths, in the muted tone so they read as depth. -->
+    <circle cx="1236" cy="112" r="7" fill="#6c8cff" fill-opacity="0.85" />
+    <circle cx="905" cy="304" r="5" fill="#98a1b8" fill-opacity="0.5" />
+    <circle cx="1174" cy="330" r="4" fill="#98a1b8" fill-opacity="0.35" />
+
+    <!-- The mark, at 300x300 with its centre at (150,150), offset into place. -->
+    <g transform="translate(80, 50)">
+      <circle cx="150" cy="150" r="150" fill="url(#glow)" />
+
+      <ellipse cx="150" cy="150" rx="122" ry="49" transform="rotate(-22 150 150)"
+               fill="none" stroke="url(#ring)" stroke-width="14" stroke-linecap="round" />
+
+      <circle cx="150" cy="150" r="43" fill="url(#core)" filter="url(#clay)" />
+
+      <!-- The near half of the ring passes in front of the hub, clipped to the
+           hub's own disc so the two never stack into a seam outside it. -->
+      <g clip-path="url(#lower)">
+        <g clip-path="url(#hub)">
+          <ellipse cx="150" cy="150" rx="122" ry="49" transform="rotate(-22 150 150)"
+                   fill="none" stroke="url(#ring)" stroke-width="14" />
+        </g>
+      </g>
+
+      <circle cx="250" cy="91" r="21.5" fill="#eef1f6" filter="url(#clay)" />
+    </g>
+
+    <g font-family="Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif">
+      <text x="440" y="168" font-size="104" font-weight="700" fill="#eef1f6" letter-spacing="-3">Orbit</text>
+
+      <text x="446" y="222" font-size="26" font-weight="500" fill="#98a1b8">
+        One workspace for every cloud drive you own.
+      </text>
+
+      <!-- The one claim the whole design rests on, so it gets the accent. -->
+      <text x="446" y="264" font-size="20" font-weight="600" fill="#6c8cff">
+        Your files stay where they are. Orbit never stores a byte of them.
+      </text>
+
+      <!--
+        Providers as clay chips, in the order the connect screen offers them.
+        The widths are measured, not guessed: eyeballed ones overlapped, and a
+        chip has to fit whichever font the reader's machine resolves.
+      -->
+      <g transform="translate(446, 300)">
+        <g transform="translate(0, 0)">
+          <rect width="144" height="40" rx="20" fill="#1c1f2b" filter="url(#clay)" />
+          <circle cx="21" cy="20" r="5.5" fill="#6c8cff" />
+          <text x="34" y="26" font-size="16" font-weight="500" fill="#98a1b8">Google Drive</text>
+        </g>
+        <g transform="translate(156, 0)">
+          <rect width="116" height="40" rx="20" fill="#1c1f2b" filter="url(#clay)" />
+          <circle cx="21" cy="20" r="5.5" fill="#6c8cff" />
+          <text x="34" y="26" font-size="16" font-weight="500" fill="#98a1b8">OneDrive</text>
+        </g>
+        <g transform="translate(284, 0)">
+          <rect width="112" height="40" rx="20" fill="#1c1f2b" filter="url(#clay)" />
+          <circle cx="21" cy="20" r="5.5" fill="#6c8cff" />
+          <text x="34" y="26" font-size="16" font-weight="500" fill="#98a1b8">Dropbox</text>
+        </g>
+        <g transform="translate(408, 0)">
+          <rect width="101" height="40" rx="20" fill="#1c1f2b" filter="url(#clay)" />
+          <circle cx="21" cy="20" r="5.5" fill="#6c8cff" />
+          <text x="34" y="26" font-size="16" font-weight="500" fill="#98a1b8">pCloud</text>
+        </g>
+        <g transform="translate(521, 0)">
+          <rect width="96" height="40" rx="20" fill="#1c1f2b" filter="url(#clay)" />
+          <circle cx="21" cy="20" r="5.5" fill="#6c8cff" />
+          <text x="34" y="26" font-size="16" font-weight="500" fill="#98a1b8">MEGA</text>
+        </g>
+        <g transform="translate(629, 0)">
+          <rect width="150" height="40" rx="20" fill="#1c1f2b" filter="url(#clay)" />
+          <circle cx="21" cy="20" r="5.5" fill="#98a1b8" />
+          <text x="34" y="26" font-size="16" font-weight="500" fill="#98a1b8">any S3 bucket</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- A hairline, the same idea as the border token. -->
+    <rect x="0.5" y="0.5" width="1279" height="399" rx="28" fill="none" stroke="#eef1f6" stroke-opacity="0.10" />
+  </g>
+</svg>
