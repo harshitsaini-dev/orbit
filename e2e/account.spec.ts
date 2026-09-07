@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn } from './helpers.js';
+import { goToPage, signIn } from './helpers.js';
 
 test.describe('account profile', () => {
   test.beforeEach(async ({ page }) => {
@@ -7,7 +7,7 @@ test.describe('account profile', () => {
   });
 
   test('shows the email and an initials avatar before a name is set', async ({ page }) => {
-    await page.getByRole('link', { name: 'Account', exact: true }).click();
+    await goToPage(page, 'Account');
     await expect(page).toHaveURL(/\/account$/);
 
     await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible();

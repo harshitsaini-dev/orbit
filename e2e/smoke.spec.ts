@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { openAccountMenu, signIn } from './helpers.js';
+import { goToPage, openAccountMenu, signIn } from './helpers.js';
 
 test.describe('shell', () => {
   test.beforeEach(async ({ page }) => {
@@ -16,7 +16,7 @@ test.describe('shell', () => {
   });
 
   test('navigates between workspace views', async ({ page }) => {
-    await page.getByRole('link', { name: 'My Drive' }).click();
+    await goToPage(page, 'My Drive');
     await expect(page).toHaveURL(/\/my-drive$/);
     await expect(page.getByRole('heading', { name: 'My Drive' })).toBeVisible();
   });

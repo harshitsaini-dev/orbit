@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn } from './helpers.js';
+import { goToPage, signIn } from './helpers.js';
 
 const API = 'http://localhost:8788';
 
@@ -100,10 +100,7 @@ test.describe('shared drives', () => {
   test('has a page of its own, and explains what it is not', async ({ page }) => {
     await signIn(page);
 
-    await page
-      .getByRole('navigation', { name: 'Workspace' })
-      .getByRole('link', { name: 'Shared drives' })
-      .click();
+    await goToPage(page, 'Shared drives');
 
     await expect(page).toHaveURL(/\/shared-drives$/);
     await expect(page.getByRole('heading', { name: 'Shared drives' })).toBeVisible();

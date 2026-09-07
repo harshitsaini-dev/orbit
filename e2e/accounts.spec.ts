@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn } from './helpers.js';
+import { goToPage, signIn } from './helpers.js';
 
 const API = 'http://localhost:8788';
 
@@ -9,7 +9,7 @@ test.describe('connecting an account', () => {
   });
 
   test('shows an empty state and offers Google Drive', async ({ page }) => {
-    await page.getByRole('link', { name: 'Quota' }).click();
+    await goToPage(page, 'Quota');
     await expect(page).toHaveURL(/\/quota$/);
 
     await expect(page.getByRole('heading', { name: 'Connected accounts' })).toBeVisible();

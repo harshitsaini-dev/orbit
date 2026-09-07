@@ -97,9 +97,9 @@ npm run test:e2e     # Playwright, headed
 npm run test:e2e:ci  # Playwright, headless
 ```
 
-987 unit and integration tests, and 395 Playwright specs across desktop, tablet and mobile. 25
-of the mobile ones currently fail because they reach for sidebar links a phone does not have —
-`docs/01-project-state.md` records why that is a spec problem rather than a product one.
+987 unit and integration tests, and 395 Playwright specs across desktop, tablet and mobile — the
+full sweep runs in about four and a half minutes. Navigation in a spec goes through `goToPage()`,
+which uses the sidebar on a desk and the nav dropdown on a phone, so the same test covers both.
 
 There is no unit-test setup in `apps/web`; front-end behaviour is covered by Playwright.
 Typecheck and build per workspace — `npm run typecheck -w @orbit/web`, `npm run build -w

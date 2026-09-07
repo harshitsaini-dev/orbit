@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn } from './helpers.js';
+import { goToPage, signIn } from './helpers.js';
 
 const API = 'http://localhost:8788';
 
@@ -17,10 +17,7 @@ test.describe('schedules', () => {
   });
 
   test('reachable from the sidebar, and says what it is for', async ({ page }) => {
-    await page
-      .getByRole('navigation', { name: 'Workspace' })
-      .getByRole('link', { name: 'Schedules' })
-      .click();
+    await goToPage(page, 'Schedules');
 
     await expect(page).toHaveURL(/\/schedules$/);
     await expect(page.getByRole('heading', { name: 'Schedules', level: 1 })).toBeVisible();

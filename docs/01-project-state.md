@@ -113,17 +113,21 @@ NULLs as distinct, so those never deduplicate: merging two connections that only
 | `npm run build -w @orbit/web -w @orbit/server` | clean |
 | `npx playwright test` | 399 specs across desktop, tablet and mobile |
 
-The full sweep is **370 pass, 25 fail**, and every failure is on the `mobile` project.
+The full sweep is **394 pass, 1 fail**, in about four and a half minutes.
 
-Those are not a regression. They are specs written against the desktop sidebar —
-`getByRole('link', { name: 'Quota' })` and the like — and a phone has no sidebar: navigation is
-the `NavPicker` dropdown. Confirmed rather than assumed, by running two of them against a commit
-from before the current run of work and watching them fail identically there.
+It was 370/25 an hour earlier, every failure on the `mobile` project. They were not a regression
+— verified by running two of them against a commit from before the current work and watching them
+fail identically. They were specs written against the desktop sidebar (`getByRole('link', { name:
+'Quota' })`) on a viewport whose navigation is the `NavPicker` dropdown, plus one that still
+described a horizontal strip of links replaced weeks ago, plus a dialog whose event list sits
+below the fold on a phone.
 
-They still cost real time: one worker, a sixty-second test timeout and two retries make each one
-about three minutes. Fixing them means teaching those specs the phone's navigation, or scoping
-them to desktop where what they cover is not viewport behaviour. Until then a full sweep is red
-on mobile and the desktop and tablet projects are the signal.
+`goToPage()` in `e2e/helpers.ts` now uses whichever navigation the viewport has, so those specs
+cover the phone rather than being scoped away from it.
+
+The one remaining failure — `providers.spec.ts`, "asks for a code once MEGA says it needs one" —
+passes 7 of 7 when that file is run on its own. It is flaky under the full parallel run, not
+broken.
 
 Verified against the live account: 842 files, 11.9 GB scanned, categories summing exactly to the
 provider's own usage figure once the trash allowance is included. The EXIF reader was checked
@@ -687,9 +691,9 @@ would be storing a user's file, which is the one thing this product does not do.
 - `npm run typecheck` at the repo root fails: the script is `tsc --build` but there is no root
   `tsconfig.json`, only `tsconfig.base.json`. Typecheck per workspace (`-w @orbit/web`) until
   the script is fixed.
-- **25 Playwright specs fail on the `mobile` project**, because they reach for sidebar links that
-  a phone does not have. Pre-existing and verified as such against an older commit; see the
-  verification note above.
+- Two known flakes, both only under the full parallel run and both passing in isolation: one
+  server unit test, and `providers.spec.ts` on the `mobile` project. Neither has been chased to
+  a cause; they are recorded so a red run is read rather than assumed.
 - `npm run build --workspaces` fails too, for a duller reason: `@orbit/adapters` has no `build`
   script, and `--workspaces` treats a missing script as an error. Only `@orbit/web` and
   `@orbit/server` build; name them explicitly.

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { signIn } from './helpers.js';
 
 /**
@@ -9,6 +9,20 @@ import { signIn } from './helpers.js';
  * refusal of a private address arrives as an explanation rather than a stack
  * trace, and that the secret is shown once and then not again.
  */
+/**
+ * Ticks an event in the webhook dialog, wherever it has ended up.
+ *
+ * The list of events sits below the fold of the dialog on a phone. `force`
+ * skips the actionability checks but Playwright still refuses to click outside
+ * the viewport, so the dialog is scrolled first - which is what a person would
+ * do, and what the dialog's own overflow is there for.
+ */
+async function checkEvent(page: Page, name: RegExp): Promise<void> {
+  const box = page.getByRole('checkbox', { name });
+  await box.scrollIntoViewIfNeeded();
+  await box.check({ force: true });
+}
+
 test.describe('webhooks', () => {
   test.beforeEach(async ({ page }) => {
     await signIn(page);
@@ -22,7 +36,7 @@ test.describe('webhooks', () => {
     // https, so the check gets past the scheme and on to the address itself -
     // plain http is refused first, and separately, on a deployed instance.
     await page.getByPlaceholder('https://example.com/orbit').fill('https://169.254.169.254/meta');
-    await page.getByRole('checkbox', { name: /file\.uploaded/ }).check({ force: true });
+    await checkEvent(page, /file\.uploaded/);
 
     await page.getByRole('button', { name: 'Add it' }).click();
 
@@ -36,7 +50,7 @@ test.describe('webhooks', () => {
     await page.getByRole('button', { name: 'Add a webhook' }).click();
     await page.getByPlaceholder('What is at the other end').fill('Insecure');
     await page.getByPlaceholder('https://example.com/orbit').fill('http://203.0.113.10/hook');
-    await page.getByRole('checkbox', { name: /file\.uploaded/ }).check({ force: true });
+    await checkEvent(page, /file\.uploaded/);
     await page.getByRole('button', { name: 'Add it' }).click();
 
     // A signed payload sent unencrypted is a payload anyone on the path can
@@ -50,7 +64,7 @@ test.describe('webhooks', () => {
     await page.getByPlaceholder('What is at the other end').fill('Public receiver');
     // An address rather than a name, so the check needs no DNS.
     await page.getByPlaceholder('https://example.com/orbit').fill('https://203.0.113.10/hook');
-    await page.getByRole('checkbox', { name: /share\.created/ }).check({ force: true });
+    await checkEvent(page, /share\.created/);
 
     await page.getByRole('button', { name: 'Add it' }).click();
 
@@ -71,7 +85,7 @@ test.describe('webhooks', () => {
     await page.getByRole('button', { name: 'Add a webhook' }).click();
     await page.getByPlaceholder('What is at the other end').fill('Quiet one');
     await page.getByPlaceholder('https://example.com/orbit').fill('https://203.0.113.11/hook');
-    await page.getByRole('checkbox', { name: /file\.deleted/ }).check({ force: true });
+    await checkEvent(page, /file\.deleted/);
     await page.getByRole('button', { name: 'Add it' }).click();
     await page.getByRole('button', { name: 'Done' }).click();
 

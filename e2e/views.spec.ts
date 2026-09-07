@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn } from './helpers.js';
+import { goToPage, signIn } from './helpers.js';
 
 /**
  * Recent, starred and shared-with-me. The E2E stack has no connected account,
@@ -19,7 +19,7 @@ test.describe('workspace views', () => {
 
   for (const view of VIEWS) {
     test(`${view.link} loads and reports its own empty state`, async ({ page }) => {
-      await page.getByRole('navigation', { name: 'Workspace' }).getByRole('link', { name: view.link }).click();
+      await goToPage(page, view.link);
       await expect(page).toHaveURL(new RegExp(`${view.path}$`));
 
       await expect(page.getByRole('heading', { name: view.heading })).toBeVisible();

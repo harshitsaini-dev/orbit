@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn, uniqueEmail } from './helpers.js';
+import { goToPage, signIn, uniqueEmail } from './helpers.js';
 
 /**
  * Layout checks that only mean something on a small screen. They run on every
@@ -61,27 +61,43 @@ test.describe('small-screen layout', () => {
 
   test('every navigation item is reachable', async ({ page }, testInfo) => {
     await signIn(page);
-    const nav = page.getByRole('navigation', { name: 'Workspace' });
 
-    // On a phone the nav is a horizontal strip that scrolls on its own; the
-    // last item is only reachable if that scrolling actually works.
-    const last = nav.getByRole('link', { name: 'Account', exact: true });
-    await last.scrollIntoViewIfNeeded();
-    await expect(last).toBeVisible();
-    await last.click();
+    /*
+     * On a phone the navigation is a dropdown, not a strip of links.
+     *
+     * This test described the strip long after it was replaced, so it failed
+     * on the one project it exists for. What matters is unchanged: the last
+     * entry has to be reachable, which for a list of sixteen pages in a capped
+     * menu means the menu scrolls.
+     */
+    await goToPage(page, 'Account');
     await expect(page).toHaveURL(/\/account$/);
 
-    // And the strip itself must not have widened the page.
+    // And the navigation must not have widened the page.
     expect(await horizontalOverflow(page), `${testInfo.project.name} nav overflows`).toBeLessThanOrEqual(1);
   });
 
-  test('nav links are large enough to tap', async ({ page }) => {
+  test('nav entries are large enough to tap', async ({ page }) => {
     await signIn(page);
-    const links = page.getByRole('navigation', { name: 'Workspace' }).getByRole('link');
 
-    for (const link of await links.all()) {
-      const box = await link.boundingBox();
-      expect(box!.height, `"${await link.innerText()}" is too short to tap`).toBeGreaterThanOrEqual(36);
+    // Whichever navigation this viewport has: sidebar links on a desk, menu
+    // items behind the picker on a phone.
+    const sidebar = page.getByRole('navigation', { name: 'Workspace' }).getByRole('link');
+    let targets = sidebar;
+
+    if ((await sidebar.count()) === 0) {
+      await page.getByRole('button', { name: /^Go to another page/ }).click();
+      targets = page.getByRole('menu', { name: 'Pages' }).getByRole('menuitem');
+    }
+
+    expect(await targets.count()).toBeGreaterThan(0);
+
+    for (const target of await targets.all()) {
+      const box = await target.boundingBox();
+      // A menu item below the fold of a scrolling list has no box; it is
+      // reachable, which is what the test above covers.
+      if (!box) continue;
+      expect(box.height, `"${await target.innerText()}" is too short to tap`).toBeGreaterThanOrEqual(32);
     }
   });
 

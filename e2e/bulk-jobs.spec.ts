@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { signIn } from './helpers.js';
+import { goToPage, signIn } from './helpers.js';
 
 /**
  * A bulk delete is a background job.
@@ -130,7 +130,7 @@ test.describe('a bulk delete outlives the page that started it', () => {
     await expect(chip).toContainText(/Deleting/);
 
     // The move that used to kill it.
-    await page.getByRole('link', { name: 'Quota' }).click();
+    await goToPage(page, 'Quota');
     await expect(page).toHaveURL(/\/quota/);
 
     // Still there, still counting, on a page that knows nothing about it.

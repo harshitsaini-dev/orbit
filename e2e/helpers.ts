@@ -55,3 +55,30 @@ export async function openAccountMenu(page: Page) {
   await page.getByRole('button', { name: /account menu|Your account/i }).first().click();
   return page.getByRole('menu', { name: 'Account' });
 }
+
+/**
+ * Goes to a workspace page, whichever navigation this viewport has.
+ *
+ * A desk gets a sidebar of links; a phone gets the `NavPicker` dropdown, and
+ * there is no sidebar behind it. Specs that clicked the link directly passed on
+ * desktop and, on the mobile project, waited sixty seconds for an element that
+ * was never going to exist - then did it twice more, because CI retries.
+ * Twenty-five specs behaved that way, which is over an hour of the E2E job
+ * spent proving that a phone has no sidebar.
+ *
+ * Navigating is a means in almost all of those tests, not the thing under
+ * test. This makes it work in both layouts so the coverage is real on both,
+ * rather than scoping the specs to desktop and pretending the phone is tested.
+ */
+export async function goToPage(page: Page, label: string): Promise<void> {
+  const link = page.getByRole('link', { name: label, exact: true });
+
+  // The sidebar, when this viewport has one.
+  if (await link.isVisible().catch(() => false)) {
+    await link.click();
+    return;
+  }
+
+  await page.getByRole('button', { name: /^Go to another page/ }).click();
+  await page.getByRole('menu', { name: 'Pages' }).getByRole('menuitem', { name: label, exact: true }).click();
+}

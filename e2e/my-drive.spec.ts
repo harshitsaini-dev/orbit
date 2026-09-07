@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { signIn } from './helpers.js';
+import { goToPage, signIn } from './helpers.js';
 
 /**
  * The E2E stack has no connected account — connecting one needs a real Google
@@ -14,7 +14,7 @@ test.describe('my drive', () => {
   });
 
   test('points at Quota when nothing is connected', async ({ page }) => {
-    await page.getByRole('link', { name: 'My Drive' }).click();
+    await goToPage(page, 'My Drive');
     await expect(page).toHaveURL(/\/my-drive$/);
 
     await expect(page.getByRole('heading', { name: 'My Drive' })).toBeVisible();
