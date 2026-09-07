@@ -13,7 +13,20 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  /*
+   * Two on CI, not one.
+   *
+   * A single worker made the job take longer than any sensible ceiling: the
+   * same sweep is four and a half minutes locally with the default parallelism
+   * and over twenty-five serially, which is how it came to be cancelled twice
+   * by its own timeout.
+   *
+   * Two rather than the default, because the projects share one web server and
+   * one database, and every extra worker is another chance for the flakes that
+   * already show up under load. Two roughly halves the wall clock for a modest
+   * increase in that risk; the local run has been fully parallel all along.
+   */
+  workers: process.env.CI ? 2 : undefined,
   // The dev server transforms the module graph (three.js included) on the first
   // request, so a cold parallel start is well over Playwright's 5s default.
   timeout: 60_000,

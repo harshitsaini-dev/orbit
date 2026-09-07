@@ -13,12 +13,15 @@ jobs:
   playwright:
     runs-on: ubuntu-latest
     # A ceiling, because the default is six hours and a hung suite will happily
-    # use them. One run sat in_progress for over an hour on a spec that failed
-    # on a link the mobile layout does not have: one worker, sixty-second test
-    # timeout and two retries turn a handful of bad selectors into a very long
-    # afternoon. Twenty-five minutes is comfortably above a healthy run and far
-    # below a wasted one.
-    timeout-minutes: 25
+    # use them. One run sat in_progress for over an hour on specs that failed on
+    # a link the mobile layout does not have: a sixty-second test timeout and
+    # two retries turn a handful of bad selectors into a very long afternoon.
+    #
+    # Thirty-five rather than twenty-five. The specs are fixed and the config
+    # runs two workers now, but the honest number is what the job actually
+    # needs - checkout, npm ci, a browser download and four hundred specs - not
+    # what looks tidy. Twenty-five cancelled two healthy runs.
+    timeout-minutes: 35
     # The Playwright config owns the servers' environment (hosted mode, dev
     # outbox, dedicated ports), so nothing needs setting here.
     steps:
