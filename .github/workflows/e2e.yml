@@ -12,6 +12,13 @@ concurrency:
 jobs:
   playwright:
     runs-on: ubuntu-latest
+    # A ceiling, because the default is six hours and a hung suite will happily
+    # use them. One run sat in_progress for over an hour on a spec that failed
+    # on a link the mobile layout does not have: one worker, sixty-second test
+    # timeout and two retries turn a handful of bad selectors into a very long
+    # afternoon. Twenty-five minutes is comfortably above a healthy run and far
+    # below a wasted one.
+    timeout-minutes: 25
     # The Playwright config owns the servers' environment (hosted mode, dev
     # outbox, dedicated ports), so nothing needs setting here.
     steps:

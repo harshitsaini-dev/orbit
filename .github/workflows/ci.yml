@@ -12,6 +12,8 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    # The same ceiling as the E2E job, for the same reason.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 

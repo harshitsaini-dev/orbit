@@ -99,6 +99,12 @@ async function selectAllAndDelete(page: Page): Promise<void> {
 }
 
 test.describe('a bulk delete outlives the page that started it', () => {
+  /*
+   * Desktop only, and the exclusion lives in playwright.config.ts because that
+   * is where the project matrix is. See the note beside it: this covers where
+   * a job lives, which is not viewport behaviour, and reaching another page
+   * differs between the sidebar and the phone's nav dropdown.
+   */
   test.beforeEach(async ({ page }) => {
     await signIn(page);
   });

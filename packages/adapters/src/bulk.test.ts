@@ -83,6 +83,10 @@ describe('running a bulk operation', () => {
 
   it('describes a thrown non-Error rather than losing it', async () => {
     const result = await bulkMap(['one'], async () => {
+      // Deliberately not an Error. Provider libraries throw strings and plain
+      // objects - megajs does - and the point of this test is that such a
+      // throw becomes a reported failure rather than crashing the batch.
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
       throw 'a string';
     });
 

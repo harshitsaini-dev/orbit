@@ -113,9 +113,17 @@ NULLs as distinct, so those never deduplicate: merging two connections that only
 | `npm run build -w @orbit/web -w @orbit/server` | clean |
 | `npx playwright test` | 399 specs across desktop, tablet and mobile |
 
-The Playwright figure is the suite's size. The specs touched by the last few days of work —
-browsing, search filters, multi-select, file actions, the bin, the bulk-job queue and the drive
-picker — were run headed and pass; the full three-project sweep was not re-run end to end.
+The full sweep is **370 pass, 25 fail**, and every failure is on the `mobile` project.
+
+Those are not a regression. They are specs written against the desktop sidebar —
+`getByRole('link', { name: 'Quota' })` and the like — and a phone has no sidebar: navigation is
+the `NavPicker` dropdown. Confirmed rather than assumed, by running two of them against a commit
+from before the current run of work and watching them fail identically there.
+
+They still cost real time: one worker, a sixty-second test timeout and two retries make each one
+about three minutes. Fixing them means teaching those specs the phone's navigation, or scoping
+them to desktop where what they cover is not viewport behaviour. Until then a full sweep is red
+on mobile and the desktop and tablet projects are the signal.
 
 Verified against the live account: 842 files, 11.9 GB scanned, categories summing exactly to the
 provider's own usage figure once the trash allowance is included. The EXIF reader was checked
@@ -679,6 +687,9 @@ would be storing a user's file, which is the one thing this product does not do.
 - `npm run typecheck` at the repo root fails: the script is `tsc --build` but there is no root
   `tsconfig.json`, only `tsconfig.base.json`. Typecheck per workspace (`-w @orbit/web`) until
   the script is fixed.
+- **25 Playwright specs fail on the `mobile` project**, because they reach for sidebar links that
+  a phone does not have. Pre-existing and verified as such against an older commit; see the
+  verification note above.
 - `npm run build --workspaces` fails too, for a duller reason: `@orbit/adapters` has no `build`
   script, and `--workspaces` treats a missing script as an error. Only `@orbit/web` and
   `@orbit/server` build; name them explicitly.

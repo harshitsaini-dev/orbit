@@ -1,7 +1,6 @@
 import { getAdapter, isGrantRevoked, ProviderError } from '@orbit/adapters';
 import { accounts, filesMirror, syncLog } from '@orbit/db';
-import type { OrbitFile } from '@orbit/shared-types';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { desc, eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { db } from '../lib/db.js';
 import { forgetFromMirror, rememberInMirror } from './mirror.js';

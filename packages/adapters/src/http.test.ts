@@ -13,11 +13,11 @@ afterEach(() => {
 function replay(responses: Array<() => Response>): { calls: () => number } {
   let calls = 0;
 
-  globalThis.fetch = (async () => {
+  globalThis.fetch = async () => {
     const next = responses[Math.min(calls, responses.length - 1)]!;
     calls += 1;
     return next();
-  }) as typeof fetch;
+  };
 
   return { calls: () => calls };
 }

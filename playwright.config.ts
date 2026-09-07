@@ -34,12 +34,24 @@ export default defineConfig({
 
   projects: [
     { name: 'desktop-chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
-    // Tablet/mobile run on Chromium too, so CI only ever installs one browser.
+    /*
+     * Tablet/mobile run on Chromium too, so CI only ever installs one browser.
+     *
+     * `bulk-jobs` is desktop-only. It covers where a background job lives -
+     * above the router, surviving a client-side navigation - which does not
+     * vary by viewport, and reaching another page means the sidebar on a desk
+     * and the nav dropdown on a phone. Running it everywhere failed on a link
+     * the phone does not have, and one worker with two retries and a
+     * sixty-second timeout turned that into minutes of CI per attempt.
+     * `page.goto` is not a substitute: a full reload loses an in-memory job
+     * legitimately, so it would prove nothing.
+     */
     {
       name: 'tablet',
+      testIgnore: /bulk-jobs\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], viewport: { width: 834, height: 1112 }, isMobile: false, hasTouch: true },
     },
-    { name: 'mobile', use: { ...devices['Pixel 5'] } },
+    { name: 'mobile', testIgnore: /bulk-jobs\.spec\.ts/, use: { ...devices['Pixel 5'] } },
   ],
 
   webServer: [
