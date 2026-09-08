@@ -53,3 +53,15 @@ dev-dist/
 
 # the share page's viewer, built into the server rather than committed
 apps/server/public/share/
+
+# Portfolio cover, icon and gallery shots.
+#
+# These are uploaded to the portfolio CMS and served from its object storage.
+# Committing them here as well would leave two copies of the same picture with
+# no way to tell which one the site is actually serving - and the one in git
+# would go stale the first time the CMS copy is replaced.
+#
+# The render and screenshot scripts sit in the same directory and are ignored
+# with it. If they are ever wanted in version control, move them somewhere that
+# is not `covers/` rather than carving an exception out of this rule.
+/covers/
