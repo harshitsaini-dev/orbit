@@ -37,6 +37,13 @@ export default tseslint.config(
       // The share page's viewer, built from apps/web into the server.
       'apps/server/public/**',
       'packages/db/migrations/**',
+      /*
+       * Portfolio artwork and the scripts that render it. Gitignored, so it is
+       * not in a fresh clone at all - but it is in the working tree of whoever
+       * made it, and `npm run lint` failing on files that will never be
+       * committed teaches people to ignore the linter.
+       */
+      'covers/**',
     ],
   },
 
